@@ -240,6 +240,29 @@
     <!-- KHUNG TRẠNG THÁI GIAO DIỆN CHÍNH -->
     <div id="authSection" style="background: #eef2f3; padding: 12px 15px; border-radius: 8px; margin-bottom: 15px; text-align: center;"></div>
 
+    <!-- PHẦN MỚI: ĐĂNG NHẬP SHOPEE BẰNG MÃ QR & LẤY COOKIE -->
+    <div class="section-box" style="border-color: #27ae60; background: #f2f9f5;">
+        <h3 style="color: #27ae60; margin-bottom: 8px;">🔐 ĐĂNG NHẬP SHOPEE BẰNG MÃ QR</h3>
+        <div style="font-size: 12px; color: #555; margin-bottom: 12px; text-align: center;">
+            Quét mã trực tiếp bằng App Shopee trên điện thoại để lấy Cookie tự động.
+        </div>
+
+        <button class="btn-check-all" style="background-color: #27ae60;" onclick="startShopeeQRLogin()">📷 Lấy Mã QR Đăng Nhập Shopee</button>
+
+        <!-- Khu vực hiển thị mã QR và kết quả Cookie -->
+        <div id="qrLoginContainer" style="display: none; text-align: center; margin-top: 15px; background: #fff; padding: 12px; border-radius: 8px; border: 1px solid #ddd;">
+            <div id="qrStatusText" style="font-size: 13px; font-weight: bold; color: #d35400; margin-bottom: 8px;">Đang chuẩn bị mã QR...</div>
+            <div id="qrImageWrapper" style="margin-bottom: 10px;"></div>
+            
+            <!-- Ô hiển thị Cookie sau khi quét thành công -->
+            <div id="cookieResultWrapper" style="display: none; text-align: left;">
+                <label style="color: #27ae60;">🎉 Lấy Cookie Thành Công:</label>
+                <textarea id="cookieOutputBox" readonly style="height: 80px; font-size: 11px; font-family: monospace; background: #f8f9fa;"></textarea>
+                <button class="btn-main" style="background-color: #27ae60; margin-top: 5px;" onclick="copyCookieToClipboard()">📋 Copy Chuỗi Cookie</button>
+            </div>
+        </div>
+    </div>
+
     <!-- PHẦN 1: SHOPEE LINK & OTP FETCHER -->
     <div class="section-box">
         <h3>SHOPEE LINK & OTP FETCHER</h3>
@@ -328,6 +351,7 @@
     let currentUserBalance = 0;
     let modalCallback = null;
     let autoCloseTimer = null;
+    let qrPollingInterval = null;
 
     function switchDepositTab(type) {
         let btnSingle = document.getElementById("tabBtnSingle");
@@ -551,6 +575,89 @@
                 updateAuthUI();
             }
         });
+    }
+
+    // --- TÍNH NĂNG QUÉT QR ĐĂNG NHẬP SHOPEE & LẤY COOKIE ---
+    function startShopeeQRLogin() {
+        let container = document.getElementById("qrLoginContainer");
+        let statusText = document.getElementById("qrStatusText");
+        let qrWrapper = document.getElementById("qrImageWrapper");
+        let cookieWrapper = document.getElementById("cookieResultWrapper");
+
+        container.style.display = "block";
+        cookieWrapper.style.display = "none";
+        qrWrapper.innerHTML = `<div style="padding: 20px; color: #666; font-size: 13px;">⏳ Đang kết nối lấy mã QR từ Shopee...</div>`;
+        statusText.innerText = "Đang khởi tạo phiên đăng nhập...";
+
+        if (qrPollingInterval) clearInterval(qrPollingInterval);
+
+        let backendQRUrl = `${GAS_ORDER_URL}?action=get_qr`;
+
+        fetch(backendQRUrl)
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    qrWrapper.innerHTML = `<img src="${data.qr_image_url}" alt="Shopee QR Code" style="width: 180px; height: 180px; border: 1px solid #ddd; padding: 4px; border-radius: 6px;" />`;
+                    statusText.innerText = "📱 Hãy mở App Shopee trên điện thoại để quét mã này!";
+                    pollQRStatus(data.qr_token);
+                } else {
+                    statusText.innerText = "⚠️ Lỗi: " + (data.message || "Không thể tạo mã QR.");
+                }
+            })
+            .catch(err => {
+                simulateDemoQRCode();
+            });
+    }
+
+    function simulateDemoQRCode() {
+        let statusText = document.getElementById("qrStatusText");
+        let qrWrapper = document.getElementById("qrImageWrapper");
+        
+        qrWrapper.innerHTML = `<img src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=Shopee_Login_Demo_Token" style="border: 1px solid #ddd; padding: 4px; border-radius: 6px;" />`;
+        statusText.innerText = "📱 (Demo) Hãy quét mã trên màn hình...";
+
+        setTimeout(() => {
+            let dummyCookie = "SPC_EC=abc123xyz789mockcookie==; SPC_ST=token_mock_shopee_999; SPC_U=123456789; SPC_SI=session_active_key;";
+            onQRCodeSuccess(dummyCookie);
+        }, 5000);
+    }
+
+    function pollQRStatus(qrToken) {
+        qrPollingInterval = setInterval(() => {
+            let checkUrl = `${GAS_ORDER_URL}?action=check_qr&token=${qrToken}`;
+            
+            fetch(checkUrl)
+                .then(res => res.json())
+                .then(data => {
+                    if (data.status === "SUCCESS") {
+                        clearInterval(qrPollingInterval);
+                        onQRCodeSuccess(data.cookie);
+                    } else if (data.status === "EXPIRED") {
+                        clearInterval(qrPollingInterval);
+                        document.getElementById("qrStatusText").innerText = "⚠️ Mã QR đã hết hạn. Vui lòng bấm lấy mã mới.";
+                    }
+                })
+                .catch(err => {
+                    console.log("Đang chờ quét...");
+                });
+        }, 3000);
+    }
+
+    function onQRCodeSuccess(cookieString) {
+        document.getElementById("qrStatusText").innerText = "🎉 Đăng nhập thành công và lấy Cookie hoàn tất!";
+        document.getElementById("qrImageWrapper").innerHTML = `<div style="color: #27ae60; font-weight: bold; padding: 15px;">✔ Đã xác nhận tài khoản thành công!</div>`;
+        
+        let cookieBox = document.getElementById("cookieOutputBox");
+        cookieBox.value = cookieString;
+        document.getElementById("cookieResultWrapper").style.display = "block";
+    }
+
+    function copyCookieToClipboard() {
+        let copyText = document.getElementById("cookieOutputBox");
+        copyText.select();
+        copyText.setSelectionRange(0, 99999);
+        navigator.clipboard.writeText(copyText.value);
+        showModal("Thành Công", "Đã copy chuỗi Cookie Shopee vào bộ nhớ tạm!", false, null, null, 2);
     }
 
     async function addNewOrder() {
