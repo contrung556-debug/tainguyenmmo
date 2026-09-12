@@ -1,3 +1,6 @@
+Hehe nhìn cái bảng thông báo alert hay confirm mặc định của trình duyệt điện thoại đúng là nó thô và lệch tông màu cam Shopee thật :D
+Mình thay toàn bộ mấy cái bảng thông báo thô kệch đó bằng Modal (hộp thoại tùy chỉnh) mượt mà, bo tròn, tông màu Shopee chuẩn chỉnh, xuất hiện ngay giữa màn hình cực kỳ xịn sò.
+Bạn dán đoạn code hoàn thiện này vào Vercel nhé:
 <!DOCTYPE html>
 <html lang="vi">
 <head>
@@ -128,6 +131,66 @@
             font-weight: bold;
             color: #333;
         }
+
+        /* CUSTOM MODAL CSS */
+        #customModalOverlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 9999;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        #customModalBox {
+            background: #fff;
+            width: 100%;
+            max-width: 360px;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+            text-align: center;
+            animation: modalScaleUp 0.2s ease-in-out;
+        }
+        @keyframes modalScaleUp {
+            from { transform: scale(0.8); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+        #modalTitle {
+            font-size: 16px;
+            font-weight: bold;
+            color: #ee4d2d;
+            margin-bottom: 10px;
+        }
+        #modalMessage {
+            font-size: 14px;
+            color: #444;
+            margin-bottom: 20px;
+            line-height: 1.4;
+        }
+        .modal-buttons {
+            display: flex;
+            gap: 10px;
+        }
+        .modal-btn {
+            flex: 1;
+            padding: 10px;
+            border: none;
+            border-radius: 6px;
+            font-weight: bold;
+            font-size: 13px;
+            cursor: pointer;
+        }
+        #modalBtnCancel {
+            background: #bdc3c7;
+            color: #333;
+        }
+        #modalBtnOk {
+            background: #ee4d2d;
+            color: #fff;
+        }
     </style>
 </head>
 <body>
@@ -136,7 +199,7 @@
     
     <h2>QUẢN LÝ ĐƠN HÀNG SHOPEE</h2>
 
-    <!-- KHUNG ĐĂNG NHẬP / ĐĂNG XUẤT CÓ MẬT KHẨU -->
+    <!-- KHUNG ĐĂNG NHẬP / ĐĂNG KÝ -->
     <div id="authSection" style="background: #eef2f3; padding: 12px 15px; border-radius: 8px; margin-bottom: 15px;">
         <!-- Nội dung tự động thay đổi theo trạng thái đăng nhập -->
     </div>
@@ -184,6 +247,18 @@
 
 </div>
 
+<!-- CUSTOM MODAL HTML -->
+<div id="customModalOverlay">
+    <div id="customModalBox">
+        <div id="modalTitle">Thông Báo</div>
+        <div id="modalMessage">Nội dung thông báo ở đây...</div>
+        <div class="modal-buttons">
+            <button id="modalBtnCancel" class="modal-btn" onclick="closeModal(false)">Hủy</button>
+            <button id="modalBtnOk" class="modal-btn" onclick="closeModal(true)">OK</button>
+        </div>
+    </div>
+</div>
+
 <script>
     const SUPABASE_URL = "https://hsdbjzkxbdezysxwwtaw.supabase.co";
     const SUPABASE_ANON_KEY = "sb_publishable_LIeDI4UVn7MEo5vURP05hA_TM4h0vFd";
@@ -194,8 +269,33 @@
 
     let allOrdersData = [];
     let currentUsername = localStorage.getItem("shopee_logged_user") || "";
+    let modalCallback = null;
 
-    // Cập nhật giao diện Đăng nhập / Đăng xuất
+    // Hàm gọi Modal tùy chỉnh đẹp mắt thay cho alert/confirm mặc định
+    function showModal(title, message, isConfirm = false, callback = null) {
+        document.getElementById("modalTitle").innerText = title;
+        document.getElementById("modalMessage").innerText = message;
+        modalCallback = callback;
+
+        let cancelBtn = document.getElementById("modalBtnCancel");
+        if (isConfirm) {
+            cancelBtn.style.display = "block";
+        } else {
+            cancelBtn.style.display = "none";
+        }
+
+        document.getElementById("customModalOverlay").style.display = "flex";
+    }
+
+    function closeModal(result) {
+        document.getElementById("customModalOverlay").style.display = "none";
+        if (modalCallback) {
+            modalCallback(result);
+            modalCallback = null;
+        }
+    }
+
+    // Cập nhật giao diện Đăng nhập / Đăng ký
     function updateAuthUI() {
         const authSection = document.getElementById("authSection");
         if (currentUsername) {
@@ -208,50 +308,97 @@
             loadOrdersFromSupabase();
         } else {
             authSection.innerHTML = `
-                <div style="font-size: 13px; font-weight: bold; margin-bottom: 8px; color: #444;">🔑 Đăng nhập hệ thống:</div>
+                <div style="font-size: 13px; font-weight: bold; margin-bottom: 8px; color: #444;">🔑 Đăng Nhập / Đăng Ký Tài Khoản:</div>
                 <input type="text" id="loginUsernameInput" placeholder="Tên tài khoản..." style="margin-bottom: 8px;">
                 <input type="password" id="loginPasswordInput" placeholder="Mật khẩu..." style="margin-bottom: 10px;">
-                <button onclick="login()" style="background: #27ae60; color: white; border: none; padding: 10px; border-radius: 6px; font-size: 13px; font-weight: bold; width: 100%; cursor: pointer;">Đăng Nhập</button>
+                <div style="display: flex; gap: 8px;">
+                    <button onclick="handleLogin()" style="background: #27ae60; color: white; border: none; padding: 10px; border-radius: 6px; font-size: 13px; font-weight: bold; flex: 1; cursor: pointer;">Đăng Nhập</button>
+                    <button onclick="handleRegister()" style="background: #3498db; color: white; border: none; padding: 10px; border-radius: 6px; font-size: 13px; font-weight: bold; flex: 1; cursor: pointer;">Đăng Ký Mới</button>
+                </div>
             `;
             document.getElementById("orderListContainer").innerHTML = `<div style="text-align: center; color: #888; padding: 15px;">Vui lòng đăng nhập để xem danh sách đơn hàng.</div>`;
         }
     }
 
-    // Hàm xử lý Đăng nhập (có kiểm tra mật khẩu)
-    function login() {
+    // Xử lý Đăng ký tài khoản mới lưu vào bảng shopee_users
+    async function handleRegister() {
         const usernameVal = document.getElementById("loginUsernameInput").value.trim();
         const passwordVal = document.getElementById("loginPasswordInput").value.trim();
 
         if (!usernameVal || !passwordVal) {
-            alert("Vui lòng nhập đầy đủ tên tài khoản và mật khẩu!");
+            showModal("Thiếu thông tin", "Vui lòng nhập đầy đủ tên tài khoản và mật khẩu để đăng ký!");
             return;
         }
 
-        // Bạn có thể tùy chỉnh mật khẩu chung hoặc logic kiểm tra tại đây (Ví dụ tạm để mật khẩu mặc định là "123456" hoặc khớp với tên tùy ý)
-        // Hoặc tạm thời lưu mật khẩu vào localStorage để lần sau nhớ
-        if (passwordVal.length < 3) {
-            alert("Mật khẩu quá ngắn!");
+        const { data: existing, error: checkErr } = await _supabase
+            .from('shopee_users')
+            .select('*')
+            .eq('username', usernameVal);
+
+        if (existing && existing.length > 0) {
+            showModal("Trùng tài khoản", "Tài khoản '" + usernameVal + "' đã tồn tại! Vui lòng chọn tên khác hoặc bấm Đăng Nhập.");
+            return;
+        }
+
+        const { error: regErr } = await _supabase
+            .from('shopee_users')
+            .insert([{ username: usernameVal, password: passwordVal }]);
+
+        if (regErr) {
+            showModal("Lỗi đăng ký", regErr.message);
+            return;
+        }
+
+        showModal("Thành công", "Đăng ký thành công tài khoản: " + usernameVal + "! Bây giờ bạn có thể bấm Đăng Nhập.");
+    }
+
+    // Xử lý Đăng nhập kiểm tra dữ liệu từ bảng shopee_users
+    async function handleLogin() {
+        const usernameVal = document.getElementById("loginUsernameInput").value.trim();
+        const passwordVal = document.getElementById("loginPasswordInput").value.trim();
+
+        if (!usernameVal || !passwordVal) {
+            showModal("Thiếu thông tin", "Vui lòng nhập đầy đủ tên tài khoản và mật khẩu!");
+            return;
+        }
+
+        const { data: users, error } = await _supabase
+            .from('shopee_users')
+            .select('*')
+            .eq('username', usernameVal);
+
+        if (error || !users || users.length === 0) {
+            showModal("Không tìm thấy", "Tài khoản này chưa được đăng ký! Vui lòng bấm nút 'Đăng Ký Mới'.");
+            return;
+        }
+
+        let userRecord = users[0];
+        if (userRecord.password !== passwordVal) {
+            showModal("Sai mật khẩu", "Mật khẩu không chính xác!");
             return;
         }
 
         currentUsername = usernameVal;
         localStorage.setItem("shopee_logged_user", currentUsername);
         updateAuthUI();
-        alert("Đăng nhập thành công tài khoản: " + currentUsername);
+        showModal("Thành công", "Đăng nhập thành công!");
     }
 
     // Hàm xử lý Đăng xuất
     function logout() {
-        if (!confirm("Bạn có chắc chắn muốn đăng xuất không?")) return;
-        currentUsername = "";
-        localStorage.removeItem("shopee_logged_user");
-        updateAuthUI();
+        showModal("Xác nhận", "Bạn có chắc chắn muốn đăng xuất không?", true, function(res) {
+            if (res) {
+                currentUsername = "";
+                localStorage.removeItem("shopee_logged_user");
+                updateAuthUI();
+            }
+        });
     }
 
     // Hàm nạp đơn mới có kiểm tra trùng mã đơn hàng
     async function addNewOrder() {
         if (!currentUsername) {
-            alert("Vui lòng đăng nhập trước khi nạp đơn!");
+            showModal("Chưa đăng nhập", "Vui lòng đăng nhập trước khi nạp đơn!");
             return;
         }
 
@@ -260,7 +407,7 @@
         const email = document.getElementById("inputEmail").value.trim();
 
         if (!orderCode || !email) {
-            alert("Vui lòng nhập đầy đủ mã đơn hàng và địa chỉ email!");
+            showModal("Thiếu thông tin", "Vui lòng nhập đầy đủ mã đơn hàng và địa chỉ email!");
             return;
         }
 
@@ -271,12 +418,12 @@
             .eq('order_code', orderCode);
 
         if (checkError) {
-            alert("Lỗi khi kiểm tra trùng đơn: " + checkError.message);
+            showModal("Lỗi", checkError.message);
             return;
         }
 
         if (existingOrders && existingOrders.length > 0) {
-            alert("⚠️ Trùng ID đơn hàng! Mã đơn '" + orderCode + "' đã tồn tại trong hệ thống.");
+            showModal("Trùng mã đơn", "Mã đơn '" + orderCode + "' đã tồn tại trong hệ thống.");
             return;
         }
 
@@ -293,9 +440,9 @@
             ]);
 
         if (error) {
-            alert("Lỗi khi thêm đơn: " + error.message);
+            showModal("Lỗi", error.message);
         } else {
-            alert("Đã nạp đơn hàng thành công vào hệ thống!");
+            showModal("Thành công", "Đã nạp đơn hàng thành công vào hệ thống!");
             document.getElementById("inputOrderCode").value = '';
             document.getElementById("inputProductName").value = '';
             document.getElementById("inputEmail").value = '';
@@ -380,7 +527,7 @@
         newEmail = newEmail.trim();
 
         if (!newCode || !newEmail) {
-            alert("Mã đơn và Email không được để trống!");
+            showModal("Thiếu thông tin", "Mã đơn và Email không được để trống!");
             return;
         }
 
@@ -390,34 +537,35 @@
             .eq('id', id);
 
         if (error) {
-            alert("Lỗi khi cập nhật đơn: " + error.message);
+            showModal("Lỗi", error.message);
         } else {
-            alert("Đã cập nhật thông tin đơn hàng thành công!");
+            showModal("Thành công", "Đã cập nhật thông tin đơn hàng thành công!");
             loadOrdersFromSupabase();
         }
     }
 
     // Xóa đơn hàng
     async function deleteOrder(id, orderCode) {
-        if (!confirm(`Bạn có chắc chắn muốn xóa đơn hàng #${orderCode} không?`)) return;
-
-        const { error } = await _supabase.from('shopee_orders').delete().eq('id', id);
-
-        if (error) {
-            alert("Lỗi khi xóa đơn: " + error.message);
-        } else {
-            alert("Đã xóa đơn hàng thành công!");
-            loadOrdersFromSupabase();
-        }
+        showModal("Xác nhận xóa", `Bạn có chắc chắn muốn xóa đơn hàng #${orderCode} không?`, true, async function(res) {
+            if (res) {
+                const { error } = await _supabase.from('shopee_orders').delete().eq('id', id);
+                if (error) {
+                    showModal("Lỗi", error.message);
+                } else {
+                    showModal("Thành công", "Đã xóa đơn hàng thành công!");
+                    loadOrdersFromSupabase();
+                }
+            }
+        });
     }
 
     // Check All
     function checkAllOrders() {
         if (!currentUsername) {
-            alert("Vui lòng đăng nhập trước!");
+            showModal("Chưa đăng nhập", "Vui lòng đăng nhập trước!");
             return;
         }
-        alert("Đang kích hoạt quét tất cả đơn chờ giao trên hệ thống...");
+        showModal("Đang quét", "Đang kích hoạt quét tất cả đơn chờ giao trên hệ thống...");
         let callbackName = 'check_all_cb_' + Math.round(Math.random() * 100000);
         
         let scriptTag = document.createElement('script');
@@ -427,12 +575,12 @@
         window[callbackName] = function(data) {
             document.getElementById('jsonpCheckAllTag').remove();
             delete window[callbackName];
-            alert("Đã quét xong toàn bộ đơn! Đang cập nhật lại giao diện...");
+            showModal("Hoàn tất", "Đã quét xong toàn bộ đơn! Đang cập nhật lại giao diện...");
             loadOrdersFromSupabase();
         };
 
         scriptTag.onerror = function() {
-            alert("Lỗi kết nối đến Google Apps Script (Quét đơn).");
+            showModal("Lỗi", "Lỗi kết nối đến Google Apps Script (Quét đơn).");
             delete window[callbackName];
         };
         document.body.appendChild(scriptTag);
@@ -441,7 +589,7 @@
     // Check Single
     function checkSingleOrder(id, orderCode, email) {
         if (!email) {
-            alert("Đơn hàng này không còn email!");
+            showModal("Thiếu email", "Đơn hàng này không có email!");
             return;
         }
 
@@ -453,12 +601,12 @@
         window[callbackName] = function(data) {
             document.getElementById('jsonpCheckTag').remove();
             delete window[callbackName];
-            alert("Đã quét xong đơn này! Đang cập nhật lại giao diện...");
+            showModal("Hoàn tất", "Đã quét xong đơn này! Đang cập nhật lại giao diện...");
             loadOrdersFromSupabase();
         };
 
         scriptTag.onerror = function() {
-            alert("Lỗi kết nối đến Google Apps Script (Check đơn).");
+            showModal("Lỗi", "Lỗi kết nối đến Google Apps Script (Check đơn).");
             delete window[callbackName];
         };
         document.body.appendChild(scriptTag);
@@ -480,7 +628,7 @@
         let resultDiv = document.getElementById("fetchResult");
         
         if (!val) {
-            alert("Vui lòng nhập tên hoặc email để lấy link!");
+            showModal("Thiếu thông tin", "Vui lòng nhập tên hoặc email để lấy link!");
             return;
         }
 
@@ -498,7 +646,7 @@
                     otpHtml = `
                         <div style="margin-bottom: 8px; display: flex; align-items: center; justify-content: space-between; background: #fff; padding: 6px 10px; border-radius: 6px; border: 1px solid #ddd;">
                             <div><b>Mã OTP:</b> <span style="color:#d35400; font-size:16px; font-weight:bold;">${safeOtp}</span></div>
-                            <button onclick="navigator.clipboard.writeText('${safeOtp}'); alert('Đã copy mã OTP: ${safeOtp}');" style="background-color: #e67e22; color: white; border: none; padding: 5px 10px; border-radius: 4px; font-weight: bold; font-size: 12px; cursor: pointer;">📋 Copy OTP</button>
+                            <button onclick="navigator.clipboard.writeText('${safeOtp}'); showModal('Đã copy', 'Mã OTP: ${safeOtp}');" style="background-color: #e67e22; color: white; border: none; padding: 5px 10px; border-radius: 4px; font-weight: bold; font-size: 12px; cursor: pointer;">📋 Copy OTP</button>
                         </div>
                     `;
                 }
@@ -509,7 +657,7 @@
                     actionButtons = `
                         <div style="margin-top: 8px; display: flex; gap: 8px;">
                             <a href="${safeLink}" target="_blank" style="flex: 1; background-color: #27ae60; color: white; text-align: center; padding: 8px; border-radius: 6px; text-decoration: none; font-weight: bold; font-size: 13px;">MỞ LINK</a>
-                            <button onclick="navigator.clipboard.writeText('${safeLink}'); alert('Đã copy link thành công!');" style="flex: 1; background-color: #3498db; color: white; border: none; padding: 8px; border-radius: 6px; font-weight: bold; font-size: 13px; cursor: pointer;">COPY LINK</button>
+                            <button onclick="navigator.clipboard.writeText('${safeLink}'); showModal('Đã copy', 'Đã copy link thành công!');" style="flex: 1; background-color: #3498db; color: white; border: none; padding: 8px; border-radius: 6px; font-weight: bold; font-size: 13px; cursor: pointer;">COPY LINK</button>
                         </div>
                     `;
                 }
@@ -547,3 +695,4 @@
 
 </body>
 </html>
+
