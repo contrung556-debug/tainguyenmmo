@@ -345,8 +345,6 @@
 
     const GAS_OTP_URL = "https://script.google.com/macros/s/AKfycbwk0RSNFUrzaU7nSlNgAgazt3BWUNR-meYBYvJcSkJIFxQe4XiDfGd3FsfcSTWzOLk/exec";
     const GAS_ORDER_URL = "https://script.google.com/macros/s/AKfycbxSO_B7KYFmTvJ9XTUMI4jU8N2Vyz0GwMnqxk3T0PnX-rcKtfGu5b0DTzNgHPovJVVIRw/exec";
-    
-    // URL Google Apps Script chuyên xử lý QR Shopee (Đã cập nhật link mới nhất của bạn)
     const GAS_QR_URL = "https://script.google.com/macros/s/AKfycbxhl9nuO4JtQZBQBd9WiB0WSr1a0l_EUgGkXhsUV-TlqfbwdhMvF-zB6yH2OlFiQxn7pQ/exec";
 
     let allOrdersData = [];
@@ -580,7 +578,7 @@
         });
     }
 
-    // --- TÍNH NĂNG QUÉT QR ĐĂNG NHẬP SHOPEE & LẤY COOKIE ---
+    // --- TÍNH NĂNG QUÉT QR ĐĂNG NHẬP SHOPEE DÙNG JSONP ---
     function startShopeeQRLogin() {
         let container = document.getElementById("qrLoginContainer");
         let statusText = document.getElementById("qrStatusText");
@@ -594,42 +592,59 @@
 
         if (qrPollingInterval) clearInterval(qrPollingInterval);
 
-        let backendQRUrl = `${GAS_QR_URL}?action=get_qr`;
+        let callbackName = 'qr_cb_' + Math.round(Math.random() * 100000);
+        let scriptTag = document.createElement('script');
+        scriptTag.id = 'jsonpQRTag';
+        scriptTag.src = `${GAS_QR_URL}?action=get_qr&callback=${callbackName}`;
 
-        fetch(backendQRUrl)
-            .then(res => res.json())
-            .then(data => {
-                if (data.success) {
-                    qrWrapper.innerHTML = `<img src="${data.qr_image_url}" alt="Shopee QR Code" style="width: 180px; height: 180px; border: 1px solid #ddd; padding: 4px; border-radius: 6px;" />`;
-                    statusText.innerText = "📱 Hãy mở App Shopee trên điện thoại để quét mã này!";
-                    pollQRStatus(data.qr_token);
-                } else {
-                    statusText.innerText = "⚠️ Lỗi: " + (data.message || "Không thể tạo mã QR.");
-                }
-            })
-            .catch(err => {
-                statusText.innerText = "⚠️ Lỗi kết nối Google Apps Script QR.";
-            });
+        window[callbackName] = function(data) {
+            document.getElementById('jsonpQRTag').remove();
+            delete window[callbackName];
+
+            if (data.success) {
+                qrWrapper.innerHTML = `<img src="${data.qr_image_url}" alt="Shopee QR Code" style="width: 180px; height: 180px; border: 1px solid #ddd; padding: 4px; border-radius: 6px;" />`;
+                statusText.innerText = "📱 Hãy mở App Shopee trên điện thoại để quét mã này!";
+                pollQRStatus(data.qr_token);
+            } else {
+                statusText.innerText = "⚠️ Lỗi: " + (data.message || "Không thể tạo mã QR.");
+            }
+        };
+
+        scriptTag.onerror = function() {
+            document.getElementById('jsonpQRTag').remove();
+            delete window[callbackName];
+            statusText.innerText = "⚠️ Lỗi kết nối Google Apps Script QR.";
+        };
+
+        document.body.appendChild(scriptTag);
     }
 
     function pollQRStatus(qrToken) {
         qrPollingInterval = setInterval(() => {
-            let checkUrl = `${GAS_QR_URL}?action=check_qr&token=${qrToken}`;
-            
-            fetch(checkUrl)
-                .then(res => res.json())
-                .then(data => {
-                    if (data.status === "SUCCESS") {
-                        clearInterval(qrPollingInterval);
-                        onQRCodeSuccess(data.cookie);
-                    } else if (data.status === "EXPIRED") {
-                        clearInterval(qrPollingInterval);
-                        document.getElementById("qrStatusText").innerText = "⚠️ Mã QR đã hết hạn. Vui lòng bấm lấy mã mới.";
-                    }
-                })
-                .catch(err => {
-                    console.log("Đang chờ quét...");
-                });
+            let callbackName = 'qr_poll_' + Math.round(Math.random() * 100000);
+            let scriptTag = document.createElement('script');
+            scriptTag.id = 'jsonpPollTag';
+            scriptTag.src = `${GAS_QR_URL}?action=check_qr&token=${qrToken}&callback=${callbackName}`;
+
+            window[callbackName] = function(data) {
+                document.getElementById('jsonpPollTag').remove();
+                delete window[callbackName];
+
+                if (data.status === "SUCCESS") {
+                    clearInterval(qrPollingInterval);
+                    onQRCodeSuccess(data.cookie);
+                } else if (data.status === "EXPIRED") {
+                    clearInterval(qrPollingInterval);
+                    document.getElementById("qrStatusText").innerText = "⚠️ Mã QR đã hết hạn. Vui lòng bấm lấy mã mới.";
+                }
+            };
+
+            scriptTag.onerror = function() {
+                document.getElementById('jsonpPollTag').remove();
+                delete window[callbackName];
+            };
+
+            document.body.appendChild(scriptTag);
         }, 3000);
     }
 
