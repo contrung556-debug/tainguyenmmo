@@ -167,6 +167,7 @@
             margin-bottom: 20px;
             line-height: 1.4;
             white-space: pre-line;
+            text-align: left;
         }
         .modal-buttons {
             display: flex;
@@ -197,9 +198,9 @@
     
     <h2>QUẢN LÝ ĐƠN HÀNG & VÍ MMO</h2>
 
-    <!-- KHUNG ĐĂNG NHẬP / ĐĂNG KÝ VÀ VÍ TIỀN -->
-    <div id="authSection" style="background: #eef2f3; padding: 12px 15px; border-radius: 8px; margin-bottom: 15px;">
-        <!-- Nội dung tự động thay đổi theo trạng thái đăng nhập -->
+    <!-- KHUNG TRẠNG THÁI GIAO DIỆN CHÍNH (GỌN GÀNG) -->
+    <div id="authSection" style="background: #eef2f3; padding: 12px 15px; border-radius: 8px; margin-bottom: 15px; text-align: center;">
+        <!-- Tự động đổi giữa nút Đăng nhập/Đăng ký hoặc Thông tin tài khoản -->
     </div>
 
     <!-- PHẦN 1: SHOPEE LINK & OTP FETCHER -->
@@ -245,12 +246,12 @@
 
 </div>
 
-<!-- CUSTOM MODAL HTML -->
+<!-- CUSTOM MODAL / POPUP BOX -->
 <div id="customModalOverlay">
     <div id="customModalBox">
         <div id="modalTitle">Thông Báo</div>
-        <div id="modalMessage">Nội dung thông báo ở đây...</div>
-        <div class="modal-buttons">
+        <div id="modalMessage">Nội dung...</div>
+        <div class="modal-buttons" id="modalButtonsContainer">
             <button id="modalBtnCancel" class="modal-btn" onclick="closeModal(false)">Hủy</button>
             <button id="modalBtnOk" class="modal-btn" onclick="closeModal(true)">OK</button>
         </div>
@@ -270,11 +271,17 @@
     let currentUserBalance = 0;
     let modalCallback = null;
 
-    function showModal(title, message, isConfirm = false, callback = null) {
-        document.getElementById("modalTitle").innerText = title;
-        document.getElementById("modalMessageinnerText" ? "modalMessage" : "modalMessage").innerText = message;
-        modalCallback = callback;
+    function showModal(title, message, isConfirm = false, callback = null, customHtml = null) {
+        document.getElementById("modalTitleinnerText" ? "modalTitle" : "modalTitle").innerText = title;
+        let msgDiv = document.getElementById("modalMessage");
+        
+        if (customHtml) {
+            msgDiv.innerHTML = customHtml;
+        } else {
+            msgDiv.innerText = message;
+        }
 
+        modalCallback = callback;
         let cancelBtn = document.getElementById("modalBtnCancel");
         if (isConfirm) {
             cancelBtn.style.display = "block";
@@ -293,7 +300,7 @@
         }
     }
 
-    // Cập nhật giao diện Đăng nhập / Đăng ký kèm ô xác nhận mật khẩu
+    // Giao diện chính gọn gàng chỉ có nút bấm gọi Popup Đăng nhập / Đăng ký
     async function updateAuthUI() {
         const authSection = document.getElementById("authSection");
         if (currentUsername) {
@@ -321,66 +328,52 @@
             loadOrdersFromSupabase();
         } else {
             authSection.innerHTML = `
-                <div style="font-size: 13px; font-weight: bold; margin-bottom: 8px; color: #444;">🔑 Đăng Nhập / Đăng Ký Thành Viên:</div>
-                <input type="text" id="loginUsernameInput" placeholder="Tên tài khoản...">
-                <input type="password" id="loginPasswordInput" placeholder="Mật khẩu...">
-                <input type="password" id="loginConfirmPasswordInput" placeholder="Xác nhận lại mật khẩu (chỉ dùng khi Đăng Ký)...">
-                <div style="display: flex; gap: 8px; margin-top: 4px;">
-                    <button onclick="handleLogin()" style="background: #27ae60; color: white; border: none; padding: 10px; border-radius: 6px; font-size: 13px; font-weight: bold; flex: 1; cursor: pointer;">Đăng Nhập</button>
-                    <button onclick="handleRegister()" style="background: #3498db; color: white; border: none; padding: 10px; border-radius: 6px; font-size: 13px; font-weight: bold; flex: 1; cursor: pointer;">Đăng Ký Mới</button>
+                <div style="font-size: 13px; font-weight: bold; margin-bottom: 8px; color: #444;">🔑 Quản lý tài khoản thành viên:</div>
+                <div style="display: flex; gap: 8px;">
+                    <button onclick="openLoginModal()" style="background: #27ae60; color: white; border: none; padding: 10px; border-radius: 6px; font-size: 13px; font-weight: bold; flex: 1; cursor: pointer;">Đăng Nhập</button>
+                    <button onclick="openRegisterModal()" style="background: #3498db; color: white; border: none; padding: 10px; border-radius: 6px; font-size: 13px; font-weight: bold; flex: 1; cursor: pointer;">Đăng Ký Mới</button>
                 </div>
             `;
             document.getElementById("orderListContainer").innerHTML = `<div style="text-align: center; color: #888; padding: 15px;">Vui lòng đăng nhập để xem hệ thống.</div>`;
         }
     }
 
-    function openDepositModal() {
-        showModal("Nạp Tiền Vào Ví", "Để nạp tiền mua tài nguyên, vui lòng chuyển khoản qua:\n\n- Ngân hàng: Momo / Techcombank\n- Chủ tài khoản: Admin MMO\n- Nội dung chuyển khoản: napvi " + currentUsername + "\n\nSau khi chuyển, Admin sẽ duyệt cộng tiền thủ công cho bạn ngay!");
+    // Popup Đăng Nhập
+    function openLoginModal() {
+        let htmlForm = `
+            <label>Tên tài khoản:</label>
+            <input type="text" id="popUsername" placeholder="Nhập tên tài khoản...">
+            <label>Mật khẩu:</label>
+            <input type="password" id="popPassword" placeholder="Nhập mật khẩu...">
+            <button onclick="handleLoginSubmit()" class="btn-main" style="margin-top: 5px;">Xác Nhận Đăng Nhập</button>
+        `;
+        showModal("ĐĂNG NHẬP HỆ THỐNG", "", true, null, htmlForm);
+        document.getElementById("modalBtnCancel").innerText = "Đóng";
+        document.getElementById("modalBtnOk").style.display = "none";
     }
 
-    async function handleRegister() {
-        const usernameVal = document.getElementById("loginUsernameInput").value.trim();
-        const passwordVal = document.getElementById("loginPasswordInput").value.trim();
-        const confirmPasswordVal = document.getElementById("loginConfirmPasswordInput").value.trim();
-
-        if (!usernameVal || !passwordVal || !confirmPasswordVal) {
-            showModal("Thiếu thông tin", "Vui lòng nhập đầy đủ tên tài khoản, mật khẩu và xác nhận mật khẩu!");
-            return;
-        }
-
-        if (passwordVal !== confirmPasswordVal) {
-            showModal("Lỗi mật khẩu", "Mật khẩu và Xác nhận mật khẩu không khớp nhau!");
-            return;
-        }
-
-        const { data: existing, error: checkErr } = await _supabase
-            .from('shopee_users')
-            .select('*')
-            .eq('username', usernameVal);
-
-        if (existing && existing.length > 0) {
-            showModal("Trùng tài khoản", "Tài khoản '" + usernameVal + "' đã tồn tại! Vui lòng chọn tên khác hoặc bấm Đăng Nhập.");
-            return;
-        }
-
-        const { error: regErr } = await _supabase
-            .from('shopee_users')
-            .insert([{ username: usernameVal, password: passwordVal, balance: 0 }]);
-
-        if (regErr) {
-            showModal("Lỗi đăng ký", regErr.message);
-            return;
-        }
-
-        showModal("Thành công", "Đăng ký thành công tài khoản: " + usernameVal + "! Ví của bạn đã được khởi tạo. Bây giờ bạn có thể bấm Đăng Nhập.");
+    // Popup Đăng Ký Mới (Có 3 dòng đầy đủ)
+    function openRegisterModal() {
+        let htmlForm = `
+            <label>Tên tài khoản mới:</label>
+            <input type="text" id="popRegUsername" placeholder="Chọn tên tài khoản...">
+            <label>Mật khẩu:</label>
+            <input type="password" id="popRegPassword" placeholder="Tạo mật khẩu...">
+            <label>Xác nhận lại mật khẩu:</label>
+            <input type="password" id="popRegConfirmPassword" placeholder="Nhập lại mật khẩu...">
+            <button onclick="handleRegisterSubmit()" class="btn-main" style="margin-top: 5px;">Tạo Tài Khoản Ngay</button>
+        `;
+        showModal("ĐĂNG KÝ THÀNH VIÊN", "", true, null, htmlForm);
+        document.getElementById("modalBtnCancel").innerText = "Đóng";
+        document.getElementById("modalBtnOk").style.display = "none";
     }
 
-    async function handleLogin() {
-        const usernameVal = document.getElementById("loginUsernameInput").value.trim();
-        const passwordVal = document.getElementById("loginPasswordInput").value.trim();
+    async function handleLoginSubmit() {
+        const usernameVal = document.getElementById("popUsername").value.trim();
+        const passwordVal = document.getElementById("popPassword").value.trim();
 
         if (!usernameVal || !passwordVal) {
-            showModal("Thiếu thông tin", "Vui lòng nhập đầy đủ tên tài khoản và mật khẩu!");
+            alert("Vui lòng nhập đầy đủ tên tài khoản và mật khẩu!");
             return;
         }
 
@@ -390,20 +383,65 @@
             .eq('username', usernameVal);
 
         if (error || !users || users.length === 0) {
-            showModal("Không tìm thấy", "Tài khoản này chưa được đăng ký! Vui lòng bấm nút 'Đăng Ký Mới'.");
+            alert("Tài khoản này chưa tồn tại! Vui lòng đăng ký mới.");
             return;
         }
 
         let userRecord = users[0];
         if (userRecord.password !== passwordVal) {
-            showModal("Sai mật khẩu", "Mật khẩu không chính xác!");
+            alert("Mật khẩu không chính xác!");
             return;
         }
 
         currentUsername = usernameVal;
         localStorage.setItem("shopee_logged_user", currentUsername);
+        closeModal(false);
         updateAuthUI();
-        showModal("Thành công", "Đăng nhập thành công!");
+        alert("Đăng nhập thành công!");
+    }
+
+    async function handleRegisterSubmit() {
+        const usernameVal = document.getElementById("popRegUsername").value.trim();
+        const passwordVal = document.getElementById("popRegPassword").value.trim();
+        const confirmPasswordVal = document.getElementById("popRegConfirmPassword").value.trim();
+
+        if (!usernameVal || !passwordVal || !confirmPasswordVal) {
+            alert("Vui lòng điền đầy đủ tất cả các ô!");
+            return;
+        }
+
+        if (passwordVal !== confirmPasswordVal) {
+            alert("Mật khẩu và Xác nhận mật khẩu không khớp nhau!");
+            return;
+        }
+
+        const { data: existing } = await _supabase
+            .from('shopee_users')
+            .select('*')
+            .eq('username', usernameVal);
+
+        if (existing && existing.length > 0) {
+            alert("Tên tài khoản này đã được sử dụng, vui lòng chọn tên khác!");
+            return;
+        }
+
+        const { error: regErr } = await _supabase
+            .from('shopee_users')
+            .insert([{ username: usernameVal, password: passwordVal, balance: 0 }]);
+
+        if (regErr) {
+            alert("Lỗi: " + regErr.message);
+            return;
+        }
+
+        alert("Đăng ký thành công! Ví khởi tạo 0đ thành công. Bây giờ bạn có thể bấm Đăng Nhập.");
+        closeModal(false);
+        openLoginModal();
+    }
+
+    function openDepositModal() {
+        showModal("Nạp Tiền Vào Ví", "Để nạp tiền mua tài nguyên, vui lòng chuyển khoản qua:\n\n- Ngân hàng: Momo / Techcombank\n- Chủ tài khoản: Admin MMO\n- Nội dung chuyển khoản: napvi " + currentUsername + "\n\nSau khi chuyển, Admin sẽ duyệt cộng tiền thủ công cho bạn ngay!");
+        document.getElementById("modalBtnOk").style.display = "block";
     }
 
     function logout() {
@@ -414,11 +452,12 @@
                 updateAuthUI();
             }
         });
+        document.getElementById("modalBtnOk").style.display = "block";
     }
 
     async function addNewOrder() {
         if (!currentUsername) {
-            showModal("Chưa đăng nhập", "Vui lòng đăng nhập trước khi nạp đơn!");
+            alert("Vui lòng đăng nhập trước khi nạp đơn!");
             return;
         }
 
@@ -427,27 +466,22 @@
         const email = document.getElementById("inputEmail").value.trim();
 
         if (!orderCode || !email) {
-            showModal("Thiếu thông tin", "Vui lòng nhập đầy đủ mã đơn hàng và địa chỉ email!");
+            alert("Vui lòng nhập đầy đủ mã đơn hàng và địa chỉ email!");
             return;
         }
 
-        const { data: existingOrders, error: checkError } = await _supabase
+        const { data: existingOrders } = await _supabase
             .from('shopee_orders')
             .select('id, order_code')
             .eq('username', currentUsername)
             .eq('order_code', orderCode);
 
-        if (checkError) {
-            showModal("Lỗi", checkError.message);
-            return;
-        }
-
         if (existingOrders && existingOrders.length > 0) {
-            showModal("Trùng mã đơn", "Mã đơn '" + orderCode + "' đã tồn tại trong hệ thống.");
+            alert("Mã đơn '" + orderCode + "' đã tồn tại trong hệ thống.");
             return;
         }
 
-        const { data, error } = await _supabase
+        const { error } = await _supabase
             .from('shopee_orders')
             .insert([
                 { 
@@ -460,9 +494,9 @@
             ]);
 
         if (error) {
-            showModal("Lỗi", error.message);
+            alert("Lỗi: " + error.message);
         } else {
-            showModal("Thành công", "Đã nạp đơn hàng thành công vào hệ thống!");
+            alert("Đã nạp đơn hàng thành công vào hệ thống!");
             document.getElementById("inputOrderCode").value = '';
             document.getElementById("inputProductName").value = '';
             document.getElementById("inputEmail").value = '';
@@ -544,7 +578,7 @@
         newEmail = newEmail.trim();
 
         if (!newCode || !newEmail) {
-            showModal("Thiếu thông tin", "Mã đơn và Email không được để trống!");
+            alert("Mã đơn và Email không được để trống!");
             return;
         }
 
@@ -554,33 +588,31 @@
             .eq('id', id);
 
         if (error) {
-            showModal("Lỗi", error.message);
+            alert("Lỗi: " + error.message);
         } else {
-            showModal("Thành công", "Đã cập nhật thông tin đơn hàng thành công!");
+            alert("Đã cập nhật thông tin đơn hàng thành công!");
             loadOrdersFromSupabase();
         }
     }
 
     async function deleteOrder(id, orderCode) {
-        showModal("Xác nhận xóa", "Bạn có chắc chắn muốn xóa đơn hàng #" + orderCode + " không?", true, async function(res) {
-            if (res) {
-                const { error } = await _supabase.from('shopee_orders').delete().eq('id', id);
-                if (error) {
-                    showModal("Lỗi", error.message);
-                } else {
-                    showModal("Thành công", "Đã xóa đơn hàng thành công!");
-                    loadOrdersFromSupabase();
-                }
+        if (confirm("Bạn có chắc chắn muốn xóa đơn hàng #" + orderCode + " không?")) {
+            const { error } = await _supabase.from('shopee_orders').delete().eq('id', id);
+            if (error) {
+                alert("Lỗi: " + error.message);
+            } else {
+                alert("Đã xóa đơn hàng thành công!");
+                loadOrdersFromSupabase();
             }
-        });
+        }
     }
 
     function checkAllOrders() {
         if (!currentUsername) {
-            showModal("Chưa đăng nhập", "Vui lòng đăng nhập trước!");
+            alert("Vui lòng đăng nhập trước!");
             return;
         }
-        showModal("Đang quét", "Đang kích hoạt quét tất cả đơn chờ giao trên hệ thống...");
+        alert("Đang kích hoạt quét tất cả đơn chờ giao trên hệ thống...");
         let callbackName = 'check_all_cb_' + Math.round(Math.random() * 100000);
         
         let scriptTag = document.createElement('script');
@@ -590,12 +622,12 @@
         window[callbackName] = function(data) {
             document.getElementById('jsonpCheckAllTag').remove();
             delete window[callbackName];
-            showModal("Hoàn tất", "Đã quét xong toàn bộ đơn! Đang cập nhật lại giao diện...");
+            alert("Đã quét xong toàn bộ đơn! Đang cập nhật lại giao diện...");
             loadOrdersFromSupabase();
         };
 
         scriptTag.onerror = function() {
-            showModal("Lỗi", "Lỗi kết nối đến Google Apps Script (Quét đơn).");
+            alert("Lỗi kết nối đến Google Apps Script.");
             delete window[callbackName];
         };
         document.body.appendChild(scriptTag);
@@ -603,7 +635,7 @@
 
     function checkSingleOrder(id, orderCode, email) {
         if (!email) {
-            showModal("Thiếu email", "Đơn hàng này không có email!");
+            alert("Đơn hàng này không có email!");
             return;
         }
 
@@ -615,12 +647,12 @@
         window[callbackName] = function(data) {
             document.getElementById('jsonpCheckTag').remove();
             delete window[callbackName];
-            showModal("Hoàn tất", "Đã quét xong đơn này! Đang cập nhật lại giao diện...");
+            alert("Đã quét xong đơn này!");
             loadOrdersFromSupabase();
         };
 
         scriptTag.onerror = function() {
-            showModal("Lỗi", "Lỗi kết nối đến Google Apps Script (Check đơn).");
+            alert("Lỗi kết nối đến Google Apps Script.");
             delete window[callbackName];
         };
         document.body.appendChild(scriptTag);
@@ -640,7 +672,7 @@
         let resultDiv = document.getElementById("fetchResult");
         
         if (!val) {
-            showModal("Thiếu thông tin", "Vui lòng nhập tên hoặc email để lấy link!");
+            alert("Vui lòng nhập tên hoặc email để lấy link!");
             return;
         }
 
@@ -658,7 +690,7 @@
                     otpHtml = `
                         <div style="margin-bottom: 8px; display: flex; align-items: center; justify-content: space-between; background: #fff; padding: 6px 10px; border-radius: 6px; border: 1px solid #ddd;">
                             <div><b>Mã OTP:</b> <span style="color:#d35400; font-size:16px; font-weight:bold;">${safeOtp}</span></div>
-                            <button onclick="navigator.clipboard.writeText('${safeOtp}'); showModal('Đã copy', 'Mã OTP: ${safeOtp}');" style="background-color: #e67e22; color: white; border: none; padding: 5px 10px; border-radius: 4px; font-weight: bold; font-size: 12px; cursor: pointer;">📋 Copy OTP</button>
+                            <button onclick="navigator.clipboard.writeText('${safeOtp}'); alert('Đã copy mã OTP: ${safeOtp}');" style="background-color: #e67e22; color: white; border: none; padding: 5px 10px; border-radius: 4px; font-weight: bold; font-size: 12px; cursor: pointer;">📋 Copy OTP</button>
                         </div>
                     `;
                 }
@@ -669,7 +701,7 @@
                     actionButtons = `
                         <div style="margin-top: 8px; display: flex; gap: 8px;">
                             <a href="${safeLink}" target="_blank" style="flex: 1; background-color: #27ae60; color: white; text-align: center; padding: 8px; border-radius: 6px; text-decoration: none; font-weight: bold; font-size: 13px;">MỞ LINK</a>
-                            <button onclick="navigator.clipboard.writeText('${safeLink}'); showModal('Đã copy', 'Đã copy link thành công!');" style="flex: 1; background-color: #3498db; color: white; border: none; padding: 8px; border-radius: 6px; font-weight: bold; font-size: 13px; cursor: pointer;">COPY LINK</button>
+                            <button onclick="navigator.clipboard.writeText('${safeLink}'); alert('Đã copy link thành công!');" style="flex: 1; background-color: #3498db; color: white; border: none; padding: 8px; border-radius: 6px; font-weight: bold; font-size: 13px; cursor: pointer;">COPY LINK</button>
                         </div>
                     `;
                 }
@@ -692,7 +724,7 @@
         scriptTag.src = `${GAS_OTP_URL}?hide=${encodeURIComponent(val)}&callback=${callbackName}`;
         
         scriptTag.onerror = function() {
-            resultDiv.innerHTML = `<span style="color: #c0392b;">❌ Lỗi kết nối đến máy chủ Google Apps Script (OTP).</span>`;
+            resultDiv.innerHTML = `<span style="color: #c0392b;">❌ Lỗi kết nối đến máy chủ Google Apps Script.</span>`;
             delete window[callbackName];
         };
         document.body.appendChild(scriptTag);
