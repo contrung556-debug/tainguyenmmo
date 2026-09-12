@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hệ thống Shopee Manager</title>
+    <!-- Thư viện Supabase JS Client -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f7f6;
+            margin: 0;
+            padding: 15px;
+            color: #333;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: #fff;
+            padding: 15px;
+            border-radius: 12px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.08);
+        }
+        h2, h3 {
+            text-align: center;
+            color: #ee4d2d;
+            margin-bottom: 15px;
+        }
+        .section-box {
+            background: #fff8f5;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #faddd3;
+            margin-bottom: 20px;
+        }
+        label {
+            font-size: 13px;
+            font-weight: bold;
+            color: #444;
+            display: block;
+            margin-bottom: 5px;
+        }
+        input {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 12px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            box-sizing: border-box;
+            font-size: 14px;
+        }
+        .btn-main {
+            background-color: #ee4d2d;
+            color: white;
+            border: none;
+            padding: 11px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            width: 100%;
+            font-size: 14px;
+        }
+        .btn-main:hover {
+            background-color: #d73211;
+        }
+        .btn-secondary {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 9px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            width: 100%;
+            font-size: 13px;
+            margin-bottom: 8px;
+        }
+        .btn-secondary:hover {
+            background-color: #2980b9;
+        }
+        .btn-check-all {
+            background-color: #27ae60;
+            color: white;
+            border: none;
+            padding: 9px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            width: 100%;
+            font-size: 13px;
+            margin-bottom: 10px;
+        }
+        .btn-check-all:hover {
+            background-color: #219653;
+        }
+        .order-actions {
+            margin-top: 8px;
+            display: flex;
+            gap: 6px;
+        }
+        .btn-action {
+            flex: 1;
+            padding: 6px;
+            border: none;
+            border-radius: 4px;
+            font-weight: bold;
+            font-size: 11px;
+            cursor: pointer;
+            color: white;
+            text-align: center;
+        }
+        .btn-check-single { background-color: #e67e22; }
+        .btn-check-single:hover { background-color: #d35400; }
+        .btn-edit { background-color: #2980b9; }
+        .btn-edit:hover { background-color: #1f6391; }
+        .btn-delete { background-color: #c0392b; }
+        .btn-delete:hover { background-color: #962d22; }
+        .order-card {
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            background: #fff;
+            border: 1px solid #eee;
+        }
+        .order-id {
+            font-weight: bold;
+            color: #333;
+        }
+
+        /* CSS cho tính năng Widget nổi / Thu nhỏ góc màn hình */
+        #floatingWidget {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 320px;
+            background: #fff;
+            border-radius: 12px;
+            box-shadow: 0 6px 20px rgba(0,0,0,0.2);
+            border: 1px solid #faddd3;
+            z-index: 9999;
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+        #floatingWidget.minimized {
+            width: 55px;
+            height: 55px;
+            border-radius: 50%;
+            cursor: pointer;
+            background: #ee4d2d;
+            box-shadow: 0 4px 12px rgba(238,77,45,0.4);
+        }
+        #floatingWidget.minimized .widget-content,
+        #floatingWidget.minimized .widget-header {
+            display: none;
+        }
+        .widget-header {
+            background: #ee4d2d;
+            color: white;
+            padding: 10px 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-weight: bold;
+            font-size: 13px;
+            cursor: pointer;
+        }
+        .widget-body {
+            padding: 12px;
+            max-height: 400px;
+            overflow-y: auto;
+            background: #fff8f5;
+        }
+        #minimizedIcon {
+            display: none;
+            width: 100%;
+            height: 100%;
+            text-align: center;
+            line-height: 55px;
+            font-size: 22px;
+            color: white;
+        }
+        #floatingWidget.minimized #minimizedIcon {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    
+    <!-- PHẦN 1: SHOPEE LINK & OTP FETCHER -->
+    <div class="section-box">
+        <h3>SHOPEE LINK & OTP FETCHER</h3>
+        <label>Nhập tên hoặc địa chỉ Email:</label>
+        <input type="text" id="fetchInputEmail" placeholder="Ví dụ: his-95.morsel">
+        <button class="btn-main" onclick="fetchOtpLink()">Lấy Link Xác Thực / OTP</button>
+        <div id="fetchResult" style="margin-top: 10px; font-size: 13px; word-break: break-all;"></div>
+    </div>
+
+    <!-- PHẦN 2: NẠP ĐƠN GỐC (Dưới trang) -->
+    <div class="section-box">
+        <h3>NẠP ĐƠN QUÉT NGẨM</h3>
+        <label>Mã đơn hàng Shopee:</label>
+        <input type="text" id="inputOrderCode" placeholder="Ví dụ: 260908FD8YK34N">
+        <label>Tên sản phẩm:</label>
+        <input type="text" id="inputProductName" placeholder="Ví dụ: Nước giặt MaxKleen">
+        <label>Địa chỉ Email hòm thư (iCloud):</label>
+        <input type="text" id="inputEmail" placeholder="Ví dụ: snowy.eidolon_2m@icloud.com">
+        <button class="btn-main" onclick="addNewOrder()">Nạp Đơn Vào Hệ Thống</button>
+    </div>
+
+    <!-- PHẦN 3: TIẾN ĐỘ THEO DÕI ĐƠN -->
+    <div>
+        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #ee4d2d; padding-bottom: 5px; margin-bottom: 10px;">
+            <h3 style="margin: 0; font-size: 16px; text-align: left;">📊 TIẾN ĐỘ THEO DÕI ĐƠN</h3>
+        </div>
+
+        <button class="btn-check-all" onclick="checkAllOrders()">⚡ Quét Tất Cả Đơn Chờ Giao (Check All)</button>
+        <button class="btn-secondary" onclick="loadOrdersFromSupabase()">🔄 Làm Mới Dữ Liệu Từ Supabase</button>
+        
+        <input type="text" id="searchBox" placeholder="🔍 Tìm kiếm nhanh mã đơn hoặc tên sản phẩm..." onkeyup="filterOrders()" style="margin-top: 5px;">
+
+        <div id="orderListContainer">
+            <div style="text-align: center; color: #888; padding: 15px;">Đang tải danh sách đơn...</div>
+        </div>
+    </div>
+
+</div>
+
+<!-- FLOATING WIDGET THU NHỎ Ở GÓC MÀN HÌNH -->
+<div id="floatingWidget">
+    <div class="widget-header" onclick="toggleWidget()">
+        <span>⚡ Nạp Đơn Nhanh</span>
+        <span id="toggleBtnText" style="font-size: 16px;">[-]</span>
+    </div>
+    
+    <div id="minimizedIcon" onclick="toggleWidget()" title="Mở hộp nạp đơn">📦</div>
+
+    <div class="widget-body widget-content">
+        <label>Mã đơn hàng Shopee:</label>
+        <input type="text" id="widgetOrderCode" placeholder="Ví dụ: 260908FD8YK34N">
+
+        <label>Tên sản phẩm:</label>
+        <input type="text" id="widgetProductName" placeholder="Ví dụ: Nước giặt MaxKleen">
+
+        <label>Địa chỉ Email (iCloud):</label>
+        <input type="text" id="widgetEmail" placeholder="Ví dụ: snowy.eidolon_2m@icloud.com">
+
+        <button class="btn-main" onclick="addNewOrderFromWidget()">Lưu Vào Data</button>
+    </div>
+</div>
+
+<script>
+    const SUPABASE_URL = "https://hsdbjzkxbdezysxwwtaw.supabase.co";
+    const SUPABASE_ANON_KEY = "sb_publishable_LIeDI4UVn7MEo5vURP05hA_TM4h0vFd";
+    const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    const GAS_OTP_URL = "https://script.google.com/macros/s/AKfycbwk0RSNFUrzaU7nSlNgAgazt3BWUNR-meYBYvJcSkJIFxQe4XiDfGd3FsfcSTWzOLk/exec";
+    const GAS_ORDER_URL = "https://script.google.com/macros/s/AKfycbxSO_B7KYFmTvJ9XTUMI4jU8N2Vyz0GwMnqxk3T0PnX-rcKtfGu5b0DTzNgHPovJVVIRw/exec";
+
+    let allOrdersData = [];
+    let currentUsername = localStorage.getItem("shopee_logged_user") || "Cuong123";
+
+    // Hàm bật/tắt thu nhỏ widget
+    function toggleWidget() {
+        const widget = document.getElementById('floatingWidget');
+        const btnText = document.getElementById('toggleBtnText');
+        
+        widget.classList.toggle('minimized');
+        if (widget.classList.contains('minimized')) {
+            btnText.innerText = '[+]';
+        } else {
+            btnText.innerText = '[-]';
+        }
+    }
+
+    // Hàm nạp đơn chung cho cả 2 form
+    async function processAddOrder(orderCode, productName, email) {
+        if (!orderCode || !email) {
+            alert("Vui lòng nhập đầy đủ mã đơn hàng và email!");
+            return false;
+        }
+
+        const { data: existingOrders, error: checkError } = await _supabase
+            .from('shopee_orders')
+            .select('id, order_code')
+            .eq('username', currentUsername)
+            .eq('order_code', orderCode);
+
+        if (checkError) {
+            alert("Lỗi khi kiểm tra trùng đơn: " + checkError.message);
+            return false;
+        }
+
+        if (existingOrders && existingOrders.length > 0) {
+            alert("⚠️ Trùng ID đơn hàng! Mã đơn '" + orderCode + "' đã tồn tại trong hệ thống.");
+            return false;
+        }
+
+        const { error } = await _supabase
+            .from('shopee_orders')
+            .insert([
+                { 
+                    order_code: orderCode, 
+                    product_name: productName || 'Đơn hàng Shopee', 
+                    email: email, 
+                    username: currentUsername, 
+                    status: 'Đang chờ giao' 
+                }
+            ]);
+
+        if (error) {
+            alert("Lỗi khi thêm đơn: " + error.message);
+            return false;
+        } else {
+            return true;
+        }
+    }
+
+    // Nạp đơn từ form chính
+    async function addNewOrder() {
+        const orderCode = document.getElementById("inputOrderCode").value.trim();
+        const productName = document.getElementById("inputProductName").value.trim();
+        const email = document.getElementById("inputEmail").value.trim();
+
+        let success = await processAddOrder(orderCode, productName, email);
+        if (success) {
+            alert("Đã nạp đơn hàng thành công vào hệ thống!");
+            document.getElementById("inputOrderCode").value = '';
+            document.getElementById("inputProductName").value = '';
+            document.getElementById("inputEmail").value = '';
+            loadOrdersFromSupabase();
+        }
+    }
+
+    // Nạp đơn từ Widget nổi
+    async function addNewOrderFromWidget() {
+        const orderCode = document.getElementById("widgetOrderCode").value.trim();
+        const productName = document.getElementById("widgetProductName").value.trim();
+        const email = document.getElementById("widgetEmail").value.trim();
+
+        let success = await processAddOrder(orderCode, productName, email);
+        if (success) {
+            alert("Đã lưu đơn vào data thành công!");
+            document.getElementById("widgetOrderCode").value = '';
+            document.getElementById("widgetProductName").value = '';
+            document.getElementById("widgetEmail").value = '';
+            loadOrdersFromSupabase();
+        }
+    }
+
+    // Tải danh sách đơn hàng từ Supabase
+    async function loadOrdersFromSupabase() {
+        const container = document.getElementById("orderListContainer");
+
+        const { data: orders, error } = await _supabase
+            .from('shopee_orders')
+            .select('*')
+            .eq('username', currentUsername)
+            .order('created_at', { ascending: false });
+
+        if (error || !orders || orders.length === 0) {
+            container.innerHTML = `<div style="text-align: center; color: #888; padding: 15px;">Chưa có đơn hàng nào.</div>`;
+            return;
+        }
+
+        allOrdersData = orders;
+        renderOrders(orders);
+    }
+
+    // Hiển thị danh sách đơn ra giao diện
+    function renderOrders(orders) {
+        const container = document.getElementById("orderListContainer");
+        let html = '';
+
+        orders.forEach(ord => {
+            let isDelivered = ord.status === 'Đã giao thành công';
+            let statusBg = isDelivered ? '#e8f8f5' : '#fef9e7';
+            let statusColor = isDelivered ? '#27ae60' : '#d35400';
+            let statusText = ord.status || 'Đang chờ giao';
+            
+            let timeText = '';
+            if (isDelivered && ord.delivered_at) {
+                let d = new Date(ord.delivered_at);
+                timeText = `<div style="font-size: 11px; color: #27ae60; margin-top: 4px;">🕒 Giao lúc: ${d.toLocaleDateString('vi-VN')} ${d.toLocaleTimeString('vi-VN', {hour: '2-digit', minute:'2-digit'})}</div>`;
+            }
+
+            let priceFormatted = ord.price && ord.price > 0 ? ord.price.toLocaleString('vi-VN') + ' VNĐ' : '0 VNĐ';
+            let checkBtn = !isDelivered ? `<button class="btn-action btn-check-single" onclick="checkSingleOrder('${ord.id}', '${ord.order_code}', '${ord.email}')">🔍 Check</button>` : '';
+
+            html += `
+                <div class="order-card" style="background: ${statusBg}; border-left: 4px solid ${statusColor};">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <span class="order-id">#${ord.order_code}</span>
+                        <span style="font-size: 11px; padding: 2px 6px; border-radius: 4px; background: ${statusColor}; color: white; font-weight: bold;">${statusText}</span>
+                    </div>
+                    <div class="order-name" style="margin-top: 6px; font-size: 13px; color: #444;">📦 ${ord.product_name || 'Đơn hàng Shopee'}</div>
+                    <div style="font-size: 12px; color: #555; margin-top: 2px;">💰 Thanh toán: <b style="color: #e74c3c;">${priceFormatted}</b></div>
+                    <div style="font-size: 12px; color: #666; margin-top: 2px;">📧 Email: ${ord.email}</div>
+                    ${timeText}
+                    <div class="order-actions">
+                        ${checkBtn}
+                        <button class="btn-action btn-edit" onclick="editOrder('${ord.id}', '${ord.order_code}', '${ord.product_name}', '${ord.email}')">✏️ Sửa</button>
+                        <button class="btn-action btn-delete" onclick="deleteOrder('${ord.id}', '${ord.order_code}')">🗑️ Xóa</button>
+                    </div>
+                </div>
+            `;
+        });
+
+        container.innerHTML = html;
+    }
+
+    // Chỉnh sửa đơn hàng
+    async function editOrder(id, oldCode, oldName, oldEmail) {
+        let newCode = prompt("Nhập mã đơn hàng mới:", oldCode);
+        if (newCode === null) return;
+        newCode = newCode.trim();
+
+        let newName = prompt("Nhập tên sản phẩm mới:", oldName);
+        if (newName === null) return;
+        newName = newName.trim();
+
+        let newEmail = prompt("Nhập email hòm thư mới:", oldEmail);
+        if (newEmail === null) return;
+        newEmail = newEmail.trim();
+
+        if (!newCode || !newEmail) {
+            alert("Mã đơn và Email không được để trống!");
+            return;
+        }
+
+        const { error } = await _supabase
+            .from('shopee_orders')
+            .update({ order_code: newCode, product_name: newName, email: newEmail })
+            .eq('id', id);
+
+        if (error) {
+            alert("Lỗi khi cập nhật đơn: " + error.message);
+        } else {
+            alert("Đã cập nhật thông tin đơn hàng thành công!");
+            loadOrdersFromSupabase();
+        }
+    }
+
+    // Xóa đơn hàng
+    async function deleteOrder(id, orderCode) {
+        if (!confirm(`Bạn có chắc chắn muốn xóa đơn hàng #${orderCode} không?`)) return;
+
+        const { error } = await _supabase.from('shopee_orders').delete().eq('id', id);
+
+        if (error) {
+            alert("Lỗi khi xóa đơn: " + error.message);
+        } else {
+            alert("Đã xóa đơn hàng thành công!");
+            loadOrdersFromSupabase();
+        }
+    }
+
+    // Check All
+    function checkAllOrders() {
+        alert("Đang kích hoạt quét tất cả đơn chờ giao trên hệ thống...");
+        let callbackName = 'check_all_cb_' + Math.round(Math.random() * 100000);
+        
+        let scriptTag = document.createElement('script');
+        scriptTag.id = 'jsonpCheckAllTag';
+        scriptTag.src = `${GAS_ORDER_URL}?action=check_all&callback=${callbackName}`;
+        
+        window[callbackName] = function(data) {
+            document.getElementById('jsonpCheckAllTag').remove();
+            delete window[callbackName];
+            alert("Đã quét xong toàn bộ đơn! Đang cập nhật lại giao diện...");
+            loadOrdersFromSupabase();
+        };
+
+        scriptTag.onerror = function() {
+            alert("Lỗi kết nối đến Google Apps Script (Quét đơn).");
+            delete window[callbackName];
+        };
+        document.body.appendChild(scriptTag);
+    }
+
+    // Check Single
+    function checkSingleOrder(id, orderCode, email) {
+        if (!email) {
+            alert("Đơn hàng này không có email!");
+            return;
+        }
+
+        let callbackName = 'check_single_' + Math.round(Math.random() * 100000);
+        let scriptTag = document.createElement('script');
+        scriptTag.id = 'jsonpCheckTag';
+        scriptTag.src = `${GAS_ORDER_URL}?hide=${encodeURIComponent(email)}&check_id=${id}&check_code=${encodeURIComponent(orderCode)}&callback=${callbackName}`;
+        
+        window[callbackName] = function(data) {
+            document.getElementById('jsonpCheckTag').remove();
+            delete window[callbackName];
+            alert("Đã quét xong đơn này! Đang cập nhật lại giao diện...");
+            loadOrdersFromSupabase();
+        };
+
+        scriptTag.onerror = function() {
+            alert("Lỗi kết nối đến Google Apps Script (Check đơn).");
+            delete window[callbackName];
+        };
+        document.body.appendChild(scriptTag);
+    }
+
+    // Tìm kiếm nhanh đơn hàng
+    function filterOrders() {
+        let keyword = document.getElementById("searchBox").value.toLowerCase();
+        let filtered = allOrdersData.filter(ord => 
+            ord.order_code.toLowerCase().includes(keyword) || 
+            (ord.product_name && ord.product_name.toLowerCase().includes(keyword))
+        );
+        renderOrders(filtered);
+    }
+
+    // Hàm lấy OTP/Link
+    function fetchOtpLink() {
+        let val = document.getElementById("fetchInputEmail").value.trim();
+        let resultDiv = document.getElementById("fetchResult");
+        
+        if (!val) {
+            alert("Vui lòng nhập tên hoặc email để lấy link!");
+            return;
+        }
+
+        resultDiv.innerHTML = `<span style="color: #e67e22;">⏳ Đang kết nối lấy thư...</span>`;
+        let callbackName = 'shopee_cb_' + Math.round(Math.random() * 100000);
+        
+        window[callbackName] = function(data) {
+            document.getElementById('jsonpScriptTag').remove();
+            delete window[callbackName];
+
+            if (data.status === "success") {
+                let otpHtml = '';
+                if (data.otp && data.otp !== "Không có") {
+                    let safeOtp = data.otp;
+                    otpHtml = `
+                        <div style="margin-bottom: 8px; display: flex; align-items: center; justify-content: space-between; background: #fff; padding: 6px 10px; border-radius: 6px; border: 1px solid #ddd;">
+                            <div><b>Mã OTP:</b> <span style="color:#d35400; font-size:16px; font-weight:bold;">${safeOtp}</span></div>
+                            <button onclick="navigator.clipboard.writeText('${safeOtp}'); alert('Đã copy mã OTP: ${safeOtp}');" style="background-color: #e67e22; color: white; border: none; padding: 5px 10px; border-radius: 4px; font-weight: bold; font-size: 12px; cursor: pointer;">📋 Copy OTP</button>
+                        </div>
+                    `;
+                }
+                
+                let actionButtons = '';
+                if (data.link_xac_thuc_tai_day && data.link_xac_thuc_tai_day !== "Không có") {
+                    let safeLink = data.link_xac_thuc_tai_day;
+                    actionButtons = `
+                        <div style="margin-top: 8px; display: flex; gap: 8px;">
+                            <a href="${safeLink}" target="_blank" style="flex: 1; background-color: #27ae60; color: white; text-align: center; padding: 8px; border-radius: 6px; text-decoration: none; font-weight: bold; font-size: 13px;">MỞ LINK</a>
+                            <button onclick="navigator.clipboard.writeText('${safeLink}'); alert('Đã copy link thành công!');" style="flex: 1; background-color: #3498db; color: white; border: none; padding: 8px; border-radius: 6px; font-weight: bold; font-size: 13px; cursor: pointer;">COPY LINK</button>
+                        </div>
+                    `;
+                }
+
+                resultDiv.innerHTML = `
+                    <div style="background: #e8f8f5; padding: 12px; border-radius: 8px; border: 1px solid #27ae60; margin-top: 5px;">
+                        <div style="font-size: 12px; color: #555; margin-bottom: 6px;">📧 <b>Email quét:</b> ${data.hide_email_tin}</div>
+                        ${otpHtml}
+                        ${actionButtons}
+                        <div style="font-size: 11px; color: #888; margin-top: 8px;">🕒 Thời gian: ${new Date(data.thoi_gian_nhan_thu).toLocaleString('vi-VN')}</div>
+                    </div>
+                `;
+            } else {
+                resultDiv.innerHTML = `<span style="color: #c0392b;">⚠️ ${data.message}</span>`;
+            }
+        };
+
+        let scriptTag = document.createElement('script');
+        scriptTag.id = 'jsonpScriptTag';
+        scriptTag.src = `${GAS_OTP_URL}?hide=${encodeURIComponent(val)}&callback=${callbackName}`;
+        
+        scriptTag.onerror = function() {
+            resultDiv.innerHTML = `<span style="color: #c0392b;">❌ Lỗi kết nối đến máy chủ Google Apps Script (OTP).</span>`;
+            delete window[callbackName];
+        };
+        document.body.appendChild(scriptTag);
+    }
+
+    // Khởi chạy ban đầu
+    loadOrdersFromSupabase();
+    setInterval(loadOrdersFromSupabase, 10000);
+</script>
+
+</body>
+</html>
