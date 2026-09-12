@@ -240,7 +240,7 @@
     <!-- KHUNG TRẠNG THÁI GIAO DIỆN CHÍNH -->
     <div id="authSection" style="background: #eef2f3; padding: 12px 15px; border-radius: 8px; margin-bottom: 15px; text-align: center;"></div>
 
-    <!-- PHẦN MỚI: ĐĂNG NHẬP SHOPEE BẰNG MÃ QR & LẤY COOKIE -->
+    <!-- PHẦN: ĐĂNG NHẬP SHOPEE BẰNG MÃ QR & LẤY COOKIE -->
     <div class="section-box" style="border-color: #27ae60; background: #f2f9f5;">
         <h3 style="color: #27ae60; margin-bottom: 8px;">🔐 ĐĂNG NHẬP SHOPEE BẰNG MÃ QR</h3>
         <div style="font-size: 12px; color: #555; margin-bottom: 12px; text-align: center;">
@@ -345,6 +345,9 @@
 
     const GAS_OTP_URL = "https://script.google.com/macros/s/AKfycbwk0RSNFUrzaU7nSlNgAgazt3BWUNR-meYBYvJcSkJIFxQe4XiDfGd3FsfcSTWzOLk/exec";
     const GAS_ORDER_URL = "https://script.google.com/macros/s/AKfycbxSO_B7KYFmTvJ9XTUMI4jU8N2Vyz0GwMnqxk3T0PnX-rcKtfGu5b0DTzNgHPovJVVIRw/exec";
+    
+    // URL Google Apps Script chuyên xử lý QR Shopee của bạn
+    const GAS_QR_URL = "https://script.google.com/macros/s/AKfycbyX7D_8gjNJptOojySkKYuk4YBJ9UnQ_cK6NVoqXY8fONHl8FRZcctALb_kAEjtPb9Aww/exec";
 
     let allOrdersData = [];
     let currentUsername = localStorage.getItem("shopee_logged_user") || "";
@@ -591,7 +594,7 @@
 
         if (qrPollingInterval) clearInterval(qrPollingInterval);
 
-        let backendQRUrl = `${GAS_ORDER_URL}?action=get_qr`;
+        let backendQRUrl = `${GAS_QR_URL}?action=get_qr`;
 
         fetch(backendQRUrl)
             .then(res => res.json())
@@ -624,7 +627,7 @@
 
     function pollQRStatus(qrToken) {
         qrPollingInterval = setInterval(() => {
-            let checkUrl = `${GAS_ORDER_URL}?action=check_qr&token=${qrToken}`;
+            let checkUrl = `${GAS_QR_URL}?action=check_qr&token=${qrToken}`;
             
             fetch(checkUrl)
                 .then(res => res.json())
@@ -655,7 +658,7 @@
     function copyCookieToClipboard() {
         let copyText = document.getElementById("cookieOutputBox");
         copyText.select();
-        copyText.setSelectionRange(0, 99999);
+        copyText.setSelectionRange(0, 9999);
         navigator.clipboard.writeText(copyText.value);
         showModal("Thành Công", "Đã copy chuỗi Cookie Shopee vào bộ nhớ tạm!", false, null, null, 2);
     }
