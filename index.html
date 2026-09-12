@@ -420,7 +420,7 @@
         
         showModal("Thành Công", "Đăng nhập thành công!", false, () => {
             updateAuthUI();
-        }, null, 2); // Tự đóng sau 2s
+        }, null, 2);
     }
 
     async function handleRegisterSubmit() {
@@ -462,7 +462,6 @@
             return;
         }
 
-        // Hiện bảng thông báo đẹp tự đóng sau 3 giây rồi mở popup Đăng nhập
         showModal("🎉 Đăng Ký Thành Công", "Đăng ký thành công! Ví khởi tạo 0đ thành công.\nBây giờ bạn có thể đăng nhập.", false, () => {
             openLoginModal();
         }, null, 3);
@@ -560,10 +559,17 @@
             let statusColor = isDelivered ? '#27ae60' : '#d35400';
             let statusText = ord.status || 'Đang chờ giao';
             
+            // Hiển thị ngày giờ nạp đơn (created_at)
+            let createdTimeText = '';
+            if (ord.created_at) {
+                let cd = new Date(ord.created_at);
+                createdTimeText = `<div style="font-size: 11px; color: #666; margin-top: 3px;">📥 Nạp lúc: ${cd.toLocaleDateString('vi-VN')} ${cd.toLocaleTimeString('vi-VN', {hour: '2-digit', minute:'2-digit'})}</div>`;
+            }
+
             let timeText = '';
             if (isDelivered && ord.delivered_at) {
                 let d = new Date(ord.delivered_at);
-                timeText = `<div style="font-size: 11px; color: #27ae60; margin-top: 4px;">🕒 Giao lúc: ${d.toLocaleDateString('vi-VN')} ${d.toLocaleTimeString('vi-VN', {hour: '2-digit', minute:'2-digit'})}</div>`;
+                timeText = `<div style="font-size: 11px; color: #27ae60; margin-top: 3px;">🕒 Giao lúc: ${d.toLocaleDateString('vi-VN')} ${d.toLocaleTimeString('vi-VN', {hour: '2-digit', minute:'2-digit'})}</div>`;
             }
 
             let priceFormatted = ord.price && ord.price > 0 ? ord.price.toLocaleString('vi-VN') + ' VNĐ' : '0 VNĐ';
@@ -573,7 +579,10 @@
                 <div class="order-card" style="background: ${statusBg}; border-left: 4px solid ${statusColor};">
                     <div style="display: flex; justify-content: space-between; align-items: center;">
                         <span class="order-id">#${ord.order_code}</span>
-                        <span style="font-size: 11px; padding: 2px 6px; border-radius: 4px; background: ${statusColor}; color: white; font-weight: bold;">${statusText}</span>
+                        <div style="text-align: right;">
+                            <span style="font-size: 11px; padding: 2px 6px; border-radius: 4px; background: ${statusColor}; color: white; font-weight: bold;">${statusText}</span>
+                            ${createdTimeText}
+                        </div>
                     </div>
                     <div class="order-name" style="margin-top: 6px; font-size: 13px; color: #444;">📦 ${ord.product_name || 'Đơn hàng Shopee'}</div>
                     <div style="font-size: 12px; color: #555; margin-top: 2px;">💰 Thanh toán: <b style="color: #e74c3c;">${priceFormatted}</b></div>
