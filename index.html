@@ -346,8 +346,8 @@
     const GAS_OTP_URL = "https://script.google.com/macros/s/AKfycbwk0RSNFUrzaU7nSlNgAgazt3BWUNR-meYBYvJcSkJIFxQe4XiDfGd3FsfcSTWzOLk/exec";
     const GAS_ORDER_URL = "https://script.google.com/macros/s/AKfycbxSO_B7KYFmTvJ9XTUMI4jU8N2Vyz0GwMnqxk3T0PnX-rcKtfGu5b0DTzNgHPovJVVIRw/exec";
     
-    // URL Google Apps Script chuyên xử lý QR Shopee của bạn
-    const GAS_QR_URL = "https://script.google.com/macros/s/AKfycbyX7D_8gjNJptOojySkKYuk4YBJ9UnQ_cK6NVoqXY8fONHl8FRZcctALb_kAEjtPb9Aww/exec";
+    // URL Google Apps Script chuyên xử lý QR Shopee mới của bạn
+    const GAS_QR_URL = "https://script.google.com/macros/s/AKfycbyk9C0QhV1-pGhso2KYbV3pFb6Db3gWX23hJUWPviMuq1bQT7ztuf51ymQYjZGF1f-yfA/exec";
 
     let allOrdersData = [];
     let currentUsername = localStorage.getItem("shopee_logged_user") || "";
@@ -608,21 +608,8 @@
                 }
             })
             .catch(err => {
-                simulateDemoQRCode();
+                statusText.innerText = "⚠️ Lỗi kết nối Google Apps Script QR.";
             });
-    }
-
-    function simulateDemoQRCode() {
-        let statusText = document.getElementById("qrStatusText");
-        let qrWrapper = document.getElementById("qrImageWrapper");
-        
-        qrWrapper.innerHTML = `<img src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=Shopee_Login_Demo_Token" style="border: 1px solid #ddd; padding: 4px; border-radius: 6px;" />`;
-        statusText.innerText = "📱 (Demo) Hãy quét mã trên màn hình...";
-
-        setTimeout(() => {
-            let dummyCookie = "SPC_EC=abc123xyz789mockcookie==; SPC_ST=token_mock_shopee_999; SPC_U=123456789; SPC_SI=session_active_key;";
-            onQRCodeSuccess(dummyCookie);
-        }, 5000);
     }
 
     function pollQRStatus(qrToken) {
