@@ -134,6 +134,14 @@
 
 <div class="container">
     
+    <h2>QUẢN LÝ ĐƠN HÀNG SHOPEE</h2>
+
+    <!-- Ô QUẢN LÝ TÀI KHOẢN / ĐĂNG NHẬP -->
+    <div style="background: #eef2f3; padding: 10px 15px; border-radius: 8px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center;">
+        <div style="font-size: 13px;">👤 Tài khoản hiện tại: <b id="displayUser" style="color: #ee4d2d;">Cuong123</b></div>
+        <button onclick="changeUser()" style="background: #333; color: white; border: none; padding: 5px 10px; border-radius: 4px; font-size: 12px; cursor: pointer;">Đổi tài khoản</button>
+    </div>
+
     <!-- PHẦN 1: SHOPEE LINK & OTP FETCHER -->
     <div class="section-box">
         <h3>SHOPEE LINK & OTP FETCHER</h3>
@@ -187,6 +195,19 @@
 
     let allOrdersData = [];
     let currentUsername = localStorage.getItem("shopee_logged_user") || "Cuong123";
+    document.getElementById("displayUser").innerText = currentUsername;
+
+    // Hàm thay đổi tài khoản thành viên
+    function changeUser() {
+        let newUser = prompt("Nhập tên tài khoản của bạn:", currentUsername);
+        if (newUser && newUser.trim() !== "") {
+            currentUsername = newUser.trim();
+            localStorage.setItem("shopee_logged_user", currentUsername);
+            document.getElementById("displayUser").innerText = currentUsername;
+            loadOrdersFromSupabase();
+            alert("Đã chuyển sang tài khoản: " + currentUsername);
+        }
+    }
 
     // Hàm nạp đơn mới có kiểm tra trùng mã đơn hàng
     async function addNewOrder() {
@@ -249,7 +270,7 @@
             .order('created_at', { ascending: false });
 
         if (error || !orders || orders.length === 0) {
-            container.innerHTML = `<div style="text-align: center; color: #888; padding: 15px;">Chưa có đơn hàng nào.</div>`;
+            container.innerHTML = `<div style="text-align: center; color: #888; padding: 15px;">Chưa có đơn hàng nào cho tài khoản này.</div>`;
             return;
         }
 
