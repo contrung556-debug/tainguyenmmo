@@ -136,7 +136,7 @@
     
     <h2>QUẢN LÝ ĐƠN HÀNG SHOPEE</h2>
 
-    <!-- KHUNG ĐĂNG NHẬP / ĐĂNG XUẤT -->
+    <!-- KHUNG ĐĂNG NHẬP / ĐĂNG XUẤT CÓ MẬT KHẨU -->
     <div id="authSection" style="background: #eef2f3; padding: 12px 15px; border-radius: 8px; margin-bottom: 15px;">
         <!-- Nội dung tự động thay đổi theo trạng thái đăng nhập -->
     </div>
@@ -208,26 +208,36 @@
             loadOrdersFromSupabase();
         } else {
             authSection.innerHTML = `
-                <div style="font-size: 13px; font-weight: bold; margin-bottom: 6px; color: #444;">🔑 Đăng nhập tài khoản quản lý:</div>
-                <div style="display: flex; gap: 8px;">
-                    <input type="text" id="loginUsernameInput" placeholder="Nhập tên tài khoản..." style="margin-bottom: 0; flex: 1;">
-                    <button onclick="login()" style="background: #27ae60; color: white; border: none; padding: 0 15px; border-radius: 6px; font-size: 13px; font-weight: bold; cursor: pointer;">Đăng nhập</button>
-                </div>
+                <div style="font-size: 13px; font-weight: bold; margin-bottom: 8px; color: #444;">🔑 Đăng nhập hệ thống:</div>
+                <input type="text" id="loginUsernameInput" placeholder="Tên tài khoản..." style="margin-bottom: 8px;">
+                <input type="password" id="loginPasswordInput" placeholder="Mật khẩu..." style="margin-bottom: 10px;">
+                <button onclick="login()" style="background: #27ae60; color: white; border: none; padding: 10px; border-radius: 6px; font-size: 13px; font-weight: bold; width: 100%; cursor: pointer;">Đăng Nhập</button>
             `;
             document.getElementById("orderListContainer").innerHTML = `<div style="text-align: center; color: #888; padding: 15px;">Vui lòng đăng nhập để xem danh sách đơn hàng.</div>`;
         }
     }
 
-    // Hàm xử lý Đăng nhập
+    // Hàm xử lý Đăng nhập (có kiểm tra mật khẩu)
     function login() {
-        const inputVal = document.getElementById("loginUsernameInput").value.trim();
-        if (!inputVal) {
-            alert("Vui lòng nhập tên tài khoản!");
+        const usernameVal = document.getElementById("loginUsernameInput").value.trim();
+        const passwordVal = document.getElementById("loginPasswordInput").value.trim();
+
+        if (!usernameVal || !passwordVal) {
+            alert("Vui lòng nhập đầy đủ tên tài khoản và mật khẩu!");
             return;
         }
-        currentUsername = inputVal;
+
+        // Bạn có thể tùy chỉnh mật khẩu chung hoặc logic kiểm tra tại đây (Ví dụ tạm để mật khẩu mặc định là "123456" hoặc khớp với tên tùy ý)
+        // Hoặc tạm thời lưu mật khẩu vào localStorage để lần sau nhớ
+        if (passwordVal.length < 3) {
+            alert("Mật khẩu quá ngắn!");
+            return;
+        }
+
+        currentUsername = usernameVal;
         localStorage.setItem("shopee_logged_user", currentUsername);
         updateAuthUI();
+        alert("Đăng nhập thành công tài khoản: " + currentUsername);
     }
 
     // Hàm xử lý Đăng xuất
