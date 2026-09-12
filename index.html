@@ -128,62 +128,6 @@
             font-weight: bold;
             color: #333;
         }
-
-        /* CSS cho tính năng Widget nổi / Thu nhỏ góc màn hình */
-        #floatingWidget {
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            width: 320px;
-            background: #fff;
-            border-radius: 12px;
-            box-shadow: 0 6px 20px rgba(0,0,0,0.2);
-            border: 1px solid #faddd3;
-            z-index: 9999;
-            overflow: hidden;
-            transition: all 0.3s ease;
-        }
-        #floatingWidget.minimized {
-            width: 55px;
-            height: 55px;
-            border-radius: 50%;
-            cursor: pointer;
-            background: #ee4d2d;
-            box-shadow: 0 4px 12px rgba(238,77,45,0.4);
-        }
-        #floatingWidget.minimized .widget-content,
-        #floatingWidget.minimized .widget-header {
-            display: none;
-        }
-        .widget-header {
-            background: #ee4d2d;
-            color: white;
-            padding: 10px 15px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            font-weight: bold;
-            font-size: 13px;
-            cursor: pointer;
-        }
-        .widget-body {
-            padding: 12px;
-            max-height: 400px;
-            overflow-y: auto;
-            background: #fff8f5;
-        }
-        #minimizedIcon {
-            display: none;
-            width: 100%;
-            height: 100%;
-            text-align: center;
-            line-height: 55px;
-            font-size: 22px;
-            color: white;
-        }
-        #floatingWidget.minimized #minimizedIcon {
-            display: block;
-        }
     </style>
 </head>
 <body>
@@ -199,15 +143,19 @@
         <div id="fetchResult" style="margin-top: 10px; font-size: 13px; word-break: break-all;"></div>
     </div>
 
-    <!-- PHẦN 2: NẠP ĐƠN GỐC (Dưới trang) -->
+    <!-- PHẦN 2: NẠP ĐƠN QUÉT NGẨM -->
     <div class="section-box">
         <h3>NẠP ĐƠN QUÉT NGẨM</h3>
+        
         <label>Mã đơn hàng Shopee:</label>
         <input type="text" id="inputOrderCode" placeholder="Ví dụ: 260908FD8YK34N">
+
         <label>Tên sản phẩm:</label>
         <input type="text" id="inputProductName" placeholder="Ví dụ: Nước giặt MaxKleen">
+
         <label>Địa chỉ Email hòm thư (iCloud):</label>
         <input type="text" id="inputEmail" placeholder="Ví dụ: snowy.eidolon_2m@icloud.com">
+
         <button class="btn-main" onclick="addNewOrder()">Nạp Đơn Vào Hệ Thống</button>
     </div>
 
@@ -229,29 +177,6 @@
 
 </div>
 
-<!-- FLOATING WIDGET THU NHỎ Ở GÓC MÀN HÌNH -->
-<div id="floatingWidget">
-    <div class="widget-header" onclick="toggleWidget()">
-        <span>⚡ Nạp Đơn Nhanh</span>
-        <span id="toggleBtnText" style="font-size: 16px;">[-]</span>
-    </div>
-    
-    <div id="minimizedIcon" onclick="toggleWidget()" title="Mở hộp nạp đơn">📦</div>
-
-    <div class="widget-body widget-content">
-        <label>Mã đơn hàng Shopee:</label>
-        <input type="text" id="widgetOrderCode" placeholder="Ví dụ: 260908FD8YK34N">
-
-        <label>Tên sản phẩm:</label>
-        <input type="text" id="widgetProductName" placeholder="Ví dụ: Nước giặt MaxKleen">
-
-        <label>Địa chỉ Email (iCloud):</label>
-        <input type="text" id="widgetEmail" placeholder="Ví dụ: snowy.eidolon_2m@icloud.com">
-
-        <button class="btn-main" onclick="addNewOrderFromWidget()">Lưu Vào Data</button>
-    </div>
-</div>
-
 <script>
     const SUPABASE_URL = "https://hsdbjzkxbdezysxwwtaw.supabase.co";
     const SUPABASE_ANON_KEY = "sb_publishable_LIeDI4UVn7MEo5vURP05hA_TM4h0vFd";
@@ -263,24 +188,15 @@
     let allOrdersData = [];
     let currentUsername = localStorage.getItem("shopee_logged_user") || "Cuong123";
 
-    // Hàm bật/tắt thu nhỏ widget
-    function toggleWidget() {
-        const widget = document.getElementById('floatingWidget');
-        const btnText = document.getElementById('toggleBtnText');
-        
-        widget.classList.toggle('minimized');
-        if (widget.classList.contains('minimized')) {
-            btnText.innerText = '[+]';
-        } else {
-            btnText.innerText = '[-]';
-        }
-    }
+    // Hàm nạp đơn mới có kiểm tra trùng mã đơn hàng
+    async function addNewOrder() {
+        const orderCode = document.getElementById("inputOrderCode").value.trim();
+        const productName = document.getElementById("inputProductName").value.trim();
+        const email = document.getElementById("inputEmail").value.trim();
 
-    // Hàm nạp đơn chung cho cả 2 form
-    async function processAddOrder(orderCode, productName, email) {
         if (!orderCode || !email) {
-            alert("Vui lòng nhập đầy đủ mã đơn hàng và email!");
-            return false;
+            alert("Vui lòng nhập đầy đủ mã đơn hàng và địa chỉ email!");
+            return;
         }
 
         const { data: existingOrders, error: checkError } = await _supabase
@@ -291,15 +207,15 @@
 
         if (checkError) {
             alert("Lỗi khi kiểm tra trùng đơn: " + checkError.message);
-            return false;
+            return;
         }
 
         if (existingOrders && existingOrders.length > 0) {
             alert("⚠️ Trùng ID đơn hàng! Mã đơn '" + orderCode + "' đã tồn tại trong hệ thống.");
-            return false;
+            return;
         }
 
-        const { error } = await _supabase
+        const { data, error } = await _supabase
             .from('shopee_orders')
             .insert([
                 { 
@@ -313,40 +229,11 @@
 
         if (error) {
             alert("Lỗi khi thêm đơn: " + error.message);
-            return false;
         } else {
-            return true;
-        }
-    }
-
-    // Nạp đơn từ form chính
-    async function addNewOrder() {
-        const orderCode = document.getElementById("inputOrderCode").value.trim();
-        const productName = document.getElementById("inputProductName").value.trim();
-        const email = document.getElementById("inputEmail").value.trim();
-
-        let success = await processAddOrder(orderCode, productName, email);
-        if (success) {
             alert("Đã nạp đơn hàng thành công vào hệ thống!");
             document.getElementById("inputOrderCode").value = '';
             document.getElementById("inputProductName").value = '';
             document.getElementById("inputEmail").value = '';
-            loadOrdersFromSupabase();
-        }
-    }
-
-    // Nạp đơn từ Widget nổi
-    async function addNewOrderFromWidget() {
-        const orderCode = document.getElementById("widgetOrderCode").value.trim();
-        const productName = document.getElementById("widgetProductName").value.trim();
-        const email = document.getElementById("widgetEmail").value.trim();
-
-        let success = await processAddOrder(orderCode, productName, email);
-        if (success) {
-            alert("Đã lưu đơn vào data thành công!");
-            document.getElementById("widgetOrderCode").value = '';
-            document.getElementById("widgetProductName").value = '';
-            document.getElementById("widgetEmail").value = '';
             loadOrdersFromSupabase();
         }
     }
@@ -484,7 +371,7 @@
     // Check Single
     function checkSingleOrder(id, orderCode, email) {
         if (!email) {
-            alert("Đơn hàng này không có email!");
+            alert("Đơn hàng này không còn email!");
             return;
         }
 
@@ -581,7 +468,6 @@
         document.body.appendChild(scriptTag);
     }
 
-    // Khởi chạy ban đầu
     loadOrdersFromSupabase();
     setInterval(loadOrdersFromSupabase, 10000);
 </script>
