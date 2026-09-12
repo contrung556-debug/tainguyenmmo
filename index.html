@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hệ thống Shopee Manager</title>
+    <title>Hệ thống Shopee & MMO Manager</title>
     <!-- Thư viện Supabase JS Client -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
@@ -194,9 +194,9 @@
 
 <div class="container">
     
-    <h2>QUẢN LÝ ĐƠN HÀNG SHOPEE</h2>
+    <h2>QUẢN LÝ ĐƠN HÀNG & VÍ MMO</h2>
 
-    <!-- KHUNG ĐĂNG NHẬP / ĐĂNG KÝ -->
+    <!-- KHUNG ĐĂNG NHẬP / ĐĂNG KÝ VÀ VÍ TIỀN -->
     <div id="authSection" style="background: #eef2f3; padding: 12px 15px; border-radius: 8px; margin-bottom: 15px;">
         <!-- Nội dung tự động thay đổi theo trạng thái đăng nhập -->
     </div>
@@ -266,9 +266,9 @@
 
     let allOrdersData = [];
     let currentUsername = localStorage.getItem("shopee_logged_user") || "";
+    let currentUserBalance = 0;
     let modalCallback = null;
 
-    // Hàm gọi Modal tùy chỉnh đẹp mắt thay cho alert/confirm mặc định
     function showModal(title, message, isConfirm = false, callback = null) {
         document.getElementById("modalTitle").innerText = title;
         document.getElementById("modalMessage").innerText = message;
@@ -292,20 +292,36 @@
         }
     }
 
-    // Cập nhật giao diện Đăng nhập / Đăng ký
-    function updateAuthUI() {
+    // Cập nhật giao diện Đăng nhập / Đăng ký kèm Ví tiền
+    async function updateAuthUI() {
         const authSection = document.getElementById("authSection");
         if (currentUsername) {
+            // Lấy số dư mới nhất từ Supabase của user này
+            const { data: users } = await _supabase
+                .from('shopee_users')
+                .select('balance')
+                .eq('username', currentUsername);
+            
+            if (users && users.length > 0) {
+                currentUserBalance = users[0].balance || 0;
+            }
+
+            let formattedBalance = Number(currentUserBalance).toLocaleString('vi-VN');
+
             authSection.innerHTML = `
-                <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
                     <div style="font-size: 13px;">👤 Tài khoản: <b style="color: #ee4d2d;">${currentUsername}</b></div>
-                    <button onclick="logout()" style="background: #c0392b; color: white; border: none; padding: 6px 12px; border-radius: 4px; font-size: 12px; font-weight: bold; cursor: pointer;">Đăng xuất</button>
+                    <button onclick="logout()" style="background: #c0392b; color: white; border: none; padding: 5px 10px; border-radius: 4px; font-size: 11px; font-weight: bold; cursor: pointer;">Đăng xuất</button>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center; background: #fff; padding: 8px 12px; border-radius: 6px; border: 1px solid #faddd3;">
+                    <div style="font-size: 13px;">💰 Số dư ví: <b style="color: #27ae60; font-size: 15px;">${formattedBalance} VNĐ</b></div>
+                    <button onclick="openDepositModal()" style="background: #27ae60; color: white; border: none; padding: 5px 10px; border-radius: 4px; font-size: 11px; font-weight: bold; cursor: pointer;">➕ Nạp Tiền</button>
                 </div>
             `;
             loadOrdersFromSupabase();
         } else {
             authSection.innerHTML = `
-                <div style="font-size: 13px; font-weight: bold; margin-bottom: 8px; color: #444;">🔑 Đăng Nhập / Đăng Ký Tài Khoản:</div>
+                <div style="font-size: 13px; font-weight: bold; margin-bottom: 8px; color: #444;">🔑 Đăng Nhập / Đăng Ký Thành Viên:</div>
                 <input type="text" id="loginUsernameInput" placeholder="Tên tài khoản..." style="margin-bottom: 8px;">
                 <input type="password" id="loginPasswordInput" placeholder="Mật khẩu..." style="margin-bottom: 10px;">
                 <div style="display: flex; gap: 8px;">
@@ -313,11 +329,15 @@
                     <button onclick="handleRegister()" style="background: #3498db; color: white; border: none; padding: 10px; border-radius: 6px; font-size: 13px; font-weight: bold; flex: 1; cursor: pointer;">Đăng Ký Mới</button>
                 </div>
             `;
-            document.getElementById("orderListContainer").innerHTML = `<div style="text-align: center; color: #888; padding: 15px;">Vui lòng đăng nhập để xem danh sách đơn hàng.</div>`;
+            document.getElementById("orderListContainer").innerHTML = `<div style="text-align: center; color: #888; padding: 15px;">Vui lòng đăng nhập để xem hệ thống.</div>`;
         }
     }
 
-    // Xử lý Đăng ký tài khoản mới lưu vào bảng shopee_users
+    // Hướng dẫn nạp tiền hoặc chuyển khoản tự động
+    function openDepositModal() {
+        showModal("Nạp Tiền Vào Ví", `Để nạp tiền mua tài nguyên, vui lòng chuyển khoản qua:\n\n- Ngân hàng: Momo / Techcombank\n- Chủ tài khoản: Admin MMO\n- Nội dung chuyển khoản: napvi ${currentUsername}\n\nSau khi chuyển, Admin sẽ duyệt cộng tiền thủ công cho bạn ngay!`);
+    }
+
     async function handleRegister() {
         const usernameVal = document.getElementById("loginUsernameInput").value.trim();
         const passwordVal = document.getElementById("loginPasswordInput").value.trim();
@@ -337,19 +357,19 @@
             return;
         }
 
+        // Đăng ký mới mặc định balance = 0
         const { error: regErr } = await _supabase
             .from('shopee_users')
-            .insert([{ username: usernameVal, password: passwordVal }]);
+            .insert([{ username: usernameVal, password: passwordVal, balance: 0 }]);
 
         if (regErr) {
             showModal("Lỗi đăng ký", regErr.message);
             return;
         }
 
-        showModal("Thành công", "Đăng ký thành công tài khoản: " + usernameVal + "! Bây giờ bạn có thể bấm Đăng Nhập.");
+        showModal("Thành công", "Đăng ký thành công tài khoản: " + usernameVal + "! Ví của bạn đã được khởi tạo. Bây giờ bạn có thể bấm Đăng Nhập.");
     }
 
-    // Xử lý Đăng nhập kiểm tra dữ liệu từ bảng shopee_users
     async function handleLogin() {
         const usernameVal = document.getElementById("loginUsernameInput").value.trim();
         const passwordVal = document.getElementById("loginPasswordInput").value.trim();
@@ -381,7 +401,6 @@
         showModal("Thành công", "Đăng nhập thành công!");
     }
 
-    // Hàm xử lý Đăng xuất
     function logout() {
         showModal("Xác nhận", "Bạn có chắc chắn muốn đăng xuất không?", true, function(res) {
             if (res) {
@@ -392,7 +411,6 @@
         });
     }
 
-    // Hàm nạp đơn mới có kiểm tra trùng mã đơn hàng
     async function addNewOrder() {
         if (!currentUsername) {
             showModal("Chưa đăng nhập", "Vui lòng đăng nhập trước khi nạp đơn!");
@@ -447,7 +465,6 @@
         }
     }
 
-    // Tải danh sách đơn hàng từ Supabase
     async function loadOrdersFromSupabase() {
         if (!currentUsername) return;
         const container = document.getElementById("orderListContainer");
@@ -467,7 +484,6 @@
         renderOrders(orders);
     }
 
-    // Hiển thị danh sách đơn ra giao diện
     function renderOrders(orders) {
         const container = document.getElementById("orderListContainer");
         let html = '';
@@ -509,7 +525,6 @@
         container.innerHTML = html;
     }
 
-    // Chỉnh sửa đơn hàng
     async function editOrder(id, oldCode, oldName, oldEmail) {
         let newCode = prompt("Nhập mã đơn hàng mới:", oldCode);
         if (newCode === null) return;
@@ -541,7 +556,6 @@
         }
     }
 
-    // Xóa đơn hàng
     async function deleteOrder(id, orderCode) {
         showModal("Xác nhận xóa", `Bạn có chắc chắn muốn xóa đơn hàng #${orderCode} không?`, true, async function(res) {
             if (res) {
@@ -556,7 +570,6 @@
         });
     }
 
-    // Check All
     function checkAllOrders() {
         if (!currentUsername) {
             showModal("Chưa đăng nhập", "Vui lòng đăng nhập trước!");
@@ -583,7 +596,6 @@
         document.body.appendChild(scriptTag);
     }
 
-    // Check Single
     function checkSingleOrder(id, orderCode, email) {
         if (!email) {
             showModal("Thiếu email", "Đơn hàng này không có email!");
@@ -609,7 +621,6 @@
         document.body.appendChild(scriptTag);
     }
 
-    // Tìm kiếm nhanh đơn hàng
     function filterOrders() {
         let keyword = document.getElementById("searchBox").value.toLowerCase();
         let filtered = allOrdersData.filter(ord => 
@@ -619,7 +630,6 @@
         renderOrders(filtered);
     }
 
-    // Hàm lấy OTP/Link
     function fetchOtpLink() {
         let val = document.getElementById("fetchInputEmail").value.trim();
         let resultDiv = document.getElementById("fetchResult");
@@ -683,7 +693,6 @@
         document.body.appendChild(scriptTag);
     }
 
-    // Khởi chạy trạng thái giao diện ban đầu
     updateAuthUI();
     setInterval(() => {
         if (currentUsername) loadOrdersFromSupabase();
