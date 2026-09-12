@@ -53,7 +53,7 @@
         }
         textarea {
             resize: vertical;
-            min-height: 120px;
+            min-height: 130px;
         }
         .btn-main {
             background-color: #ee4d2d;
@@ -277,16 +277,9 @@
             <label>Danh sách đơn hàng (Mỗi dòng 1 đơn) *</label>
             <textarea id="inputMultipleLines" placeholder="Nhập theo định dạng:
 260908FD8YK34N | email@icloud.com | Tên sản phẩm
-260908FD8YK34M | email2@icloud.com | Tên sản phẩm 2
-(Hoặc chỉ dán danh sách mã đơn, hệ thống sẽ lấy email/tên mặc định bên dưới)"></textarea>
+260908FD8YK34M | email2@icloud.com | Tên sản phẩm 2"></textarea>
 
-            <label>Email mặc định (Nếu dòng dữ liệu không có email):</label>
-            <input type="text" id="defaultMultipleEmail" placeholder="VD: snowy.eidolon_2m@icloud.com">
-
-            <label>Tên sản phẩm mặc định (Nếu dòng dữ liệu không có tên):</label>
-            <input type="text" id="defaultMultipleProductName" placeholder="VD: Đơn hàng Shopee">
-
-            <div style="font-size: 11px; color: #666; margin-bottom: 8px;">Hỗ trợ phân tách bằng dấu gạch đứng (|), dấu phẩy hoặc xuống dòng. Tự động loại bỏ trùng lặp.</div>
+            <div style="font-size: 11px; color: #666; margin-bottom: 8px;">Mỗi dòng 1 đơn, ngăn cách nhau bằng dấu gạch đứng (|). Tự động loại bỏ trùng lặp.</div>
 
             <button class="btn-main" onclick="addMultipleOrders()">Nạp Hàng Loạt Vào Hệ Thống</button>
         </div>
@@ -616,8 +609,6 @@
         }
 
         const rawText = document.getElementById("inputMultipleLines").value.trim();
-        const defaultEmail = document.getElementById("defaultMultipleEmail").value.trim();
-        const defaultProductName = document.getElementById("defaultMultipleProductName").value.trim() || 'Đơn hàng Shopee';
 
         if (!rawText) {
             showModal("Thông Báo", "Vui lòng nhập danh sách đơn hàng vào ô trống!");
@@ -629,7 +620,6 @@
         let skippedCount = 0;
         let tempProcessedCodes = new Set();
 
-        // Lấy danh sách đơn hiện có để tránh trùng lặp với DB
         const { data: existingOrders } = await _supabase
             .from('shopee_orders')
             .select('order_code')
@@ -642,46 +632,36 @@
             if (!line) continue;
 
             let orderCode = "";
-            let email = defaultEmail;
-            let productName = defaultProductName;
+            let email = "";
+            let productName = "Đơn hàng Shopee";
 
-            // Kiểm tra xem dòng có chứa dấu phân cách '|' không
             if (line.includes('|')) {
                 let parts = line.split('|').map(p => p.trim());
                 orderCode = parts[0] || "";
                 if (parts.length > 1 && parts[1]) email = parts[1];
                 if (parts.length > 2 && parts[2]) productName = parts[2];
             } else {
-                // Nếu không có '|', lấy cả chuỗi làm mã đơn (hoặc tách bằng khoảng trắng/phẩy)
                 orderCode = line;
             }
 
             if (!orderCode) continue;
 
-            // Nếu người dùng dán nhiều mã trên 1 dòng cách nhau bằng dấu phẩy
-            let subCodes = orderCode.split(',').map(s => s.trim()).filter(s => s.length > 0);
-            
-            for (let code of subCodes) {
-                if (existingSet.has(code) || tempProcessedCodes.has(code)) {
-                    skippedCount++;
-                } else {
-                    // Nếu dòng không có email mà cũng không có defaultEmail thì báo hoặc bỏ qua
-                    let finalEmail = email || defaultEmail;
-                    if (!finalEmail) {
-                        // Tạm thời nếu thiếu email hoàn toàn, có thể dùng chuỗi mặc định hoặc báo lỗi
-                        finalEmail = "chua_co_email@icloud.com";
-                    }
-
-                    insertList.push({
-                        order_code: code,
-                        product_name: productName,
-                        email: finalEmail,
-                        username: currentUsername,
-                        status: 'Đang chờ giao'
-                    });
-                    tempProcessedCodes.add(code);
-                    existingSet.add(code);
+            if (existingSet.has(orderCode) || tempProcessedCodes.has(orderCode)) {
+                skippedCount++;
+            } else {
+                if (!email) {
+                    email = "chua_co_email@icloud.com";
                 }
+
+                insertList.push({
+                    order_code: orderCode,
+                    product_name: productName,
+                    email: email,
+                    username: currentUsername,
+                    status: 'Đang chờ giao'
+                });
+                tempProcessedCodes.add(orderCode);
+                existingSet.add(orderCode);
             }
         }
 
@@ -705,8 +685,6 @@
 
         showModal("Thành Công", msg, false, null, null, 3);
         document.getElementById("inputMultipleLines").value = '';
-        document.getElementById("defaultMultipleEmail").value = '';
-        document.getElementById("defaultMultipleProductName").value = '';
         loadOrdersFromSupabase();
     }
 
