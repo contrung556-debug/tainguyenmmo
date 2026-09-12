@@ -44,7 +44,7 @@
         input {
             width: 100%;
             padding: 10px;
-            margin-bottom: 12px;
+            margin-bottom: 10px;
             border: 1px solid #ccc;
             border-radius: 6px;
             box-sizing: border-box;
@@ -166,6 +166,7 @@
             color: #444;
             margin-bottom: 20px;
             line-height: 1.4;
+            white-space: pre-line;
         }
         .modal-buttons {
             display: flex;
@@ -271,7 +272,7 @@
 
     function showModal(title, message, isConfirm = false, callback = null) {
         document.getElementById("modalTitle").innerText = title;
-        document.getElementById("modalMessage").innerText = message;
+        document.getElementById("modalMessageinnerText" ? "modalMessage" : "modalMessage").innerText = message;
         modalCallback = callback;
 
         let cancelBtn = document.getElementById("modalBtnCancel");
@@ -292,11 +293,10 @@
         }
     }
 
-    // Cập nhật giao diện Đăng nhập / Đăng ký kèm Ví tiền
+    // Cập nhật giao diện Đăng nhập / Đăng ký kèm ô xác nhận mật khẩu
     async function updateAuthUI() {
         const authSection = document.getElementById("authSection");
         if (currentUsername) {
-            // Lấy số dư mới nhất từ Supabase của user này
             const { data: users } = await _supabase
                 .from('shopee_users')
                 .select('balance')
@@ -322,9 +322,10 @@
         } else {
             authSection.innerHTML = `
                 <div style="font-size: 13px; font-weight: bold; margin-bottom: 8px; color: #444;">🔑 Đăng Nhập / Đăng Ký Thành Viên:</div>
-                <input type="text" id="loginUsernameInput" placeholder="Tên tài khoản..." style="margin-bottom: 8px;">
-                <input type="password" id="loginPasswordInput" placeholder="Mật khẩu..." style="margin-bottom: 10px;">
-                <div style="display: flex; gap: 8px;">
+                <input type="text" id="loginUsernameInput" placeholder="Tên tài khoản...">
+                <input type="password" id="loginPasswordInput" placeholder="Mật khẩu...">
+                <input type="password" id="loginConfirmPasswordInput" placeholder="Xác nhận lại mật khẩu (chỉ dùng khi Đăng Ký)...">
+                <div style="display: flex; gap: 8px; margin-top: 4px;">
                     <button onclick="handleLogin()" style="background: #27ae60; color: white; border: none; padding: 10px; border-radius: 6px; font-size: 13px; font-weight: bold; flex: 1; cursor: pointer;">Đăng Nhập</button>
                     <button onclick="handleRegister()" style="background: #3498db; color: white; border: none; padding: 10px; border-radius: 6px; font-size: 13px; font-weight: bold; flex: 1; cursor: pointer;">Đăng Ký Mới</button>
                 </div>
@@ -333,17 +334,22 @@
         }
     }
 
-    // Hướng dẫn nạp tiền hoặc chuyển khoản tự động
     function openDepositModal() {
-        showModal("Nạp Tiền Vào Ví", `Để nạp tiền mua tài nguyên, vui lòng chuyển khoản qua:\n\n- Ngân hàng: Momo / Techcombank\n- Chủ tài khoản: Admin MMO\n- Nội dung chuyển khoản: napvi ${currentUsername}\n\nSau khi chuyển, Admin sẽ duyệt cộng tiền thủ công cho bạn ngay!`);
+        showModal("Nạp Tiền Vào Ví", "Để nạp tiền mua tài nguyên, vui lòng chuyển khoản qua:\n\n- Ngân hàng: Momo / Techcombank\n- Chủ tài khoản: Admin MMO\n- Nội dung chuyển khoản: napvi " + currentUsername + "\n\nSau khi chuyển, Admin sẽ duyệt cộng tiền thủ công cho bạn ngay!");
     }
 
     async function handleRegister() {
         const usernameVal = document.getElementById("loginUsernameInput").value.trim();
         const passwordVal = document.getElementById("loginPasswordInput").value.trim();
+        const confirmPasswordVal = document.getElementById("loginConfirmPasswordInput").value.trim();
 
-        if (!usernameVal || !passwordVal) {
-            showModal("Thiếu thông tin", "Vui lòng nhập đầy đủ tên tài khoản và mật khẩu để đăng ký!");
+        if (!usernameVal || !passwordVal || !confirmPasswordVal) {
+            showModal("Thiếu thông tin", "Vui lòng nhập đầy đủ tên tài khoản, mật khẩu và xác nhận mật khẩu!");
+            return;
+        }
+
+        if (passwordVal !== confirmPasswordVal) {
+            showModal("Lỗi mật khẩu", "Mật khẩu và Xác nhận mật khẩu không khớp nhau!");
             return;
         }
 
@@ -357,7 +363,6 @@
             return;
         }
 
-        // Đăng ký mới mặc định balance = 0
         const { error: regErr } = await _supabase
             .from('shopee_users')
             .insert([{ username: usernameVal, password: passwordVal, balance: 0 }]);
@@ -557,7 +562,7 @@
     }
 
     async function deleteOrder(id, orderCode) {
-        showModal("Xác nhận xóa", `Bạn có chắc chắn muốn xóa đơn hàng #${orderCode} không?`, true, async function(res) {
+        showModal("Xác nhận xóa", "Bạn có chắc chắn muốn xóa đơn hàng #" + orderCode + " không?", true, async function(res) {
             if (res) {
                 const { error } = await _supabase.from('shopee_orders').delete().eq('id', id);
                 if (error) {
