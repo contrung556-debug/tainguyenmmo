@@ -136,10 +136,9 @@
     
     <h2>QUẢN LÝ ĐƠN HÀNG SHOPEE</h2>
 
-    <!-- Ô QUẢN LÝ TÀI KHOẢN / ĐĂNG NHẬP -->
-    <div style="background: #eef2f3; padding: 10px 15px; border-radius: 8px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center;">
-        <div style="font-size: 13px;">👤 Tài khoản hiện tại: <b id="displayUser" style="color: #ee4d2d;">Cuong123</b></div>
-        <button onclick="changeUser()" style="background: #333; color: white; border: none; padding: 5px 10px; border-radius: 4px; font-size: 12px; cursor: pointer;">Đổi tài khoản</button>
+    <!-- KHUNG ĐĂNG NHẬP / ĐĂNG XUẤT -->
+    <div id="authSection" style="background: #eef2f3; padding: 12px 15px; border-radius: 8px; margin-bottom: 15px;">
+        <!-- Nội dung tự động thay đổi theo trạng thái đăng nhập -->
     </div>
 
     <!-- PHẦN 1: SHOPEE LINK & OTP FETCHER -->
@@ -194,23 +193,58 @@
     const GAS_ORDER_URL = "https://script.google.com/macros/s/AKfycbxSO_B7KYFmTvJ9XTUMI4jU8N2Vyz0GwMnqxk3T0PnX-rcKtfGu5b0DTzNgHPovJVVIRw/exec";
 
     let allOrdersData = [];
-    let currentUsername = localStorage.getItem("shopee_logged_user") || "Cuong123";
-    document.getElementById("displayUser").innerText = currentUsername;
+    let currentUsername = localStorage.getItem("shopee_logged_user") || "";
 
-    // Hàm thay đổi tài khoản thành viên
-    function changeUser() {
-        let newUser = prompt("Nhập tên tài khoản của bạn:", currentUsername);
-        if (newUser && newUser.trim() !== "") {
-            currentUsername = newUser.trim();
-            localStorage.setItem("shopee_logged_user", currentUsername);
-            document.getElementById("displayUser").innerText = currentUsername;
+    // Cập nhật giao diện Đăng nhập / Đăng xuất
+    function updateAuthUI() {
+        const authSection = document.getElementById("authSection");
+        if (currentUsername) {
+            authSection.innerHTML = `
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div style="font-size: 13px;">👤 Tài khoản: <b style="color: #ee4d2d;">${currentUsername}</b></div>
+                    <button onclick="logout()" style="background: #c0392b; color: white; border: none; padding: 6px 12px; border-radius: 4px; font-size: 12px; font-weight: bold; cursor: pointer;">Đăng xuất</button>
+                </div>
+            `;
             loadOrdersFromSupabase();
-            alert("Đã chuyển sang tài khoản: " + currentUsername);
+        } else {
+            authSection.innerHTML = `
+                <div style="font-size: 13px; font-weight: bold; margin-bottom: 6px; color: #444;">🔑 Đăng nhập tài khoản quản lý:</div>
+                <div style="display: flex; gap: 8px;">
+                    <input type="text" id="loginUsernameInput" placeholder="Nhập tên tài khoản..." style="margin-bottom: 0; flex: 1;">
+                    <button onclick="login()" style="background: #27ae60; color: white; border: none; padding: 0 15px; border-radius: 6px; font-size: 13px; font-weight: bold; cursor: pointer;">Đăng nhập</button>
+                </div>
+            `;
+            document.getElementById("orderListContainer").innerHTML = `<div style="text-align: center; color: #888; padding: 15px;">Vui lòng đăng nhập để xem danh sách đơn hàng.</div>`;
         }
+    }
+
+    // Hàm xử lý Đăng nhập
+    function login() {
+        const inputVal = document.getElementById("loginUsernameInput").value.trim();
+        if (!inputVal) {
+            alert("Vui lòng nhập tên tài khoản!");
+            return;
+        }
+        currentUsername = inputVal;
+        localStorage.setItem("shopee_logged_user", currentUsername);
+        updateAuthUI();
+    }
+
+    // Hàm xử lý Đăng xuất
+    function logout() {
+        if (!confirm("Bạn có chắc chắn muốn đăng xuất không?")) return;
+        currentUsername = "";
+        localStorage.removeItem("shopee_logged_user");
+        updateAuthUI();
     }
 
     // Hàm nạp đơn mới có kiểm tra trùng mã đơn hàng
     async function addNewOrder() {
+        if (!currentUsername) {
+            alert("Vui lòng đăng nhập trước khi nạp đơn!");
+            return;
+        }
+
         const orderCode = document.getElementById("inputOrderCode").value.trim();
         const productName = document.getElementById("inputProductName").value.trim();
         const email = document.getElementById("inputEmail").value.trim();
@@ -261,6 +295,7 @@
 
     // Tải danh sách đơn hàng từ Supabase
     async function loadOrdersFromSupabase() {
+        if (!currentUsername) return;
         const container = document.getElementById("orderListContainer");
 
         const { data: orders, error } = await _supabase
@@ -368,6 +403,10 @@
 
     // Check All
     function checkAllOrders() {
+        if (!currentUsername) {
+            alert("Vui lòng đăng nhập trước!");
+            return;
+        }
         alert("Đang kích hoạt quét tất cả đơn chờ giao trên hệ thống...");
         let callbackName = 'check_all_cb_' + Math.round(Math.random() * 100000);
         
@@ -489,8 +528,11 @@
         document.body.appendChild(scriptTag);
     }
 
-    loadOrdersFromSupabase();
-    setInterval(loadOrdersFromSupabase, 10000);
+    // Khởi chạy trạng thái giao diện ban đầu
+    updateAuthUI();
+    setInterval(() => {
+        if (currentUsername) loadOrdersFromSupabase();
+    }, 10000);
 </script>
 
 </body>
