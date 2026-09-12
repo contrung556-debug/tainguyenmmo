@@ -41,7 +41,7 @@
             display: block;
             margin-bottom: 5px;
         }
-        input {
+        input, textarea {
             width: 100%;
             padding: 10px;
             margin-bottom: 10px;
@@ -49,6 +49,11 @@
             border-radius: 6px;
             box-sizing: border-box;
             font-size: 14px;
+            font-family: Arial, sans-serif;
+        }
+        textarea {
+            resize: vertical;
+            min-height: 90px;
         }
         .btn-main {
             background-color: #ee4d2d;
@@ -127,6 +132,34 @@
         .order-id {
             font-weight: bold;
             color: #333;
+        }
+
+        /* TAB SWITCHER STYLES */
+        .tab-container {
+            display: flex;
+            background: #fce8e3;
+            border-radius: 8px;
+            padding: 4px;
+            margin-bottom: 15px;
+            border: 1px solid #faddd3;
+        }
+        .tab-btn {
+            flex: 1;
+            padding: 9px;
+            border: none;
+            background: transparent;
+            font-weight: bold;
+            font-size: 13px;
+            color: #b5452c;
+            cursor: pointer;
+            border-radius: 6px;
+            text-align: center;
+            transition: all 0.2s;
+        }
+        .tab-btn.active {
+            background: #ee4d2d;
+            color: white;
+            box-shadow: 0 2px 5px rgba(238, 77, 45, 0.3);
         }
 
         /* CUSTOM MODAL CSS */
@@ -216,20 +249,46 @@
         <div id="fetchResult" style="margin-top: 10px; font-size: 13px; word-break: break-all;"></div>
     </div>
 
-    <!-- PHẦN 2: NẠP ĐƠN QUÉT NGẨM -->
+    <!-- PHẦN 2: NẠP ĐƠN QUÉT NGẨM (CÓ TAB NẠP 1 ĐƠN & NẠP NHIỀU ĐƠN) -->
     <div class="section-box">
         <h3>NẠP ĐƠN QUÉT NGẨM</h3>
         
-        <label>Mã đơn hàng Shopee:</label>
-        <input type="text" id="inputOrderCode" placeholder="Ví dụ: 260908FD8YK34N">
+        <div class="tab-container">
+            <button class="tab-btn active" id="tabBtnSingle" onclick="switchDepositTab('single')">📦 Nạp 1 Đơn</button>
+            <button class="tab-btn" id="tabBtnMultiple" onclick="switchDepositTab('multiple')">📑 Nạp Nhiều Đơn</button>
+        </div>
 
-        <label>Tên sản phẩm:</label>
-        <input type="text" id="inputProductName" placeholder="Ví dụ: Nước giặt MaxKleen">
+        <!-- FORM NẠP 1 ĐƠN -->
+        <div id="depositSingleForm">
+            <label>Mã đơn hàng Shopee:</label>
+            <input type="text" id="inputOrderCode" placeholder="VD: 260908FD8YK34N">
 
-        <label>Địa chỉ Email hòm thư (iCloud):</label>
-        <input type="text" id="inputEmail" placeholder="Ví dụ: snowy.eidolon_2m@icloud.com">
+            <label>Tên sản phẩm:</label>
+            <input type="text" id="inputProductName" placeholder="VD: Nước giặt MaxKleen">
 
-        <button class="btn-main" onclick="addNewOrder()">Nạp Đơn Vào Hệ Thống</button>
+            <label>Địa chỉ Email hòm thư (iCloud):</label>
+            <input type="text" id="inputEmail" placeholder="VD: snowy.eidolon_2m@icloud.com">
+
+            <button class="btn-main" onclick="addNewOrder()">Nạp Đơn Vào Hệ Thống</button>
+        </div>
+
+        <!-- FORM NẠP NHIỀU ĐƠN -->
+        <div id="depositMultipleForm" style="display: none;">
+            <label>Danh sách mã đơn hàng *</label>
+            <textarea id="inputMultipleCodes" placeholder="Nhập mỗi mã 1 dòng hoặc cách nhau bởi dấu phẩy:
+260908FD8YK34N
+260908FD8YK34M, 260908FD8YK34P
+..."></textarea>
+            <div style="font-size: 11px; color: #666; margin-bottom: 8px; margin-top: -6px;">Mỗi mã 1 dòng, hoặc cách nhau bởi dấu phẩy / khoảng trắng. Tự động loại bỏ trùng lặp.</div>
+
+            <label>Tên sản phẩm chung (tuỳ chọn):</label>
+            <input type="text" id="inputMultipleProductName" placeholder="VD: Nước giặt MaxKleen">
+
+            <label>Địa chỉ Email hòm thư (iCloud) chung:</label>
+            <input type="text" id="inputMultipleEmail" placeholder="VD: snowy.eidolon_2m@icloud.com">
+
+            <button class="btn-main" onclick="addMultipleOrders()">Nạp Hàng Loạt Vào Hệ Thống</button>
+        </div>
     </div>
 
     <!-- PHẦN 3: TIẾN ĐỘ THEO DÕI ĐƠN -->
@@ -275,6 +334,25 @@
     let currentUserBalance = 0;
     let modalCallback = null;
     let autoCloseTimer = null;
+
+    function switchDepositTab(type) {
+        let btnSingle = document.getElementById("tabBtnSingle");
+        let btnMultiple = document.getElementById("tabBtnMultiple");
+        let formSingle = document.getElementById("depositSingleForm");
+        let formMultiple = document.getElementById("depositMultipleForm");
+
+        if (type === 'single') {
+            btnSingle.classList.add("active");
+            btnMultiple.classList.remove("active");
+            formSingle.style.display = "block";
+            formMultiple.style.display = "none";
+        } else {
+            btnMultiple.classList.add("active");
+            btnSingle.classList.remove("active");
+            formMultiple.style.display = "block";
+            formSingle.style.display = "none";
+        }
+    }
 
     function showModal(title, message, isConfirm = false, callback = null, customHtml = null, autoCloseSeconds = 0) {
         if (autoCloseTimer) {
@@ -528,6 +606,77 @@
             document.getElementById("inputEmail").value = '';
             loadOrdersFromSupabase();
         }
+    }
+
+    async function addMultipleOrders() {
+        if (!currentUsername) {
+            showModal("Thông Báo", "Vui lòng đăng nhập trước khi nạp đơn!");
+            return;
+        }
+
+        const rawText = document.getElementById("inputMultipleCodes").value.trim();
+        const productName = document.getElementById("inputMultipleProductName").value.trim();
+        const email = document.getElementById("inputMultipleEmail").value.trim();
+
+        if (!rawText || !email) {
+            showModal("Thông Báo", "Vui lòng nhập danh sách mã đơn hàng và địa chỉ email!");
+            return;
+        }
+
+        // Tách dòng, tách dấu phẩy/khoảng trắng, lọc bỏ rỗng và trùng lặp
+        let codesArray = rawText.split(/[\n,\s]+/).map(s => s.trim()).filter(s => s.length > 0);
+        codesArray = [...new Set(codesArray)]; // Loại bỏ trùng lặp
+
+        if (codesArray.length === 0) {
+            showModal("Thông Báo", "Không tìm thấy mã đơn hàng hợp lệ nào!");
+            return;
+        }
+
+        showModal("Đang Xử Lý", `Đang kiểm tra và nạp ${codesArray.length} đơn vào hệ thống...`);
+
+        // Lấy danh sách đơn hiện có để tránh trùng lặp với DB
+        const { data: existingOrders } = await _supabase
+            .from('shopee_orders')
+            .select('order_code')
+            .eq('username', currentUsername);
+
+        let existingSet = new Set(existingOrders ? existingOrders.map(o => o.order_code) : []);
+        let insertList = [];
+        let skippedCount = 0;
+
+        for (let code of codesArray) {
+            if (existingSet.has(code)) {
+                skippedCount++;
+            } else {
+                insertList.push({
+                    order_code: code,
+                    product_name: productName || 'Đơn hàng Shopee',
+                    email: email,
+                    username: currentUsername,
+                    status: 'Đang chờ giao'
+                });
+                existingSet.add(code); // Tránh trùng lặp nội bộ trong cùng đợt nhập
+            }
+        }
+
+        if (insertList.length > 0) {
+            const { error } = await _supabase.from('shopee_orders').insert(insertList);
+            if (error) {
+                showModal("Lỗi", "Lỗi khi nạp hàng loạt: " + error.message);
+                return;
+            }
+        }
+
+        let msg = `🎉 Đã nạp thành công ${insertList.length} đơn hàng!`;
+        if (skippedCount > 0) {
+            msg += `\n(Đã bỏ qua ${skippedCount} mã bị trùng lặp trong hệ thống).`;
+        }
+
+        showModal("Thành Công", msg, false, null, null, 3);
+        document.getElementById("inputMultipleCodes").value = '';
+        document.getElementById("inputMultipleProductName").value = '';
+        document.getElementById("inputMultipleEmail").value = '';
+        loadOrdersFromSupabase();
     }
 
     async function loadOrdersFromSupabase() {
