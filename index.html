@@ -382,6 +382,7 @@
             document.getElementById("adminPostBox").style.display = "none";
             document.getElementById("adminWalletBox").style.display = "none";
             if(btnMembers) btnMembers.style.display = "none";
+            loadStoreData();
         }
     }
 
@@ -627,8 +628,6 @@
     }
 
     async function loadStoreData() {
-        if (!currentUsername) return;
-        
         let metaMap = JSON.parse(localStorage.getItem("mmo_meta_info") || "{}");
 
         if (currentCategory !== 'my') {
@@ -690,6 +689,14 @@
                     </div>`; 
             }
             document.getElementById("marketList").innerHTML = marketHtml;
+        }
+
+        if (!currentUsername) {
+            document.getElementById("myAccList").innerHTML = `
+                <div style="text-align: center; padding: 20px; color: #888; font-size: 13px;">
+                    Vui lòng đăng nhập để xem danh sách tài khoản đã mua.
+                </div>`;
+            return;
         }
 
         // Tải danh sách đơn đã mua và gom nhóm theo thời gian mua (batch)
@@ -801,6 +808,11 @@
     }
 
     async function buyGroupAccounts(platform, price, maxStock) {
+        if (!currentUsername) {
+            showModal("Thông báo", "Vui lòng đăng nhập để mua tài khoản!");
+            return;
+        }
+
         const { data: marketData } = await _supabase.from('mmo_accounts').select('id').eq('status', 'Đang bán').eq('platform', platform).eq('price', price);
         if(!marketData || marketData.length === 0) { showModal("Lỗi", "Sản phẩm đã hết hàng!"); return; }
         
@@ -836,7 +848,6 @@
                 
                 updateAuthUI();
 
-                // Hiển thị popup kèm danh sách acc vừa mua và nút copy ngay lập tức
                 let uniqueModalId = 'modal_acc_list_' + Date.now();
                 showModal(`Mua thành công ${qty} tài khoản!`, "", false, null, `
                     <div style="font-size: 12px; color: #555; margin-bottom: 6px;">Danh sách tài khoản của bạn:</div>
@@ -923,8 +934,18 @@
         }
     }
 
+    async function autoDeleteOldOrders() {
+        if (!currentUsername) return;
+        const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+        await _supabase.from('shopee_orders')
+            .delete()
+            .eq('username', currentUsername)
+            .lt('created_at', twentyFourHoursAgo);
+    }
+
     async function loadOrdersFromSupabase() {
         if (!currentUsername) return;
+        await autoDeleteOldOrders(); // Tự động xóa đơn cũ hơn 24 giờ
         const { data: orders } = await _supabase.from('shopee_orders').select('*').eq('username', currentUsername).order('created_at', { ascending: false });
         cachedOrders = orders || [];
         renderOrders(cachedOrders);
