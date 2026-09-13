@@ -1,0 +1,13 @@
+export default async function handler(req, res) {
+    const { action, code = '' } = req.query;
+
+    try {
+        const response = await fetch(`${process.env.GAS_ORDER_URL}?action=${action}&code=${encodeURIComponent(code)}&callback=vercel_cb`);
+        const text = await response.text();
+        const jsonString = text.replace(/^vercel_cb\((.*)\)$/s, "$1");
+        
+        return res.status(200).json(JSON.parse(jsonString));
+    } catch (error) {
+        return res.status(500).json({ success: false, message: "Lỗi kết nối App Script" });
+    }
+}
