@@ -50,8 +50,8 @@
         .order-btn-edit { flex: 1; background: #2980b9; color: white; border: none; padding: 6px; border-radius: 6px; font-size: 12px; font-weight: bold; cursor: pointer; }
         .order-btn-del { flex: 1; background: #c0392b; color: white; border: none; padding: 6px; border-radius: 6px; font-size: 12px; font-weight: bold; cursor: pointer; }
 
-        .sub-tab-container { display: flex; background: #fff8f5; border-radius: 8px; padding: 3px; margin-bottom: 12px; border: 1px solid #faddd3; }
-        .sub-tab-btn { flex: 1; padding: 8px; border: none; background: transparent; font-weight: bold; font-size: 12px; color: #ee4d2d; cursor: pointer; border-radius: 6px; text-align: center; transition: all 0.2s; }
+        .sub-tab-container { display: flex; background: #fff8f5; border-radius: 8px; padding: 3px; margin-bottom: 12px; border: 1px solid #faddd3; overflow-x: auto; gap: 4px; }
+        .sub-tab-btn { flex: 0 0 auto; padding: 7px 10px; border: none; background: transparent; font-weight: bold; font-size: 11px; color: #ee4d2d; cursor: pointer; border-radius: 6px; text-align: center; transition: all 0.2s; }
         .sub-tab-btn.active { background: #ee4d2d; color: white; box-shadow: 0 2px 4px rgba(238,77,45,0.3); }
         
         .acc-card { background: #fff; border: 1px solid #faddd3; padding: 10px; border-radius: 8px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;}
@@ -82,7 +82,7 @@
     </div>
 </div>
 
-<!-- THANH ĐIỀU HƯỚNG CHÍNH (TAB BAR) -->
+<!-- THANH ĐIỀU HƯỚNG CHÍNH -->
 <div class="main-nav-bar">
     <button class="main-nav-btn active" id="navBtnMarket" onclick="switchMainTab('market')">🛒 Chợ MMO</button>
     <button class="main-nav-btn" id="navBtnOtp" onclick="switchMainTab('otp')">🔗 Lấy OTP</button>
@@ -98,19 +98,25 @@
         <div id="adminPostBox" style="display: none; background: #fff8f5; padding: 10px; border-radius: 8px; border: 1px solid #faddd3; margin-bottom: 12px;">
             <div style="font-weight: bold; color: #ee4d2d; font-size: 12px; margin-bottom: 6px;">🔧 [Admin] Đăng Bán Tài Khoản</div>
             <select id="postPlatform">
-                <option value="Shopee">Tài Khoản Shopee</option>
-                <option value="TikTok">Tài Khoản TikTok</option>
-                <option value="Gmail">Tài Khoản Gmail</option>
-                <option value="Khác">Khác</option>
+                <option value="Shopee">Shopee</option>
+                <option value="Facebook">Facebook</option>
+                <option value="Gmail">Gmail</option>
+                <option value="iCloud">iCloud</option>
+                <option value="TikTok">TikTok</option>
             </select>
             <input type="text" id="postDetails" placeholder="Thông tin (user|pass|2fa|cookie)">
             <input type="number" id="postPrice" placeholder="Giá bán (VNĐ) - VD: 15000">
             <button class="btn-main" style="margin-bottom:0;" onclick="postNewAccount()">📤 Tải Lên Cửa Hàng</button>
         </div>
 
+        <!-- DANH MỤC CÁC LOẠI TÀI KHOẢN -->
         <div class="sub-tab-container">
-            <button class="sub-tab-btn active" id="tabStore" onclick="switchStoreTab('market')">Mua Tài Khoản</button>
-            <button class="sub-tab-btn" id="tabMyAcc" onclick="switchStoreTab('my')">TK Đã Mua</button>
+            <button class="sub-tab-btn active" id="tabShopee" onclick="switchCategory('Shopee')">Shopee</button>
+            <button class="sub-tab-btn" id="tabFacebook" onclick="switchCategory('Facebook')">Facebook</button>
+            <button class="sub-tab-btn" id="tabGmail" onclick="switchCategory('Gmail')">Gmail</button>
+            <button class="sub-tab-btn" id="tabICloud" onclick="switchCategory('iCloud')">iCloud</button>
+            <button class="sub-tab-btn" id="tabTiktok" onclick="switchCategory('TikTok')">TikTok</button>
+            <button class="sub-tab-btn" id="tabMyAcc" onclick="switchCategory('my')">📦 Đã Mua</button>
         </div>
 
         <div id="marketList">
@@ -131,9 +137,9 @@
     <!-- PHẦN 3: QUẢN LÝ ĐƠN HÀNG -->
     <div class="section-box" id="sectionOrders">
         <div class="section-title">📦 Quản Lý Đơn Hàng Shopee</div>
-        <div class="sub-tab-container">
-            <button class="sub-tab-btn active" id="tabBtnSingle" onclick="switchDepositTab('single')">Nạp 1 Đơn</button>
-            <button class="sub-tab-btn" id="tabBtnMultiple" onclick="switchDepositTab('multiple')">Nạp Nhiều Đơn</button>
+        <div class="sub-tab-container" style="justify-content: center;">
+            <button class="sub-tab-btn active" id="tabBtnSingle" style="flex:1;" onclick="switchDepositTab('single')">Nạp 1 Đơn</button>
+            <button class="sub-tab-btn" id="tabBtnMultiple" style="flex:1;" onclick="switchDepositTab('multiple')">Nạp Nhiều Đơn</button>
         </div>
 
         <div id="depositSingleForm">
@@ -183,8 +189,8 @@
     let currentUserBalance = 0;
     let modalCallback = null;
     let cachedOrders = [];
+    let currentCategory = 'Shopee'; // Mặc định hiển thị tab Shopee
 
-    // Chuyển đổi qua lại các danh mục chính (Tab Bar)
     function switchMainTab(tabName) {
         document.getElementById("navBtnMarket").classList.remove("active");
         document.getElementById("navBtnOtp").classList.remove("active");
@@ -303,18 +309,24 @@
 
     function logout() { currentUsername = ""; localStorage.removeItem("shopee_logged_user"); updateAuthUI(); }
 
-    function switchStoreTab(tab) {
-        if (tab === 'market') {
-            document.getElementById("tabStore").classList.add("active");
-            document.getElementById("tabMyAcc").classList.remove("active");
-            document.getElementById("marketList").style.display = "block";
-            document.getElementById("myAccList").style.display = "none";
-        } else {
+    function switchCategory(cat) {
+        currentCategory = cat;
+        ['Shopee', 'Facebook', 'Gmail', 'iCloud', 'TikTok', 'MyAcc'].forEach(c => {
+            let btn = document.getElementById(c === 'MyAcc' ? 'tabMyAcc' : ('tab' + c));
+            if(btn) btn.classList.remove("active");
+        });
+
+        if(cat === 'my') {
             document.getElementById("tabMyAcc").classList.add("active");
-            document.getElementById("tabStore").classList.remove("active");
             document.getElementById("marketList").style.display = "none";
             document.getElementById("myAccList").style.display = "block";
+        } else {
+            let activeBtn = document.getElementById('tab' + cat);
+            if(activeBtn) activeBtn.classList.add("active");
+            document.getElementById("marketList").style.display = "block";
+            document.getElementById("myAccList").style.display = "none";
         }
+        loadStoreData();
     }
 
     async function postNewAccount() {
@@ -339,21 +351,23 @@
     async function loadStoreData() {
         if (!currentUsername) return;
         
-        const { data: marketData } = await _supabase.from('mmo_accounts').select('*').eq('status', 'Đang bán').order('id', {ascending: false});
-        let marketHtml = '';
-        if(marketData && marketData.length > 0) {
-            marketData.forEach(item => {
-                marketHtml += `
-                    <div class="acc-card">
-                        <div>
-                            <div class="acc-platform">⭐ TK ${item.platform}</div>
-                            <div class="acc-price">${item.price.toLocaleString('vi-VN')} VNĐ</div>
-                        </div>
-                        <button onclick="buyAccount(${item.id}, ${item.price}, '${item.platform}')" style="background: #ee4d2d; color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-weight: bold; font-size:12px;">Mua Ngay</button>
-                    </div>`;
-            });
-        } else { marketHtml = "<div style='text-align:center;font-size:12px;color:#777;'>Kho đang trống.</div>"; }
-        document.getElementById("marketList").innerHTML = marketHtml;
+        if (currentCategory !== 'my') {
+            const { data: marketData } = await _supabase.from('mmo_accounts').select('*').eq('status', 'Đang bán').eq('platform', currentCategory).order('id', {ascending: false});
+            let marketHtml = '';
+            if(marketData && marketData.length > 0) {
+                marketData.forEach(item => {
+                    marketHtml += `
+                        <div class="acc-card">
+                            <div>
+                                <div class="acc-platform">⭐ TK ${item.platform}</div>
+                                <div class="acc-price">${item.price.toLocaleString('vi-VN')} VNĐ</div>
+                            </div>
+                            <button onclick="buyAccount(${item.id}, ${item.price}, '${item.platform}')" style="background: #ee4d2d; color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-weight: bold; font-size:12px;">Mua Ngay</button>
+                        </div>`;
+                });
+            } else { marketHtml = `<div style='text-align:center;font-size:12px;color:#777;'>Danh mục ${currentCategory} hiện đang trống.</div>`; }
+            document.getElementById("marketList").innerHTML = marketHtml;
+        }
 
         const { data: myData } = await _supabase.from('mmo_accounts').select('*').eq('buyer_username', currentUsername).order('id', {ascending: false});
         let myHtml = '';
@@ -381,7 +395,7 @@
                 if (e1) { showModal("Lỗi", e1.message); return; }
 
                 await _supabase.from('mmo_accounts').update({status: 'Đã bán', buyer_username: currentUsername}).eq('id', id);
-                showModal("Thành công", "Mua thành công! Xem thông tin ở mục 'TK Đã Mua'.");
+                showModal("Thành công", "Mua thành công! Xem thông tin ở mục 'Đã Mua'.");
                 updateAuthUI();
             }
         });
