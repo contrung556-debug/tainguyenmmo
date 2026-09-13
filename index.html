@@ -51,7 +51,6 @@
         .sub-tab-btn { flex: 0 0 auto; padding: 7px 10px; border: none; background: transparent; font-weight: bold; font-size: 11px; color: #ee4d2d; cursor: pointer; border-radius: 6px; text-align: center; transition: all 0.2s; }
         .sub-tab-btn.active { background: #ee4d2d; color: white; box-shadow: 0 2px 4px rgba(238,77,45,0.3); }
         
-        /* Giao diện gom nhóm sản phẩm chuyên nghiệp */
         .store-product-card { background: #fff; border: 1px solid #faddd3; border-radius: 10px; padding: 12px; margin-bottom: 12px; box-shadow: 0 2px 6px rgba(0,0,0,0.02); }
         .store-product-header { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 8px; }
         .store-product-badge { background: #ee4d2d; color: white; font-size: 11px; font-weight: bold; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; border-radius: 4px; flex-shrink: 0; }
@@ -120,7 +119,7 @@
 
             <label style="font-size: 11px; font-weight: bold; color: #555;">Danh sách tài khoản (Mỗi dòng 1 acc):</label>
             <textarea id="postAccountList" rows="4" placeholder="dredge-12-sprier@icloud.com|password&#10;account2@icloud.com|password"></textarea>
-            <small style="font-size: 10px; color: #777; display: block; margin-top: -6px; margin-bottom: 8px;">Hệ thống sẽ gom các dòng này vào cùng loại sản phẩm.</small>
+            <small style="font-size: 10px; color: #777; display: block; margin-top: -6px; margin-bottom: 8px;">Hệ thống sẽ gom các dòng này vào cùng loại sản phẩm theo mức giá.</small>
 
             <label style="font-size: 11px; font-weight: bold; color: #555;">Mô tả thông tin acc & Hướng dẫn:</label>
             <textarea id="postDescription" rows="3" placeholder="Nhập mô tả chi tiết, chính sách bảo hành..."></textarea>
@@ -433,11 +432,14 @@
             updateTemplatesDropdown();
         }
 
-        // Đẩy lên Supabase, lưu thêm trường title và description để gom nhóm
+        // Lưu thông tin title và description vào localStorage để không phụ thuộc vào schema Supabase
+        let metaMap = JSON.parse(localStorage.getItem("mmo_meta_info") || "{}");
+        metaMap[`${plat}_${pri}`] = { title: title, description: desc };
+        localStorage.setItem("mmo_meta_info", JSON.stringify(metaMap));
+
+        // Đẩy lên Supabase chỉ với các cột chuẩn đã có sẵn
         let insertRecords = lines.map(accLine => ({
             platform: plat,
-            title: title,
-            description: desc,
             account_details: accLine,
             price: pri,
             status: 'Đang bán'
@@ -445,8 +447,9 @@
 
         const { error } = await _supabase.from('mmo_accounts').insert(insertRecords);
 
-        if (error) showModal("Lỗi", "Không thể up: " + error.message);
-        else {
+        if (error) {
+            showModal("Lỗi", "Không thể up: " + error.message);
+        } else {
             showModal("Thành công", `Đã đăng thành công ${insertRecords.length} tài khoản lên cửa hàng!`);
             document.getElementById("postAccountList").value = "";
             document.getElementById("postDescription").value = "";
@@ -459,18 +462,20 @@
         
         if (currentCategory !== 'my') {
             const { data: marketData } = await _supabase.from('mmo_accounts').select('*').eq('status', 'Đang bán').eq('platform', currentCategory);
+            let metaMap = JSON.parse(localStorage.getItem("mmo_meta_info") || "{}");
             
             let marketHtml = '';
             if(marketData && marketData.length > 0) {
-                // Gom nhóm các tài khoản có cùng Tiêu đề + Giá + Mô tả
+                // Gom nhóm theo Mức giá (hoặc Platform + Giá)
                 let grouped = {};
                 marketData.forEach(item => {
-                    let groupKey = (item.title || "Tài khoản " + item.platform) + "_" + item.price + "_" + (item.description || "");
+                    let groupKey = item.price;
                     if (!grouped[groupKey]) {
+                        let meta = metaMap[`${item.platform}_${item.price}`] || { title: `Tài khoản ${item.platform}`, description: "Không có mô tả." };
                         grouped[groupKey] = {
-                            title: item.title || "Tài khoản " + item.platform,
+                            title: meta.title,
                             price: item.price,
-                            description: item.description || "Không có mô tả.",
+                            description: meta.description,
                             platform: item.platform,
                             items: []
                         };
@@ -499,10 +504,10 @@
                             </div>
                             <div class="store-product-action">
                                 <input type="number" id="qty_${firstId}" class="store-qty-input" value="1" min="1" max="${stockCount}">
-                                <button class="store-buy-btn ${stockCount === 0 ? 'out-of-stock' : ''}" onclick="buyGroupAccounts('${group.platform}', '${encodeURIComponent(group.title)}', ${group.price}, ${stockCount})">
+                                <button class="store-buy-btn ${stockCount === 0 ? 'out-of-stock' : ''}" onclick="buyGroupAccounts('${group.platform}', ${group.price}, ${stockCount})">
                                     🛒 Mua Ngay
                                 </button>
-                                ${currentUsername === ADMIN_USERNAME ? `<button class="order-btn-del" style="flex:0 0 45px; padding:7px;" onclick="deleteGroupAccounts('${group.title}', ${group.price})">🗑️ Xoá</button>` : ''}
+                                ${currentUsername === ADMIN_USERNAME ? `<button class="order-btn-del" style="flex:0 0 45px; padding:7px;" onclick="deleteGroupAccounts('${group.platform}', ${group.price})">🗑️ Xoá</button>` : ''}
                             </div>
                         </div>`;
                 }
@@ -522,7 +527,7 @@
             myData.forEach(item => {
                 myHtml += `
                     <div style="background: #fff8f5; border: 1px solid #faddd3; padding: 10px; border-radius: 8px; margin-bottom: 8px; font-size: 12px;">
-                        <div style="font-weight: bold; color: #ee4d2d; margin-bottom: 4px;">✅ Đã mua: ${item.title || item.platform}</div>
+                        <div style="font-weight: bold; color: #ee4d2d; margin-bottom: 4px;">✅ Đã mua: ${item.platform} (${item.price.toLocaleString('vi-VN')}đ)</div>
                         <div style="background: #fff; padding: 6px; border: 1px solid #ddd; word-break: break-all; border-radius: 4px; user-select: all;">${item.account_details}</div>
                     </div>`;
             });
@@ -536,10 +541,9 @@
         document.getElementById("myAccList").innerHTML = myHtml;
     }
 
-    async function buyGroupAccounts(platform, encodedTitle, price, maxStock) {
-        let title = decodeURIComponent(encodedTitle);
+    async function buyGroupAccounts(platform, price, maxStock) {
         // Tìm ID đầu tiên của nhóm để lấy ô input số lượng
-        const { data: marketData } = await _supabase.from('mmo_accounts').select('id').eq('status', 'Đang bán').eq('platform', platform).eq('title', title).eq('price', price);
+        const { data: marketData } = await _supabase.from('mmo_accounts').select('id').eq('status', 'Đang bán').eq('platform', platform).eq('price', price);
         if(!marketData || marketData.length === 0) { showModal("Lỗi", "Sản phẩm đã hết hàng!"); return; }
         
         let firstId = marketData[0].id;
@@ -555,10 +559,9 @@
             return;
         }
 
-        showModal("Xác nhận Mua", `Thanh toán ${totalPrice.toLocaleString('vi-VN')}đ cho ${qty} tài khoản "${title}"?`, true, async (res) => {
+        showModal("Xác nhận Mua", `Thanh toán ${totalPrice.toLocaleString('vi-VN')}đ cho ${qty} tài khoản này?`, true, async (res) => {
             if (res) {
-                // Lấy ra đúng số lượng acc đang bán trong kho
-                const { data: itemsToBuy } = await _supabase.from('mmo_accounts').select('id').eq('status', 'Đang bán').eq('platform', platform).eq('title', title).eq('price', price).limit(qty);
+                const { data: itemsToBuy } = await _supabase.from('mmo_accounts').select('id').eq('status', 'Đang bán').eq('platform', platform).eq('price', price).limit(qty);
                 
                 if(!itemsToBuy || itemsToBuy.length < qty) {
                     showModal("Lỗi", "Không đủ số lượng tài khoản trong kho!"); return;
@@ -566,12 +569,10 @@
 
                 let idsToUpdate = itemsToBuy.map(i => i.id);
 
-                // Trừ tiền ví
                 let newBal = currentUserBalance - totalPrice;
                 const { error: e1 } = await _supabase.from('shopee_users').update({balance: newBal}).eq('username', currentUsername);
                 if (e1) { showModal("Lỗi", e1.message); return; }
 
-                // Cập nhật trạng thái thành Đã bán và gán cho user
                 await _supabase.from('mmo_accounts').update({status: 'Đã bán', buyer_username: currentUsername}).in('id', idsToUpdate);
                 
                 showModal("Thành công", `Mua thành công ${qty} tài khoản! Xem thông tin chi tiết ở mục '📦 Đã Mua'.`);
@@ -580,11 +581,11 @@
         });
     }
 
-    async function deleteGroupAccounts(title, price) {
+    async function deleteGroupAccounts(platform, price) {
         if (currentUsername !== ADMIN_USERNAME) return;
-        showModal("Xác nhận xóa", `Bạn có chắc muốn xóa toàn bộ sản phẩm "${title}" đang có trong kho không?`, true, async (res) => {
+        showModal("Xác nhận xóa", `Bạn có chắc muốn xóa toàn bộ sản phẩm giá ${price.toLocaleString('vi-VN')}đ này đang có trong kho không?`, true, async (res) => {
             if(res) {
-                await _supabase.from('mmo_accounts').delete().eq('title', title).eq('price', price).eq('status', 'Đang bán');
+                await _supabase.from('mmo_accounts').delete().eq('platform', platform).eq('price', price).eq('status', 'Đang bán');
                 showModal("Thành công", "Đã xóa sản phẩm khỏi cửa hàng!");
                 loadStoreData();
             }
