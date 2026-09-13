@@ -58,7 +58,7 @@
         .store-product-name { font-weight: bold; font-size: 13px; color: #2c3e50; margin-bottom: 2px; }
         .store-product-meta { font-size: 12px; color: #666; }
         
-        .store-product-desc { background: #fff8f5; border: 1px dashed #faddd3; padding: 8px 10px; border-radius: 6px; font-size: 11px; color: #555; margin-bottom: 10px; line-height: 1.4; }
+        .store-product-desc { background: #fff8f5; border: 1px dashed #faddd3; padding: 8px 10px; border-radius: 6px; font-size: 11px; color: #555; margin-bottom: 10px; line-height: 1.4; white-space: pre-line; }
         
         .store-product-action { display: flex; gap: 6px; align-items: center; }
         .store-qty-input { width: 55px !important; padding: 7px !important; text-align: center; margin-bottom: 0 !important; font-weight: bold; font-size: 12px; border: 1px solid #ee4d2d; border-radius: 6px; }
@@ -238,11 +238,11 @@
     let currentCategory = 'Shopee';
 
     const DEFAULT_TEMPLATES = {
-        "Shopee": [{ name: "Shopee Reg Sẵn Số Điện Thoại", price: 5000, desc: "Bao test lần đầu, đúng định dạng.", details: "username|password" }],
-        "Facebook": [{ name: "Clone VN Trắng Thông Tin", price: 3000, desc: "Clone sạch, via ngoại.", details: "uid|pass|2fa" }],
-        "Gmail": [{ name: "Gmail New Sẵn Recovery", price: 4000, desc: "Gmail reg mới, khôi phục sẵn.", details: "email|password|recovery" }],
-        "iCloud": [{ name: "Cho Thuê iCloud add acc Shopee", price: 2000, desc: "Dùng add acc Shopee mượt mà, bao test.", details: "dredge-12-sprier@icloud.com|password" }],
-        "TikTok": [{ name: "TikTok New Reg Sẵn Xu", price: 4000, desc: "Acc sạch chuẩn.", details: "username|password" }]
+        "Shopee": [{ name: "Shopee Reg Sẵn Số Điện Thoại", price: 5000, desc: "- ACC Chưa ADD Mail - Cần add mail để xác minh login\n- Mua thử 1 Acc trước khi mua sl\n- Định dạng : SPC_F|USER|PASS\n- *LƯU Ý : KHI NÀO SỬ DỤNG HÃY ADD MAIL - NGÂM ACC THÌ KO ADD MAIL - TRÁNH BỊ QUÉT ACC", details: "SPC_F|user1|pass1\nSPC_F|user2|pass2" }],
+        "Facebook": [{ name: "Clone VN Trắng Thông Tin", price: 3000, desc: "- Clone sạch, via ngoại.\n- Định dạng : uid|pass|2fa", details: "uid|pass|2fa" }],
+        "Gmail": [{ name: "Gmail New Sẵn Recovery", price: 4000, desc: "- Gmail reg mới, khôi phục sẵn.", details: "email|password|recovery" }],
+        "iCloud": [{ name: "Cho Thuê iCloud add acc Shopee", price: 2000, desc: "- Dùng add acc Shopee mượt mà, bao test.", details: "dredge-12-sprier@icloud.com|password" }],
+        "TikTok": [{ name: "TikTok New Reg Sẵn Xu", price: 4000, desc: "- Acc sạch chuẩn.", details: "username|password" }]
     };
 
     function getStoredTemplates() {
@@ -628,9 +628,10 @@
     async function loadStoreData() {
         if (!currentUsername) return;
         
+        let metaMap = JSON.parse(localStorage.getItem("mmo_meta_info") || "{}");
+
         if (currentCategory !== 'my') {
             const { data: marketData } = await _supabase.from('mmo_accounts').select('*').eq('status', 'Đang bán').eq('platform', currentCategory);
-            let metaMap = JSON.parse(localStorage.getItem("mmo_meta_info") || "{}");
             
             let marketHtml = '';
             if(marketData && marketData.length > 0) {
@@ -651,7 +652,7 @@
                 });
 
                 let index = 1;
-                for (let key in groups = grouped) {
+                for (let key in grouped) {
                     let group = grouped[key];
                     let stockCount = group.items.length;
                     let firstId = group.items[0].id;
@@ -666,7 +667,6 @@
                                 </div>
                             </div>
                             <div class="store-product-desc">
-                                <b>Mô tả & Hướng dẫn:</b><br>
                                 ${group.description}
                             </div>
                             <div class="store-product-action">
@@ -691,14 +691,29 @@
             document.getElementById("marketList").innerHTML = marketHtml;
         }
 
+        // Tải danh sách đơn đã mua theo giao diện mới
         const { data: myData } = await _supabase.from('mmo_accounts').select('*').eq('buyer_username', currentUsername).order('id', {ascending: false});
         let myHtml = '';
         if(myData && myData.length > 0) {
-            myData.forEach(item => {
+            // Gom nhóm các acc mua cùng lúc hoặc hiển thị từng đơn giao dịch
+            myData.forEach((item, idx) => {
+                let dateStr = item.updated_at ? new Date(item.updated_at).toLocaleString('vi-VN') : 'Gần đây';
+                let meta = metaMap[`${item.platform}_${item.price}`] || { title: `Tài khoản ${item.platform}` };
+                let titleText = meta.title || `Tài khoản ${item.platform}`;
+
                 myHtml += `
-                    <div style="background: #fff8f5; border: 1px solid #faddd3; padding: 10px; border-radius: 8px; margin-bottom: 8px; font-size: 12px;">
-                        <div style="font-weight: bold; color: #ee4d2d; margin-bottom: 4px;">✅ Đã mua: ${item.platform} (${item.price.toLocaleString('vi-VN')}đ)</div>
-                        <div style="background: #fff; padding: 6px; border: 1px solid #ddd; word-break: break-all; border-radius: 4px; user-select: all;">${item.account_details}</div>
+                    <div class="order-card" style="border-left: 4px solid #27ae60; margin-bottom: 12px;">
+                        <div class="order-header">
+                            <span class="order-code">Kết quả đơn mua #${item.id}</span>
+                            <span class="order-status status-success">1 acc</span>
+                        </div>
+                        <div class="order-time">${dateStr} | Loại: ${titleText} | Đã trừ: <b style="color:#ee4d2d;">${item.price.toLocaleString('vi-VN')}đ</b>.</div>
+                        <div style="font-size: 11px; color: #666; margin-bottom: 6px;">Cần hỗ trợ? Vui lòng liên hệ admin.</div>
+                        <textarea readonly style="width: 100%; background: #fafafa; font-family: monospace; font-weight: bold; color: #c0392b; font-size: 12px; padding: 8px; border: 1px solid #ddd; border-radius: 6px; resize: none; height: 40px; margin-bottom: 8px;" id="acc_text_${item.id}">${item.account_details}</textarea>
+                        <div style="display: flex; gap: 6px;">
+                            <button class="order-btn-check" style="background: #bdc3c7; color: #333;" onclick="copyAccText('acc_text_${item.id}')">📋 Copy danh sách acc</button>
+                            <button class="order-btn-check" style="background: #3498db;" onclick="showModal('ADD Mail', 'Tính năng add mail tự động hoặc hướng dẫn add mail cho tài khoản này.')">ADD Mail</button>
+                        </div>
                     </div>`;
             });
         } else { 
@@ -709,6 +724,14 @@
                 </div>`; 
         }
         document.getElementById("myAccList").innerHTML = myHtml;
+    }
+
+    function copyAccText(elementId) {
+        let textarea = document.getElementById(elementId);
+        textarea.select();
+        textarea.setSelectionRange(0, 99999);
+        navigator.clipboard.writeText(textarea.value);
+        showModal("Thành công", "Đã sao chép thông tin tài khoản vào bộ nhớ tạm!");
     }
 
     async function editGroupInfo(platform, oldPrice, currentTitle, currentDesc) {
@@ -786,7 +809,7 @@
                 const { error: e1 } = await _supabase.from('shopee_users').update({balance: newBal}).eq('username', currentUsername);
                 if (e1) { showModal("Lỗi", e1.message); return; }
 
-                await _supabase.from('mmo_accounts').update({status: 'Đã bán', buyer_username: currentUsername}).in('id', idsToUpdate);
+                await _supabase.from('mmo_accounts').update({status: 'Đã bán', buyer_username: currentUsername, updated_at: new Date().toISOString()}).in('id', idsToUpdate);
                 
                 showModal("Thành công", `Mua thành công ${qty} tài khoản! Xem thông tin chi tiết ở mục '📦 Đã Mua'.`);
                 updateAuthUI();
