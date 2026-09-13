@@ -178,7 +178,7 @@
     const SUPABASE_ANON_KEY = "sb_publishable_LIeDI4UVn7MEo5vURP05hA_TM4h0vFd";
     const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-    // ĐÃ ẨN LINK GAS: Gọi qua Serverless Proxy trên Vercel
+    // Gọi qua Vercel Serverless Proxy (Bảo mật tuyệt đối link GAS)
     const GAS_OTP_URL = "/api/otp";
     const GAS_ORDER_URL = "/api/order";
 
@@ -557,20 +557,21 @@
         });
     }
 
-    function fetchOtpLink(btnEl) {
+    // Đã thay thế JSONP bằng fetch chuẩn để không bị đứng "Đang kết nối..."
+    async function fetchOtpLink(btnEl) {
         let val = document.getElementById("fetchInputEmail").value.trim();
         let resultDiv = document.getElementById("fetchResult");
         if (!val) { showModal("Thông Báo", "Vui lòng nhập tên hoặc email!"); return; }
 
         if(btnEl) { btnEl.disabled = true; btnEl.innerText = "⏳ Đang kết nối..."; }
         resultDiv.innerHTML = `<span style="color: #e67e22;">⏳ Đang kết nối...</span>`;
-        let callbackName = 'shopee_cb_' + Math.round(Math.random() * 100000);
-        
-        window[callbackName] = function(data) {
+
+        try {
+            let response = await fetch(`${GAS_OTP_URL}?hide=${encodeURIComponent(val)}`);
+            let data = await response.json();
+
             if(btnEl) { btnEl.disabled = false; btnEl.innerText = "Lấy Link Xác Thực / OTP"; }
-            let tag = document.getElementById('jsonpScriptTag');
-            if(tag) tag.remove();
-            delete window[callbackName];
+
             if (data.status === "success") {
                 const safeEmail = escapeHtml(data.hide_email_tin);
                 const safeOtp = escapeHtml(data.otp || 'Không có');
@@ -581,13 +582,13 @@
                         <b>OTP:</b> <span style="color:#d35400; font-size:15px; font-weight:bold;">${safeOtp}</span><br>
                         ${(safeLink && safeLink !== "Không có") ? `<a href="${safeLink}" target="_blank" style="display:block; margin-top:6px; background:#3498db; color:white; padding:7px; text-align:center; border-radius:6px; text-decoration:none; font-weight:bold; font-size:12px;">MỞ LINK XÁC THỰC</a>` : ''}
                     </div>`;
-            } else { resultDiv.innerHTML = `<span style="color: #c0392b;">⚠️ ${escapeHtml(data.message)}</span>`; }
-        };
-
-        let scriptTag = document.createElement('script');
-        scriptTag.id = 'jsonpScriptTag';
-        scriptTag.src = `${GAS_OTP_URL}?hide=${encodeURIComponent(val)}&callback=${callbackName}`;
-        document.body.appendChild(scriptTag);
+            } else {
+                resultDiv.innerHTML = `<span style="color: #c0392b;">⚠️ ${escapeHtml(data.message || 'Không tìm thấy dữ liệu')}</span>`;
+            }
+        } catch (err) {
+            if(btnEl) { btnEl.disabled = false; btnEl.innerText = "Lấy Link Xác Thực / OTP"; }
+            resultDiv.innerHTML = `<span style="color: #c0392b;">⚠️ Lỗi kết nối đến server: ${escapeHtml(err.message)}</span>`;
+        }
     }
 
     function switchDepositTab(type) {
