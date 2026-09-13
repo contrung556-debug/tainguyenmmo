@@ -606,7 +606,6 @@
         metaMap[`${plat}_${pri}`] = { title: title, description: desc };
         localStorage.setItem("mmo_meta_info", JSON.stringify(metaMap));
 
-        // Lưu kèm cột description vào database
         let insertRecords = lines.map(accLine => ({
             platform: plat,
             account_details: accLine,
@@ -693,28 +692,48 @@
             document.getElementById("marketList").innerHTML = marketHtml;
         }
 
-        // Tải danh sách đơn đã mua
+        // Tải danh sách đơn đã mua và gom nhóm theo thời gian mua (batch)
         const { data: myData } = await _supabase.from('mmo_accounts').select('*').eq('buyer_username', currentUsername).order('id', {ascending: false});
         let myHtml = '';
         if(myData && myData.length > 0) {
-            myData.forEach((item) => {
-                let dateStr = item.updated_at ? new Date(item.updated_at).toLocaleString('vi-VN') : 'Gần đây';
-                let meta = metaMap[`${item.platform}_${item.price}`] || { title: `Tài khoản ${item.platform}`, description: item.description || '' };
-                let titleText = meta.title || `Tài khoản ${item.platform}`;
-                let descText = meta.description || item.description || '';
+            let groupedMy = {};
+            myData.forEach(item => {
+                let timeKey = item.updated_at ? item.updated_at.substring(0, 19) : item.id;
+                let groupKey = `${timeKey}_${item.platform}_${item.price}`;
+                if (!groupedMy[groupKey]) {
+                    groupedMy[groupKey] = {
+                        updated_at: item.updated_at,
+                        platform: item.platform,
+                        price: item.price,
+                        items: []
+                    };
+                }
+                groupedMy[groupKey].items.push(item);
+            });
+
+            Object.keys(groupedMy).forEach(key => {
+                let group = groupedMy[key];
+                let count = group.items.length;
+                let dateStr = group.updated_at ? new Date(group.updated_at).toLocaleString('vi-VN') : 'Gần đây';
+                let meta = metaMap[`${group.platform}_${group.price}`] || { title: `Tài khoản ${group.platform}`, description: group.items[0].description || '' };
+                let titleText = meta.title || `Tài khoản ${group.platform}`;
+                let descText = meta.description || group.items[0].description || '';
+                let combinedDetails = group.items.map(i => i.account_details).join('\n');
+                let firstId = group.items[0].id;
+                let totalCost = group.price * count;
 
                 myHtml += `
                     <div class="order-card" style="border-left: 4px solid #27ae60; margin-bottom: 12px;">
                         <div class="order-header">
-                            <span class="order-code">Kết quả đơn mua #${item.id}</span>
-                            <span class="order-status status-success">1 acc</span>
+                            <span class="order-code">Đơn mua #${firstId}</span>
+                            <span class="order-status status-success">${count} acc</span>
                         </div>
-                        <div class="order-time">${dateStr} | Loại: ${titleText} | Đã trừ: <b style="color:#ee4d2d;">${item.price.toLocaleString('vi-VN')}đ</b>.</div>
+                        <div class="order-time">${dateStr} | Loại: ${titleText} | Tổng trừ: <b style="color:#ee4d2d;">${totalCost.toLocaleString('vi-VN')}đ</b>.</div>
                         <div style="font-size: 11px; color: #666; margin-bottom: 6px;">Cần hỗ trợ? Vui lòng liên hệ admin.</div>
                         ${descText ? `<div style="background: #fff8f5; border: 1px dashed #faddd3; padding: 6px 8px; border-radius: 6px; font-size: 11px; color: #555; margin-bottom: 6px;">${descText}</div>` : ''}
-                        <textarea readonly style="width: 100%; background: #fafafa; font-family: monospace; font-weight: bold; color: #c0392b; font-size: 12px; padding: 8px; border: 1px solid #ddd; border-radius: 6px; resize: none; height: 40px; margin-bottom: 8px;" id="acc_text_${item.id}">${item.account_details}</textarea>
+                        <textarea readonly style="width: 100%; background: #fafafa; font-family: monospace; font-weight: bold; color: #c0392b; font-size: 12px; padding: 8px; border: 1px solid #ddd; border-radius: 6px; resize: none; height: ${Math.min(140, Math.max(45, count * 22 + 16))}px; margin-bottom: 8px;" id="acc_text_batch_${firstId}">${combinedDetails}</textarea>
                         <div style="display: flex; gap: 6px;">
-                            <button class="order-btn-check" style="background: #bdc3c7; color: #333;" onclick="copyAccText('acc_text_${item.id}')">📋 Copy danh sách acc</button>
+                            <button class="order-btn-check" style="background: #bdc3c7; color: #333;" onclick="copyAccText('acc_text_batch_${firstId}')">📋 Copy tất cả (${count} acc)</button>
                             <button class="order-btn-check" style="background: #3498db;" onclick="showModal('ADD Mail', 'Tính năng add mail tự động hoặc hướng dẫn add mail cho tài khoản này.')">ADD Mail</button>
                         </div>
                     </div>`;
@@ -734,7 +753,7 @@
         textarea.select();
         textarea.setSelectionRange(0, 99999);
         navigator.clipboard.writeText(textarea.value);
-        showModal("Thành công", "Đã sao chép thông tin tài khoản vào bộ nhớ tạm!");
+        showModal("Thành công", "Đã sao chép tất cả thông tin tài khoản vào bộ nhớ tạm!");
     }
 
     async function editGroupInfo(platform, oldPrice, currentTitle, currentDesc) {
