@@ -164,6 +164,16 @@
 </div>
 
 <script>
+    function escapeHtml(unsafe) {
+        if (unsafe === null || unsafe === undefined) return '';
+        return String(unsafe)
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;");
+    }
+
     const SUPABASE_URL = "https://hsdbjzkxbdezysxwwtaw.supabase.co";
     const SUPABASE_ANON_KEY = "sb_publishable_LIeDI4UVn7MEo5vURP05hA_TM4h0vFd";
     const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -236,7 +246,7 @@
                 .single();
             
             currentUserMember = member;
-            const displayName = member?.username || currentUser.email;
+            const displayName = escapeHtml(member?.username || currentUser.email);
             const balance = member?.balance || 0;
 
             userActions.innerHTML = `
@@ -323,7 +333,6 @@
         }
 
         if (data.user) {
-            // Lưu record vào bảng members
             const { error: memberErr } = await _supabase.from('members').insert({
                 id: data.user.id,
                 username: username,
@@ -378,10 +387,10 @@
                     if (!grouped[groupKey]) {
                         let meta = metaMap[`${item.platform}_${item.price}`] || { title: `Tài khoản ${item.platform}`, description: item.description || "Không có mô tả." };
                         grouped[groupKey] = {
-                            title: meta.title,
+                            title: escapeHtml(meta.title),
                             price: item.price,
-                            description: meta.description || item.description,
-                            platform: item.platform,
+                            description: escapeHtml(meta.description || item.description),
+                            platform: escapeHtml(item.platform),
                             items: []
                         };
                     }
@@ -408,7 +417,7 @@
                             </div>
                             <div class="store-product-action">
                                 <input type="number" id="qty_${firstId}" class="store-qty-input" value="1" min="1" max="${stockCount}">
-                                <button id="btnBuy_${firstId}" class="store-buy-btn ${stockCount === 0 ? 'out-of-stock' : ''}" ${stockCount === 0 ? 'disabled' : ''} onclick="buyGroupAccounts('${group.platform}', ${group.price}, ${stockCount}, ${firstId}, this)">
+                                <button id="btnBuy_${firstId}" class="store-buy-btn ${stockCount === 0 ? 'out-of-stock' : ''}" ${stockCount === 0 ? 'disabled' : ''} onclick="buyGroupAccounts('${escapeHtml(group.platform)}', ${group.price}, ${stockCount}, ${firstId}, this)">
                                     🛒 Mua Ngay
                                 </button>
                             </div>
@@ -418,7 +427,7 @@
                 marketHtml = `
                     <div style="text-align: center; padding: 25px 10px; color: #888; font-size: 13px;">
                         <div style="font-size: 24px; margin-bottom: 5px;">🛍️</div>
-                        Danh mục <b>${currentCategory}</b> hiện chưa có tài khoản nào.
+                        Danh mục <b>${escapeHtml(currentCategory)}</b> hiện chưa có tài khoản nào.
                     </div>`; 
             }
             document.getElementById("marketList").innerHTML = marketHtml;
@@ -457,9 +466,9 @@
                 let count = group.items.length;
                 let dateStr = group.updated_at ? new Date(group.updated_at).toLocaleString('vi-VN') : 'Gần đây';
                 let meta = metaMap[`${group.platform}_${group.price}`] || { title: `Tài khoản ${group.platform}`, description: group.items[0].description || '' };
-                let titleText = meta.title || `Tài khoản ${group.platform}`;
-                let descText = meta.description || group.items[0].description || '';
-                let combinedDetails = group.items.map(i => i.account_details).join('\n');
+                let titleText = escapeHtml(meta.title || `Tài khoản ${group.platform}`);
+                let descText = escapeHtml(meta.description || group.items[0].description || '');
+                let combinedDetails = escapeHtml(group.items.map(i => i.account_details).join('\n'));
                 let firstId = group.items[0].id;
                 let totalCost = group.price * count;
 
@@ -537,7 +546,7 @@
             updateAuthUI();
             loadStoreData();
 
-            let combinedDetails = (data.details || []).join('\n');
+            let combinedDetails = escapeHtml((data.details || []).join('\n'));
             let uniqueModalId = 'modal_acc_list_' + Date.now();
             showModal(`Mua thành công ${qty} tài khoản!`, "", false, null, `
                 <div style="font-size: 12px; color: #555; margin-bottom: 6px;">Danh sách tài khoản của bạn:</div>
@@ -562,13 +571,16 @@
             if(tag) tag.remove();
             delete window[callbackName];
             if (data.status === "success") {
+                const safeEmail = escapeHtml(data.hide_email_tin);
+                const safeOtp = escapeHtml(data.otp || 'Không có');
+                const safeLink = escapeHtml(data.link_xac_thuc_tai_day);
                 resultDiv.innerHTML = `
                     <div style="background: #fff8f5; padding: 10px; border-radius: 8px; border: 1px solid #ee4d2d;">
-                        <b>Email:</b> ${data.hide_email_tin}<br>
-                        <b>OTP:</b> <span style="color:#d35400; font-size:15px; font-weight:bold;">${data.otp || 'Không có'}</span><br>
-                        ${(data.link_xac_thuc_tai_day && data.link_xac_thuc_tai_day !== "Không có") ? `<a href="${data.link_xac_thuc_tai_day}" target="_blank" style="display:block; margin-top:6px; background:#3498db; color:white; padding:7px; text-align:center; border-radius:6px; text-decoration:none; font-weight:bold; font-size:12px;">MỞ LINK XÁC THỰC</a>` : ''}
+                        <b>Email:</b> ${safeEmail}<br>
+                        <b>OTP:</b> <span style="color:#d35400; font-size:15px; font-weight:bold;">${safeOtp}</span><br>
+                        ${(safeLink && safeLink !== "Không có") ? `<a href="${safeLink}" target="_blank" style="display:block; margin-top:6px; background:#3498db; color:white; padding:7px; text-align:center; border-radius:6px; text-decoration:none; font-weight:bold; font-size:12px;">MỞ LINK XÁC THỰC</a>` : ''}
                     </div>`;
-            } else { resultDiv.innerHTML = `<span style="color: #c0392b;">⚠️ ${data.message}</span>`; }
+            } else { resultDiv.innerHTML = `<span style="color: #c0392b;">⚠️ ${escapeHtml(data.message)}</span>`; }
         };
 
         let scriptTag = document.createElement('script');
@@ -653,18 +665,23 @@
             orders.forEach(o => {
                 let isSuccess = o.status === 'Đã giao thành công';
                 let timeStr = o.created_at ? new Date(o.created_at).toLocaleString('vi-VN') : '';
+                const safeCode = escapeHtml(o.order_code);
+                const safeStatus = escapeHtml(o.status || 'Đang chờ giao');
+                const safeProd = escapeHtml(o.product_name || 'Đơn Shopee');
+                const safeEmail = escapeHtml(o.email);
+
                 html += `
                 <div class="order-card" style="border-left: 4px solid ${isSuccess ? '#27ae60' : '#f39c12'}">
                     <div class="order-header">
-                        <span class="order-code">#${o.order_code}</span>
-                        <span class="order-status ${isSuccess ? 'status-success' : 'status-pending'}">${o.status || 'Đang chờ giao'}</span>
+                        <span class="order-code">#${safeCode}</span>
+                        <span class="order-status ${isSuccess ? 'status-success' : 'status-pending'}">${safeStatus}</span>
                     </div>
                     ${timeStr ? `<div class="order-time">⏱️ Nạp lúc: ${timeStr}</div>` : ''}
-                    <div class="order-prod">📦 ${o.product_name || 'Đơn Shopee'}</div>
-                    <div class="order-email">📧 Email: ${o.email}</div>
+                    <div class="order-prod">📦 ${safeProd}</div>
+                    <div class="order-email">📧 Email: ${safeEmail}</div>
                     <div class="order-actions">
-                        <button class="order-btn-check" onclick="checkSingleOrder('${o.order_code}')">🔍 Check</button>
-                        <button class="order-btn-edit" onclick="editOrder(${o.id}, '${o.order_code}', '${o.product_name || ''}', '${o.email}')">✏️ Sửa</button>
+                        <button class="order-btn-check" onclick="checkSingleOrder('${safeCode}')">🔍 Check</button>
+                        <button class="order-btn-edit" onclick="editOrder(${o.id}, '${safeCode}', '${safeProd}', '${safeEmail}')">✏️ Sửa</button>
                         <button class="order-btn-del" onclick="deleteOrder(${o.id})">🗑️ Xóa</button>
                     </div>
                 </div>`;
@@ -683,19 +700,23 @@
     }
 
     function checkSingleOrder(orderCode) {
-        showModal("Đang kiểm tra", `Đang check đơn #${orderCode}...`);
+        showModal("Đang kiểm tra", `Đang check đơn #${escapeHtml(orderCode)}...`);
         let cb = 'check_single_' + Math.round(Math.random()*1000);
         window[cb] = function(res) {
-            showModal("Kết quả", res.message || "Đã kiểm tra xong!");
+            showModal("Kết quả", escapeHtml(res.message || "Đã kiểm tra xong!"));
             loadOrdersFromSupabase();
             delete window[cb];
         };
         let s = document.createElement('script');
-        s.src = `${GAS_ORDER_URL}?action=check_one&code=${orderCode}&callback=${cb}`;
+        s.src = `${GAS_ORDER_URL}?action=check_one&code=${encodeURIComponent(orderCode)}&callback=${cb}`;
         document.body.appendChild(s);
     }
 
     function editOrder(id, code, prod, email) {
+        const safeCode = escapeHtml(code);
+        const safeProd = escapeHtml(prod);
+        const safeEmail = escapeHtml(email);
+
         showModal("Sửa Đơn Hàng", "", true, async (res) => {
             if(res) {
                 let newCode = document.getElementById("editCode").value.trim();
@@ -719,11 +740,11 @@
             }
         }, `
             <label style="font-size:12px;font-weight:bold;">Mã đơn hàng:</label>
-            <input type="text" id="editCode" value="${code}">
+            <input type="text" id="editCode" value="${safeCode}">
             <label style="font-size:12px;font-weight:bold;">Tên sản phẩm:</label>
-            <input type="text" id="editProd" value="${prod}">
+            <input type="text" id="editProd" value="${safeProd}">
             <label style="font-size:12px;font-weight:bold;">Email iCloud:</label>
-            <input type="text" id="editEmail" value="${email}">
+            <input type="text" id="editEmail" value="${safeEmail}">
         `);
     }
 
