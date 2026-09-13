@@ -172,7 +172,7 @@
     const GAS_ORDER_URL = "https://script.google.com/macros/s/AKfycbxSO_B7KYFmTvJ9XTUMI4jU8N2Vyz0GwMnqxk3T0PnX-rcKtfGu5b0DTzNgHPovJVVIRw/exec";
 
     let currentUser = null;
-    let currentUserProfile = null;
+    let currentUserMember = null;
     let modalCallback = null;
     let cachedOrders = [];
     let currentCategory = 'Shopee';
@@ -229,15 +229,15 @@
         currentUser = user;
 
         if (currentUser) {
-            const { data: profile } = await _supabase
-                .from('profiles')
+            const { data: member } = await _supabase
+                .from('members')
                 .select('*')
                 .eq('id', currentUser.id)
                 .single();
             
-            currentUserProfile = profile;
-            const displayName = profile?.username || currentUser.email;
-            const balance = profile?.balance || 0;
+            currentUserMember = member;
+            const displayName = member?.username || currentUser.email;
+            const balance = member?.balance || 0;
 
             userActions.innerHTML = `
                 <span style="font-size: 11px; font-weight: bold; align-self: center;">${displayName}</span>
@@ -250,7 +250,7 @@
             loadStoreData();
             loadOrdersFromSupabase();
         } else {
-            currentUserProfile = null;
+            currentUserMember = null;
             userActions.innerHTML = `
                 <button class="top-btn" onclick="openLogin()">Đăng Nhập</button>
                 <button class="top-btn" onclick="openRegister()">Đăng Ký</button>
@@ -314,17 +314,25 @@
 
         const { data, error } = await _supabase.auth.signUp({
             email: email,
-            password: pass,
-            options: {
-                data: {
-                    username: username
-                }
-            }
+            password: pass
         });
 
         if (error) {
             showModal("Lỗi", error.message);
             return;
+        }
+
+        if (data.user) {
+            // Lưu record vào bảng members
+            const { error: memberErr } = await _supabase.from('members').insert({
+                id: data.user.id,
+                username: username,
+                balance: 0
+            });
+            if (memberErr) {
+                showModal("Lỗi", "Tạo tài khoản members thất bại: " + memberErr.message);
+                return;
+            }
         }
 
         showModal("Thành công", "Đăng ký thành công! Bạn có thể sử dụng luôn.");
