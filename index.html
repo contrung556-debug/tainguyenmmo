@@ -49,7 +49,6 @@
             border-radius: 6px;
             box-sizing: border-box;
             font-size: 14px;
-            font-family: Arial, sans-serif;
         }
         textarea {
             resize: vertical;
@@ -116,11 +115,8 @@
             text-align: center;
         }
         .btn-check-single { background-color: #e67e22; }
-        .btn-check-single:hover { background-color: #d35400; }
         .btn-edit { background-color: #2980b9; }
-        .btn-edit:hover { background-color: #1f6391; }
         .btn-delete { background-color: #c0392b; }
-        .btn-delete:hover { background-color: #962d22; }
         .order-card {
             padding: 12px;
             border-radius: 8px;
@@ -133,8 +129,6 @@
             font-weight: bold;
             color: #333;
         }
-
-        /* TAB SWITCHER STYLES */
         .tab-container {
             display: flex;
             background: #fce8e3;
@@ -161,8 +155,6 @@
             color: white;
             box-shadow: 0 2px 5px rgba(238, 77, 45, 0.3);
         }
-
-        /* CUSTOM MODAL CSS */
         #customModalOverlay {
             display: none;
             position: fixed;
@@ -182,11 +174,6 @@
             padding: 22px;
             box-shadow: 0 8px 25px rgba(0,0,0,0.2);
             text-align: center;
-            animation: modalScaleUp 0.2s ease-in-out;
-        }
-        @keyframes modalScaleUp {
-            from { transform: scale(0.8); opacity: 0; }
-            to { transform: scale(1); opacity: 1; }
         }
         #modalTitle {
             font-size: 17px;
@@ -215,53 +202,17 @@
             font-size: 13px;
             cursor: pointer;
         }
-        #modalBtnCancel {
-            background: #ecf0f1;
-            color: #555;
-        }
-        #modalBtnCancel:hover {
-            background: #bdc3c7;
-        }
-        #modalBtnOk {
-            background: #ee4d2d;
-            color: #fff;
-        }
-        #modalBtnOk:hover {
-            background: #d73211;
-        }
+        #modalBtnCancel { background: #ecf0f1; color: #555; }
+        #modalBtnOk { background: #ee4d2d; color: #fff; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    
     <h2>QUẢN LÝ ĐƠN HÀNG & VÍ MMO</h2>
 
     <!-- KHUNG TRẠNG THÁI GIAO DIỆN CHÍNH -->
     <div id="authSection" style="background: #eef2f3; padding: 12px 15px; border-radius: 8px; margin-bottom: 15px; text-align: center;"></div>
-
-    <!-- PHẦN: ĐĂNG NHẬP SHOPEE BẰNG MÃ QR & LẤY COOKIE -->
-    <div class="section-box" style="border-color: #27ae60; background: #f2f9f5;">
-        <h3 style="color: #27ae60; margin-bottom: 8px;">🔐 ĐĂNG NHẬP SHOPEE BẰNG MÃ QR</h3>
-        <div style="font-size: 12px; color: #555; margin-bottom: 12px; text-align: center;">
-            Quét mã trực tiếp bằng App Shopee trên điện thoại để lấy Cookie tự động.
-        </div>
-
-        <button class="btn-check-all" style="background-color: #27ae60;" onclick="startShopeeQRLogin()">📷 Lấy Mã QR Đăng Nhập Shopee</button>
-
-        <!-- Khu vực hiển thị mã QR và kết quả Cookie -->
-        <div id="qrLoginContainer" style="display: none; text-align: center; margin-top: 15px; background: #fff; padding: 12px; border-radius: 8px; border: 1px solid #ddd;">
-            <div id="qrStatusText" style="font-size: 13px; font-weight: bold; color: #d35400; margin-bottom: 8px;">Đang chuẩn bị mã QR...</div>
-            <div id="qrImageWrapper" style="margin-bottom: 10px;"></div>
-            
-            <!-- Ô hiển thị Cookie sau khi quét thành công -->
-            <div id="cookieResultWrapper" style="display: none; text-align: left;">
-                <label style="color: #27ae60;">🎉 Lấy Cookie Thành Công:</label>
-                <textarea id="cookieOutputBox" readonly style="height: 80px; font-size: 11px; font-family: monospace; background: #f8f9fa;"></textarea>
-                <button class="btn-main" style="background-color: #27ae60; margin-top: 5px;" onclick="copyCookieToClipboard()">📋 Copy Chuỗi Cookie</button>
-            </div>
-        </div>
-    </div>
 
     <!-- PHẦN 1: SHOPEE LINK & OTP FETCHER -->
     <div class="section-box">
@@ -272,7 +223,7 @@
         <div id="fetchResult" style="margin-top: 10px; font-size: 13px; word-break: break-all;"></div>
     </div>
 
-    <!-- PHẦN 2: NẠP ĐƠN QUÉT NGẨM (CÓ TAB NẠP 1 ĐƠN & NẠP NHIỀU ĐƠN) -->
+    <!-- PHẦN 2: NẠP ĐƠN QUÉT NGẨM -->
     <div class="section-box">
         <h3>NẠP ĐƠN QUÉT NGẨM</h3>
         
@@ -295,7 +246,7 @@
             <button class="btn-main" onclick="addNewOrder()">Nạp Đơn Vào Hệ Thống</button>
         </div>
 
-        <!-- FORM NẠP NHIỀU ĐƠN (ĐỊNH DẠNG: mã|email|tên) -->
+        <!-- FORM NẠP NHIỀU ĐƠN -->
         <div id="depositMultipleForm" style="display: none;">
             <label>Danh sách đơn hàng (Mỗi dòng 1 đơn) *</label>
             <textarea id="inputMultipleLines" placeholder="Nhập theo định dạng:
@@ -345,14 +296,12 @@
 
     const GAS_OTP_URL = "https://script.google.com/macros/s/AKfycbwk0RSNFUrzaU7nSlNgAgazt3BWUNR-meYBYvJcSkJIFxQe4XiDfGd3FsfcSTWzOLk/exec";
     const GAS_ORDER_URL = "https://script.google.com/macros/s/AKfycbxSO_B7KYFmTvJ9XTUMI4jU8N2Vyz0GwMnqxk3T0PnX-rcKtfGu5b0DTzNgHPovJVVIRw/exec";
-    const GAS_QR_URL = "https://script.google.com/macros/s/AKfycbyQ7rceNRE7A6K3OSlu6IzEU4-onWe2ffRiaF7cfWYoxa-f_J5MTPJ-zSEjs8mOkHgtxA/exec";
 
     let allOrdersData = [];
     let currentUsername = localStorage.getItem("shopee_logged_user") || "";
     let currentUserBalance = 0;
     let modalCallback = null;
     let autoCloseTimer = null;
-    let qrPollingInterval = null;
 
     function switchDepositTab(type) {
         let btnSingle = document.getElementById("tabBtnSingle");
@@ -540,11 +489,6 @@
             .select('username')
             .eq('username', usernameVal);
 
-        if (checkErr) {
-            showModal("Lỗi", "Lỗi kết nối kiểm tra tên: " + checkErr.message);
-            return;
-        }
-
         if (existing && existing.length > 0) {
             showModal("Thông Báo", "⚠️ Tên tài khoản này đã được sử dụng! Vui lòng chọn tên tài khoản khác.");
             return;
@@ -576,93 +520,6 @@
                 updateAuthUI();
             }
         });
-    }
-
-    // --- TÍNH NĂNG QUÉT QR ĐĂNG NHẬP SHOPEE DÙNG JSONP ---
-    function startShopeeQRLogin() {
-        let container = document.getElementById("qrLoginContainer");
-        let statusText = document.getElementById("qrStatusText");
-        let qrWrapper = document.getElementById("qrImageWrapper");
-        let cookieWrapper = document.getElementById("cookieResultWrapper");
-
-        container.style.display = "block";
-        cookieWrapper.style.display = "none";
-        qrWrapper.innerHTML = `<div style="padding: 20px; color: #666; font-size: 13px;">⏳ Đang kết nối lấy mã QR từ Shopee...</div>`;
-        statusText.innerText = "Đang khởi tạo phiên đăng nhập...";
-
-        if (qrPollingInterval) clearInterval(qrPollingInterval);
-
-        let callbackName = 'qr_cb_' + Math.round(Math.random() * 100000);
-        let scriptTag = document.createElement('script');
-        scriptTag.id = 'jsonpQRTag';
-        scriptTag.src = `${GAS_QR_URL}?action=get_qr&callback=${callbackName}`;
-
-        window[callbackName] = function(data) {
-            document.getElementById('jsonpQRTag').remove();
-            delete window[callbackName];
-
-            if (data.success) {
-                qrWrapper.innerHTML = `<img src="${data.qr_image_url}" alt="Shopee QR Code" style="width: 180px; height: 180px; border: 1px solid #ddd; padding: 4px; border-radius: 6px;" />`;
-                statusText.innerText = "📱 Hãy mở App Shopee trên điện thoại để quét mã này!";
-                pollQRStatus(data.qr_token);
-            } else {
-                statusText.innerText = "⚠️ Lỗi: " + (data.message || "Không thể tạo mã QR.");
-            }
-        };
-
-        scriptTag.onerror = function() {
-            document.getElementById('jsonpQRTag').remove();
-            delete window[callbackName];
-            statusText.innerText = "⚠️ Lỗi kết nối Google Apps Script QR.";
-        };
-
-        document.body.appendChild(scriptTag);
-    }
-
-    function pollQRStatus(qrToken) {
-        qrPollingInterval = setInterval(() => {
-            let callbackName = 'qr_poll_' + Math.round(Math.random() * 100000);
-            let scriptTag = document.createElement('script');
-            scriptTag.id = 'jsonpPollTag';
-            scriptTag.src = `${GAS_QR_URL}?action=check_qr&token=${qrToken}&callback=${callbackName}`;
-
-            window[callbackName] = function(data) {
-                document.getElementById('jsonpPollTag').remove();
-                delete window[callbackName];
-
-                if (data.status === "SUCCESS") {
-                    clearInterval(qrPollingInterval);
-                    onQRCodeSuccess(data.cookie);
-                } else if (data.status === "EXPIRED") {
-                    clearInterval(qrPollingInterval);
-                    document.getElementById("qrStatusText").innerText = "⚠️ Mã QR đã hết hạn. Vui lòng bấm lấy mã mới.";
-                }
-            };
-
-            scriptTag.onerror = function() {
-                document.getElementById('jsonpPollTag').remove();
-                delete window[callbackName];
-            };
-
-            document.body.appendChild(scriptTag);
-        }, 3000);
-    }
-
-    function onQRCodeSuccess(cookieString) {
-        document.getElementById("qrStatusText").innerText = "🎉 Đăng nhập thành công và lấy Cookie hoàn tất!";
-        document.getElementById("qrImageWrapper").innerHTML = `<div style="color: #27ae60; font-weight: bold; padding: 15px;">✔ Đã xác nhận tài khoản thành công!</div>`;
-        
-        let cookieBox = document.getElementById("cookieOutputBox");
-        cookieBox.value = cookieString;
-        document.getElementById("cookieResultWrapper").style.display = "block";
-    }
-
-    function copyCookieToClipboard() {
-        let copyText = document.getElementById("cookieOutputBox");
-        copyText.select();
-        copyText.setSelectionRange(0, 9999);
-        navigator.clipboard.writeText(copyText.value);
-        showModal("Thành Công", "Đã copy chuỗi Cookie Shopee vào bộ nhớ tạm!", false, null, null, 2);
     }
 
     async function addNewOrder() {
