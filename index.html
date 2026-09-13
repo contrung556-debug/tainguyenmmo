@@ -60,13 +60,13 @@
         
         .store-product-desc { background: #fff8f5; border: 1px dashed #faddd3; padding: 8px 10px; border-radius: 6px; font-size: 11px; color: #555; margin-bottom: 10px; line-height: 1.4; }
         
-        .store-product-action { display: flex; gap: 8px; align-items: center; }
-        .store-qty-input { width: 65px !important; padding: 7px !important; text-align: center; margin-bottom: 0 !important; font-weight: bold; font-size: 12px; border: 1px solid #ee4d2d; border-radius: 6px; }
+        .store-product-action { display: flex; gap: 6px; align-items: center; }
+        .store-qty-input { width: 55px !important; padding: 7px !important; text-align: center; margin-bottom: 0 !important; font-weight: bold; font-size: 12px; border: 1px solid #ee4d2d; border-radius: 6px; }
         .store-buy-btn { flex: 1; background: #ee4d2d; color: white; border: none; padding: 8px; border-radius: 6px; font-weight: bold; font-size: 12px; cursor: pointer; }
         .store-buy-btn.out-of-stock { background: #bdc3c7; cursor: not-allowed; }
 
         #customModalOverlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.5); z-index: 9999; justify-content: center; align-items: center; padding: 20px; box-sizing: border-box; }
-        #customModalBox { background: #fff; width: 100%; max-width: 340px; border-radius: 14px; padding: 20px; box-shadow: 0 8px 25px rgba(0,0,0,0.2); text-align: center; }
+        #customModalBox { background: #fff; width: 100%; max-width: 340px; border-radius: 14px; padding: 20px; box-shadow: 0 8px 25px rgba(0,0,0,0.2); text-align: center; max-height: 90vh; overflow-y: auto; }
         #modalTitle { font-size: 16px; font-weight: bold; color: #ee4d2d; margin-bottom: 10px; }
         #modalMessage { font-size: 13px; color: #444; margin-bottom: 18px; line-height: 1.4; text-align: left; word-break: break-all; }
         .modal-buttons { display: flex; gap: 8px; }
@@ -432,12 +432,10 @@
             updateTemplatesDropdown();
         }
 
-        // Lưu thông tin title và description vào localStorage để không phụ thuộc vào schema Supabase
         let metaMap = JSON.parse(localStorage.getItem("mmo_meta_info") || "{}");
         metaMap[`${plat}_${pri}`] = { title: title, description: desc };
         localStorage.setItem("mmo_meta_info", JSON.stringify(metaMap));
 
-        // Đẩy lên Supabase chỉ với các cột chuẩn đã có sẵn
         let insertRecords = lines.map(accLine => ({
             platform: plat,
             account_details: accLine,
@@ -466,7 +464,6 @@
             
             let marketHtml = '';
             if(marketData && marketData.length > 0) {
-                // Gom nhóm theo Mức giá (hoặc Platform + Giá)
                 let grouped = {};
                 marketData.forEach(item => {
                     let groupKey = item.price;
@@ -484,10 +481,10 @@
                 });
 
                 let index = 1;
-                for (let key in grouped) {
+                for (let key in groups = grouped) {
                     let group = grouped[key];
                     let stockCount = group.items.length;
-                    let firstId = group.items[0].id; // Lấy ID đại diện để mua
+                    let firstId = group.items[0].id;
 
                     marketHtml += `
                         <div class="store-product-card">
@@ -507,7 +504,10 @@
                                 <button class="store-buy-btn ${stockCount === 0 ? 'out-of-stock' : ''}" onclick="buyGroupAccounts('${group.platform}', ${group.price}, ${stockCount})">
                                     🛒 Mua Ngay
                                 </button>
-                                ${currentUsername === ADMIN_USERNAME ? `<button class="order-btn-del" style="flex:0 0 45px; padding:7px;" onclick="deleteGroupAccounts('${group.platform}', ${group.price})">🗑️ Xoá</button>` : ''}
+                                ${currentUsername === ADMIN_USERNAME ? `
+                                    <button class="order-btn-edit" style="flex:0; padding:7px 9px;" onclick="editGroupInfo('${group.platform}', ${group.price}, \`${group.title.replace(/[`']/g, "\\'")}\`, \`${group.description.replace(/[`']/g, "\\'")}\`)">✏️ Sửa</button>
+                                    <button class="order-btn-del" style="flex:0; padding:7px 9px;" onclick="deleteGroupAccounts('${group.platform}', ${group.price})">🗑️ Xoá</button>
+                                ` : ''}
                             </div>
                         </div>`;
                 }
@@ -541,8 +541,53 @@
         document.getElementById("myAccList").innerHTML = myHtml;
     }
 
+    async function editGroupInfo(platform, oldPrice, currentTitle, currentDesc) {
+        if (currentUsername !== ADMIN_USERNAME) return;
+        showModal("Chỉnh Sửa Sản Phẩm", "", true, async (res) => {
+            if (res) {
+                let newTitle = document.getElementById("editGroupTitle").value.trim();
+                let newDesc = document.getElementById("editGroupDesc").value.trim();
+                let newPrice = parseInt(document.getElementById("editGroupPrice").value);
+
+                if (!newTitle || isNaN(newPrice)) {
+                    showModal("Lỗi", "Tiêu đề và Giá tiền không được để trống!");
+                    return;
+                }
+
+                // Cập nhật giá trên Supabase cho tất cả acc đang bán có mức giá cũ này
+                const { error } = await _supabase.from('mmo_accounts')
+                    .update({ price: newPrice })
+                    .eq('platform', platform)
+                    .eq('price', oldPrice)
+                    .eq('status', 'Đang bán');
+
+                if (error) {
+                    showModal("Lỗi", error.message);
+                    return;
+                }
+
+                // Cập nhật lại meta info trong localStorage
+                let metaMap = JSON.parse(localStorage.getItem("mmo_meta_info") || "{}");
+                delete metaMap[`${platform}_${oldPrice}`];
+                metaMap[`${platform}_${newPrice}`] = { title: newTitle, description: newDesc };
+                localStorage.setItem("mmo_meta_info", JSON.stringify(metaMap));
+
+                showModal("Thành công", "Đã cập nhật thông tin sản phẩm!");
+                loadStoreData();
+            }
+        }, `
+            <label style="font-size:11px; font-weight:bold; color:#555;">Tiêu đề sản phẩm:</label>
+            <input type="text" id="editGroupTitle" value="${currentTitle}">
+            
+            <label style="font-size:11px; font-weight:bold; color:#555;">Mô tả & Hướng dẫn:</label>
+            <textarea id="editGroupDesc" rows="3">${currentDesc}</textarea>
+            
+            <label style="font-size:11px; font-weight:bold; color:#555;">Giá mới (VNĐ):</label>
+            <input type="number" id="editGroupPrice" value="${oldPrice}">
+        `);
+    }
+
     async function buyGroupAccounts(platform, price, maxStock) {
-        // Tìm ID đầu tiên của nhóm để lấy ô input số lượng
         const { data: marketData } = await _supabase.from('mmo_accounts').select('id').eq('status', 'Đang bán').eq('platform', platform).eq('price', price);
         if(!marketData || marketData.length === 0) { showModal("Lỗi", "Sản phẩm đã hết hàng!"); return; }
         
