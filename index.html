@@ -3,68 +3,86 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hệ thống Shopee & MMO Manager</title>
+    <title>NgânMiu.Store - Hệ Thống MMO & Đơn Hàng</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        body { font-family: Arial, sans-serif; background-color: #f4f7f6; margin: 0; padding: 15px; color: #333; }
-        .container { max-width: 600px; margin: 0 auto; background: #fff; padding: 15px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.08); }
-        h2, h3, h4 { text-align: center; color: #ee4d2d; margin-bottom: 15px; }
-        .section-box { background: #fff8f5; padding: 15px; border-radius: 8px; border: 1px solid #faddd3; margin-bottom: 20px; }
-        label { font-size: 13px; font-weight: bold; color: #444; display: block; margin-bottom: 5px; }
-        input, textarea, select { width: 100%; padding: 10px; margin-bottom: 10px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; font-size: 14px; }
-        textarea { resize: vertical; min-height: 100px; }
-        .btn-main { background-color: #ee4d2d; color: white; border: none; padding: 11px; border-radius: 6px; cursor: pointer; font-weight: bold; width: 100%; font-size: 14px; margin-bottom: 8px;}
-        .btn-main:hover { background-color: #d73211; }
-        .btn-secondary { background-color: #3498db; color: white; border: none; padding: 9px; border-radius: 6px; cursor: pointer; font-weight: bold; width: 100%; font-size: 13px; margin-bottom: 8px; }
-        .btn-check-all { background-color: #27ae60; color: white; border: none; padding: 9px; border-radius: 6px; cursor: pointer; font-weight: bold; width: 100%; font-size: 13px; margin-bottom: 10px; }
+        body { font-family: Arial, sans-serif; background-color: #f2f2f2; margin: 0; padding: 0; color: #333; }
+        
+        /* Header kiểu Miu Store */
+        .store-header { background: linear-gradient(135deg, #d32f2f, #b71c1c); color: white; padding: 12px 15px; border-bottom-left-radius: 16px; border-bottom-right-radius: 16px; box-shadow: 0 4px 10px rgba(0,0,0,0.15); }
+        .store-title-area { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+        .store-name { font-size: 18px; font-weight: bold; display: flex; align-items: center; gap: 5px; }
+        .user-top-actions { display: flex; gap: 6px; }
+        .top-btn { background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.4); color: white; padding: 5px 10px; border-radius: 15px; font-size: 11px; font-weight: bold; cursor: pointer; }
+        
+        .wallet-box { background: rgba(0, 0, 0, 0.25); padding: 8px 12px; border-radius: 10px; display: flex; justify-content: space-between; align-items: center; font-size: 12px; }
+
+        .container { max-width: 600px; margin: 0 auto; padding: 12px; }
+        
+        .section-box { background: #fff; padding: 14px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); margin-bottom: 15px; border: 1px solid #eee; }
+        .section-title { font-size: 14px; font-weight: bold; color: #b71c1c; margin-bottom: 10px; display: flex; align-items: center; gap: 5px; }
+
+        input, textarea, select { width: 100%; padding: 10px; margin-bottom: 10px; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; font-size: 13px; background: #fafafa; }
+        textarea { resize: vertical; min-height: 90px; }
+        
+        .btn-main { background-color: #e53935; color: white; border: none; padding: 11px; border-radius: 8px; cursor: pointer; font-weight: bold; width: 100%; font-size: 13px; margin-bottom: 8px; box-shadow: 0 2px 5px rgba(229,57,53,0.3); }
+        .btn-main:hover { background-color: #c62828; }
         
         /* Card đơn hàng chi tiết */
-        .order-card { padding: 12px; border-radius: 8px; margin-bottom: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); background: #fff; border: 1px solid #eee; position: relative; }
-        .order-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
-        .order-code { font-weight: bold; font-size: 15px; color: #2c3e50; }
+        .order-card { padding: 12px; border-radius: 10px; margin-bottom: 10px; background: #fff; border: 1px solid #e0e0e0; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
+        .order-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; }
+        .order-code { font-weight: bold; font-size: 14px; color: #2c3e50; }
         .order-status { font-size: 11px; padding: 3px 8px; border-radius: 4px; color: white; font-weight: bold; }
-        .status-pending { background: #e67e22; }
+        .status-pending { background: #f39c12; }
         .status-success { background: #27ae60; }
-        .order-time { font-size: 11px; color: #7f8c8d; margin-bottom: 6px; }
+        .order-time { font-size: 11px; color: #7f8c8d; margin-bottom: 4px; }
         .order-prod { font-size: 13px; font-weight: bold; color: #333; margin-bottom: 4px; }
-        .order-email { font-size: 12px; color: #555; margin-bottom: 10px; word-break: break-all; }
+        .order-email { font-size: 12px; color: #555; margin-bottom: 8px; word-break: break-all; }
         .order-actions { display: flex; gap: 6px; }
-        .order-btn-check { flex: 1; background: #e67e22; color: white; border: none; padding: 6px; border-radius: 4px; font-size: 12px; font-weight: bold; cursor: pointer; }
-        .order-btn-edit { flex: 1; background: #2980b9; color: white; border: none; padding: 6px; border-radius: 4px; font-size: 12px; font-weight: bold; cursor: pointer; }
-        .order-btn-del { flex: 1; background: #c0392b; color: white; border: none; padding: 6px; border-radius: 4px; font-size: 12px; font-weight: bold; cursor: pointer; }
+        .order-btn-check { flex: 1; background: #f39c12; color: white; border: none; padding: 6px; border-radius: 6px; font-size: 12px; font-weight: bold; cursor: pointer; }
+        .order-btn-edit { flex: 1; background: #2980b9; color: white; border: none; padding: 6px; border-radius: 6px; font-size: 12px; font-weight: bold; cursor: pointer; }
+        .order-btn-del { flex: 1; background: #c0392b; color: white; border: none; padding: 6px; border-radius: 6px; font-size: 12px; font-weight: bold; cursor: pointer; }
 
-        .tab-container { display: flex; background: #fce8e3; border-radius: 8px; padding: 4px; margin-bottom: 15px; border: 1px solid #faddd3; }
-        .tab-btn { flex: 1; padding: 9px; border: none; background: transparent; font-weight: bold; font-size: 13px; color: #b5452c; cursor: pointer; border-radius: 6px; text-align: center; transition: all 0.2s; }
-        .tab-btn.active { background: #ee4d2d; color: white; box-shadow: 0 2px 5px rgba(238, 77, 45, 0.3); }
-        .acc-card { background: #fff; border: 1px solid #ddd; padding: 10px; border-radius: 8px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;}
-        .acc-platform { font-weight: bold; color: #8e44ad; font-size: 14px; }
-        .acc-price { color: #e74c3c; font-weight: bold; font-size: 14px; }
+        .tab-container { display: flex; background: #ffebee; border-radius: 8px; padding: 3px; margin-bottom: 12px; border: 1px solid #ffcdd2; }
+        .tab-btn { flex: 1; padding: 8px; border: none; background: transparent; font-weight: bold; font-size: 12px; color: #c62828; cursor: pointer; border-radius: 6px; text-align: center; transition: all 0.2s; }
+        .tab-btn.active { background: #e53935; color: white; box-shadow: 0 2px 4px rgba(229,57,53,0.3); }
+        
+        .acc-card { background: #fff; border: 1px solid #ffccbc; padding: 10px; border-radius: 8px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;}
+        .acc-platform { font-weight: bold; color: #d84315; font-size: 13px; }
+        .acc-price { color: #e53935; font-weight: bold; font-size: 13px; }
 
-        /* Modal CSS */
+        /* Modal chuẩn Miu Store */
         #customModalOverlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.5); z-index: 9999; justify-content: center; align-items: center; padding: 20px; box-sizing: border-box; }
-        #customModalBox { background: #fff; width: 100%; max-width: 360px; border-radius: 14px; padding: 22px; box-shadow: 0 8px 25px rgba(0,0,0,0.2); text-align: center; }
-        #modalTitle { font-size: 17px; font-weight: bold; color: #ee4d2d; margin-bottom: 12px; }
-        #modalMessage { font-size: 14px; color: #444; margin-bottom: 20px; line-height: 1.5; white-space: pre-line; text-align: left; word-break: break-all; }
-        .modal-buttons { display: flex; gap: 10px; }
-        .modal-btn { flex: 1; padding: 10px; border: none; border-radius: 8px; font-weight: bold; font-size: 13px; cursor: pointer; }
-        #modalBtnCancel { background: #ecf0f1; color: #555; }
-        #modalBtnOk { background: #ee4d2d; color: #fff; }
+        #customModalBox { background: #fff; width: 100%; max-width: 340px; border-radius: 14px; padding: 20px; box-shadow: 0 8px 25px rgba(0,0,0,0.2); text-align: center; }
+        #modalTitle { font-size: 16px; font-weight: bold; color: #d32f2f; margin-bottom: 10px; }
+        #modalMessage { font-size: 13px; color: #444; margin-bottom: 18px; line-height: 1.4; text-align: left; word-break: break-all; }
+        .modal-buttons { display: flex; gap: 8px; }
+        .modal-btn { flex: 1; padding: 9px; border: none; border-radius: 8px; font-weight: bold; font-size: 12px; cursor: pointer; }
+        #modalBtnCancel { background: #f5f5f5; color: #666; }
+        #modalBtnOk { background: #e53935; color: #fff; }
     </style>
 </head>
 <body>
 
+<!-- HEADER GIAO DIỆN NGÂN MIU STORE -->
+<div class="store-header">
+    <div class="store-title-area">
+        <div class="store-name">🇻🇳 NgânMiu.Store ⭐</div>
+        <div class="user-top-actions" id="headerUserActions"></div>
+    </div>
+    <div class="wallet-box" id="headerWalletBox">
+        <div>💰 Đang tải số dư...</div>
+    </div>
+</div>
+
 <div class="container">
-    <h2>HỆ THỐNG MMO & ĐƠN HÀNG</h2>
 
-    <!-- KHUNG TÀI KHOẢN & ĐĂNG NHẬP -->
-    <div id="authSection" style="background: #eef2f3; padding: 12px 15px; border-radius: 8px; margin-bottom: 15px;"></div>
-
-    <!-- PHẦN 1: CHỢ TÀI KHOẢN MMO (Đưa lên đầu) -->
+    <!-- PHẦN 1: CHỢ TÀI KHOẢN MMO (ĐƯA LÊN ĐẦU TIÊN) -->
     <div class="section-box">
-        <h3>🛒 CHỢ TÀI KHOẢN MMO</h3>
+        <div class="section-title">🛒 Chợ Tài Khoản MMO</div>
         
-        <div id="adminPostBox" style="display: none; background: #e8f8f5; padding: 12px; border-radius: 8px; border: 1px solid #2ecc71; margin-bottom: 15px;">
-            <h4 style="color: #27ae60; margin-top: 0;">🔧 [Admin] Đăng Bán Tài Khoản</h4>
+        <div id="adminPostBox" style="display: none; background: #fff3e0; padding: 10px; border-radius: 8px; border: 1px solid #ffe0b2; margin-bottom: 12px;">
+            <div style="font-weight: bold; color: #ef6c00; font-size: 12px; margin-bottom: 6px;">🔧 [Admin] Đăng Bán Tài Khoản</div>
             <select id="postPlatform">
                 <option value="Shopee">Tài Khoản Shopee</option>
                 <option value="TikTok">Tài Khoản TikTok</option>
@@ -73,7 +91,7 @@
             </select>
             <input type="text" id="postDetails" placeholder="Thông tin (user|pass|2fa|cookie)">
             <input type="number" id="postPrice" placeholder="Giá bán (VNĐ) - VD: 15000">
-            <button class="btn-check-all" onclick="postNewAccount()">📤 Tải Lên Cửa Hàng</button>
+            <button class="btn-main" style="margin-bottom:0;" onclick="postNewAccount()">📤 Tải Lên Cửa Hàng</button>
         </div>
 
         <div class="tab-container">
@@ -82,23 +100,23 @@
         </div>
 
         <div id="marketList">
-            <div style="text-align: center; color: #888; padding: 15px;">Đang tải danh sách...</div>
+            <div style="text-align: center; color: #888; padding: 12px; font-size: 13px;">Đang tải danh sách...</div>
         </div>
         
         <div id="myAccList" style="display: none;"></div>
     </div>
 
-    <!-- PHẦN 2: LẤY LINK & OTP (Ở giữa) -->
+    <!-- PHẦN 2: LẤY LINK & OTP (Ở GIỮA) -->
     <div class="section-box">
-        <h3>SHOPEE LINK & OTP FETCHER</h3>
+        <div class="section-title">⚡ Shopee Link & OTP Fetcher</div>
         <input type="text" id="fetchInputEmail" placeholder="Nhập tên hoặc địa chỉ Email...">
         <button class="btn-main" onclick="fetchOtpLink()">Lấy Link Xác Thực / OTP</button>
-        <div id="fetchResult" style="margin-top: 10px; font-size: 13px;"></div>
+        <div id="fetchResult" style="margin-top: 8px; font-size: 12px;"></div>
     </div>
 
-    <!-- PHẦN 3: QUẢN LÝ ĐƠN HÀNG (Ở cuối) -->
+    <!-- PHẦN 3: QUẢN LÝ ĐƠN HÀNG (Ở CUỐI CÙNG, ĐẦY ĐỦ NHƯ ẢNH) -->
     <div class="section-box">
-        <h3>📦 QUẢN LÝ ĐƠN SHOPEE</h3>
+        <div class="section-title">📦 Quản Lý Đơn Hàng Shopee</div>
         <div class="tab-container">
             <button class="tab-btn active" id="tabBtnSingle" onclick="switchDepositTab('single')">Nạp 1 Đơn</button>
             <button class="tab-btn" id="tabBtnMultiple" onclick="switchDepositTab('multiple')">Nạp Nhiều Đơn</button>
@@ -116,16 +134,16 @@
             <button class="btn-main" onclick="addMultipleOrders()">Nạp Hàng Loạt</button>
         </div>
         
-        <div style="margin-top: 15px;">
-            <input type="text" id="searchOrderInput" placeholder="🔍 Tìm kiếm nhanh mã đơn hoặc tên sản phẩm..." oninput="filterOrders()" style="margin-bottom: 10px;">
-            <button class="btn-check-all" onclick="checkAllOrders()">⚡ Quét Trạng Thái Đơn Báo Cáo</button>
-            <div id="orderListContainer" style="margin-top: 10px;"></div>
+        <div style="margin-top: 10px;">
+            <input type="text" id="searchOrderInput" placeholder="🔍 Tìm kiếm nhanh mã đơn hoặc tên sản phẩm..." oninput="filterOrders()">
+            <button class="btn-main" style="background-color: #2e7d32;" onclick="checkAllOrders()">⚡ Quét Trạng Thái Đơn Báo Cáo</button>
+            <div id="orderListContainer" style="margin-top: 8px;"></div>
         </div>
     </div>
 
 </div>
 
-<!-- MODAL CẢNH BÁO CHUNG -->
+<!-- MODAL CẢNH BÁO -->
 <div id="customModalOverlay">
     <div id="customModalBox">
         <div id="modalTitle">Thông Báo</div>
@@ -175,7 +193,9 @@
     }
 
     async function updateAuthUI() {
-        const authSection = document.getElementById("authSection");
+        const userActions = document.getElementById("headerUserActions");
+        const walletBox = document.getElementById("headerWalletBox");
+
         if (currentUsername) {
             const { data } = await _supabase.from('shopee_users').select('balance').eq('username', currentUsername);
             currentUserBalance = data && data.length > 0 ? data[0].balance || 0 : 0;
@@ -186,25 +206,22 @@
                 document.getElementById("adminPostBox").style.display = "none";
             }
 
-            authSection.innerHTML = `
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-                    <div style="font-size: 13px;">👤 Chào, <b>${currentUsername}</b></div>
-                    <button onclick="logout()" style="background: #c0392b; color: white; border: none; padding: 4px 8px; border-radius: 4px; font-size: 11px; cursor: pointer;">Đăng xuất</button>
-                </div>
-                <div style="display: flex; justify-content: space-between; align-items: center; background: #fff; padding: 8px 12px; border-radius: 6px;">
-                    <div style="font-size: 13px;">💰 Ví: <b style="color: #27ae60; font-size: 15px;">${currentUserBalance.toLocaleString('vi-VN')}đ</b></div>
-                    <button onclick="showModal('Nạp Tiền', 'Bank: Techcombank / Momo\\nTên: Admin MMO\\nNội dung CK: napvi ${currentUsername}\\nAdmin sẽ cộng tiền vào ví cho bạn sau khi nhận.')" style="background: #27ae60; color: white; border: none; padding: 5px 10px; border-radius: 4px; font-size: 11px; cursor: pointer;">➕ Nạp Tiền</button>
-                </div>
+            userActions.innerHTML = `
+                <span style="font-size: 11px; font-weight: bold; align-self: center;">${currentUsername}</span>
+                <button class="top-btn" onclick="logout()">Thoát</button>
+            `;
+            walletBox.innerHTML = `
+                <div>💵 Ví Chính: <b style="color: #a5d6a7;">${currentUserBalance.toLocaleString('vi-VN')}đ</b></div>
+                <button class="top-btn" style="background:#2e7d32; border:none;" onclick="showModal('Nạp Tiền', 'Bank: Techcombank / Momo\\nTên: Admin MMO\\nNội dung CK: napvi ${currentUsername}\\nAdmin sẽ cộng tiền vào ví cho bạn sau khi nhận.')">➕ Nạp</button>
             `;
             loadStoreData();
             loadOrdersFromSupabase();
         } else {
-            authSection.innerHTML = `
-                <div style="display: flex; gap: 8px;">
-                    <button onclick="openLogin()" class="btn-secondary" style="margin:0;">Đăng Nhập</button>
-                    <button onclick="openRegister()" class="btn-secondary" style="margin:0; background:#9b59b6;">Đăng Ký</button>
-                </div>
+            userActions.innerHTML = `
+                <button class="top-btn" onclick="openLogin()">Đăng Nhập</button>
+                <button class="top-btn" onclick="openRegister()">Đăng Ký</button>
             `;
+            walletBox.innerHTML = `<div>Chưa đăng nhập tài khoản.</div>`;
             document.getElementById("adminPostBox").style.display = "none";
         }
     }
@@ -295,10 +312,10 @@
                             <div class="acc-platform">⭐ TK ${item.platform}</div>
                             <div class="acc-price">${item.price.toLocaleString('vi-VN')} VNĐ</div>
                         </div>
-                        <button onclick="buyAccount(${item.id}, ${item.price}, '${item.platform}')" style="background: #e74c3c; color: white; border: none; padding: 8px 15px; border-radius: 6px; cursor: pointer; font-weight: bold;">Mua Ngay</button>
+                        <button onclick="buyAccount(${item.id}, ${item.price}, '${item.platform}')" style="background: #e53935; color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-weight: bold; font-size:12px;">Mua Ngay</button>
                     </div>`;
             });
-        } else { marketHtml = "<div style='text-align:center;font-size:13px;'>Kho đang trống.</div>"; }
+        } else { marketHtml = "<div style='text-align:center;font-size:12px;color:#777;'>Kho đang trống.</div>"; }
         document.getElementById("marketList").innerHTML = marketHtml;
 
         const { data: myData } = await _supabase.from('mmo_accounts').select('*').eq('buyer_username', currentUsername).order('id', {ascending: false});
@@ -306,18 +323,18 @@
         if(myData && myData.length > 0) {
             myData.forEach(item => {
                 myHtml += `
-                    <div style="background: #fef9e7; border: 1px solid #f1c40f; padding: 10px; border-radius: 8px; margin-bottom: 10px; font-size: 13px;">
-                        <div style="font-weight: bold; color: #2c3e50; margin-bottom: 5px;">✅ Đã mua: ${item.platform}</div>
+                    <div style="background: #fff8e1; border: 1px solid #ffe0b2; padding: 10px; border-radius: 8px; margin-bottom: 8px; font-size: 12px;">
+                        <div style="font-weight: bold; color: #d84315; margin-bottom: 4px;">✅ Đã mua: ${item.platform}</div>
                         <div style="background: #fff; padding: 6px; border: 1px solid #ddd; word-break: break-all; border-radius: 4px; user-select: all;">${item.account_details}</div>
                     </div>`;
             });
-        } else { myHtml = "<div style='text-align:center;font-size:13px;'>Bạn chưa mua TK nào.</div>"; }
+        } else { myHtml = "<div style='text-align:center;font-size:12px;color:#777;'>Bạn chưa mua TK nào.</div>"; }
         document.getElementById("myAccList").innerHTML = myHtml;
     }
 
     async function buyAccount(id, price, platform) {
         if (currentUserBalance < price) {
-            showModal("Lỗi", "Số dư không đủ! Vui lòng nạp thêm tiền."); return;
+            showModal("Lỗi", "Số dư ví không đủ! Vui lòng nạp thêm tiền."); return;
         }
 
         showModal("Xác nhận Mua", `Thanh toán ${price.toLocaleString('vi-VN')}đ cho TK ${platform}?`, true, async (res) => {
@@ -326,8 +343,7 @@
                 const { error: e1 } = await _supabase.from('shopee_users').update({balance: newBal}).eq('username', currentUsername);
                 if (e1) { showModal("Lỗi", e1.message); return; }
 
-                const { error: e2 } = await _supabase.from('mmo_accounts').update({status: 'Đã bán', buyer_username: currentUsername}).eq('id', id);
-                
+                await _supabase.from('mmo_accounts').update({status: 'Đã bán', buyer_username: currentUsername}).eq('id', id);
                 showModal("Thành công", "Mua thành công! Xem thông tin ở mục 'TK Đã Mua'.");
                 updateAuthUI();
             }
@@ -347,10 +363,10 @@
             delete window[callbackName];
             if (data.status === "success") {
                 resultDiv.innerHTML = `
-                    <div style="background: #e8f8f5; padding: 12px; border-radius: 8px; border: 1px solid #27ae60;">
+                    <div style="background: #e8f8f5; padding: 10px; border-radius: 8px; border: 1px solid #27ae60;">
                         <b>Email:</b> ${data.hide_email_tin}<br>
-                        <b>OTP:</b> <span style="color:#d35400; font-size:16px; font-weight:bold;">${data.otp || 'Không có'}</span><br>
-                        ${(data.link_xac_thuc_tai_day && data.link_xac_thuc_tai_day !== "Không có") ? `<a href="${data.link_xac_thuc_tai_day}" target="_blank" style="display:block; margin-top:8px; background:#3498db; color:white; padding:8px; text-align:center; border-radius:6px; text-decoration:none; font-weight:bold;">MỞ LINK XÁC THỰC</a>` : ''}
+                        <b>OTP:</b> <span style="color:#d35400; font-size:15px; font-weight:bold;">${data.otp || 'Không có'}</span><br>
+                        ${(data.link_xac_thuc_tai_day && data.link_xac_thuc_tai_day !== "Không có") ? `<a href="${data.link_xac_thuc_tai_day}" target="_blank" style="display:block; margin-top:6px; background:#3498db; color:white; padding:7px; text-align:center; border-radius:6px; text-decoration:none; font-weight:bold; font-size:12px;">MỞ LINK XÁC THỰC</a>` : ''}
                     </div>`;
             } else { resultDiv.innerHTML = `<span style="color: #c0392b;">⚠️ ${data.message}</span>`; }
         };
@@ -413,7 +429,7 @@
                 let isSuccess = o.status === 'Đã giao thành công';
                 let timeStr = o.created_at ? new Date(o.created_at).toLocaleString('vi-VN') : '';
                 html += `
-                <div class="order-card" style="border-left: 4px solid ${isSuccess ? '#27ae60' : '#e67e22'}">
+                <div class="order-card" style="border-left: 4px solid ${isSuccess ? '#27ae60' : '#f39c12'}">
                     <div class="order-header">
                         <span class="order-code">#${o.order_code}</span>
                         <span class="order-status ${isSuccess ? 'status-success' : 'status-pending'}">${o.status || 'Đang chờ giao'}</span>
@@ -429,7 +445,7 @@
                 </div>`;
             });
         }
-        document.getElementById("orderListContainer").innerHTML = html || "<div style='text-align:center; font-size:13px;'>Chưa có đơn hàng nào</div>";
+        document.getElementById("orderListContainer").innerHTML = html || "<div style='text-align:center; font-size:12px; color:#777;'>Chưa có đơn hàng nào</div>";
     }
 
     function filterOrders() {
@@ -466,11 +482,11 @@
                 loadOrdersFromSupabase();
             }
         }, `
-            <label>Mã đơn hàng:</label>
+            <label style="font-size:12px;font-weight:bold;">Mã đơn hàng:</label>
             <input type="text" id="editCode" value="${code}">
-            <label>Tên sản phẩm:</label>
+            <label style="font-size:12px;font-weight:bold;">Tên sản phẩm:</label>
             <input type="text" id="editProd" value="${prod}">
-            <label>Email iCloud:</label>
+            <label style="font-size:12px;font-weight:bold;">Email iCloud:</label>
             <input type="text" id="editEmail" value="${email}">
         `);
     }
