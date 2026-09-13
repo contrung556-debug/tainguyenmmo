@@ -108,16 +108,30 @@
         
         <div id="adminPostBox" style="display: none; background: #fff8f5; padding: 10px; border-radius: 8px; border: 1px solid #faddd3; margin-bottom: 12px;">
             <div style="font-weight: bold; color: #ee4d2d; font-size: 12px; margin-bottom: 6px;">🔧 [Admin] Đăng Bán Tài Khoản</div>
-            <select id="postPlatform">
+            
+            <label style="font-size: 11px; font-weight: bold; color: #555;">Chọn nền tảng:</label>
+            <select id="postPlatform" onchange="onPlatformChange()">
                 <option value="Shopee">Shopee</option>
                 <option value="Facebook">Facebook</option>
                 <option value="Gmail">Gmail</option>
                 <option value="iCloud">iCloud</option>
                 <option value="TikTok">TikTok</option>
             </select>
-            <input type="text" id="postTitle" placeholder="Tên loại tài khoản (VD: ACC New Reg Phone Sẵn Mã)">
-            <textarea id="postDetails" placeholder="Thông tin đăng nhập (user|pass|2fa) hoặc danh sách acc (mỗi dòng 1 acc)"></textarea>
-            <input type="number" id="postPrice" placeholder="Giá bán (VNĐ) - VD: 6000">
+
+            <label style="font-size: 11px; font-weight: bold; color: #555;">Chọn mẫu sản phẩm nhanh:</label>
+            <select id="postTemplateSelect" onchange="applyTemplate()">
+                <!-- Các mẫu sẽ tự động thay đổi theo nền tảng -->
+            </select>
+
+            <label style="font-size: 11px; font-weight: bold; color: #555;">Tiêu đề hiển thị:</label>
+            <input type="text" id="postTitle" placeholder="Tên loại tài khoản...">
+
+            <label style="font-size: 11px; font-weight: bold; color: #555;">Thông tin tài khoản:</label>
+            <textarea id="postDetails" placeholder="Thông tin đăng nhập (user|pass|2fa)..."></textarea>
+
+            <label style="font-size: 11px; font-weight: bold; color: #555;">Giá bán (VNĐ):</label>
+            <input type="number" id="postPrice" placeholder="VD: 6000">
+
             <button class="btn-main" style="margin-bottom:0;" onclick="postNewAccount()">📤 Tải Lên Cửa Hàng</button>
         </div>
 
@@ -195,13 +209,70 @@
     const GAS_OTP_URL = "https://script.google.com/macros/s/AKfycbwk0RSNFUrzaU7nSlNgAgazt3BWUNR-meYBYvJcSkJIFxQe4XiDfGd3FsfcSTWzOLk/exec";
     const GAS_ORDER_URL = "https://script.google.com/macros/s/AKfycbxSO_B7KYFmTvJ9XTUMI4jU8N2Vyz0GwMnqxk3T0PnX-rcKtfGu5b0DTzNgHPovJVVIRw/exec";
 
-    const ADMIN_USERNAME = "Cuong123"; // Đã đặt quyền admin cho tài khoản của bạn
+    const ADMIN_USERNAME = "Cuong123";
 
     let currentUsername = localStorage.getItem("shopee_logged_user") || "";
     let currentUserBalance = 0;
     let modalCallback = null;
     let cachedOrders = [];
     let currentCategory = 'Shopee';
+
+    // Kho mẫu sản phẩm giúp chọn nhanh đỡ phải gõ lại
+    const PRODUCT_TEMPLATES = {
+        "Shopee": [
+            { name: "Shopee Reg Sẵn Số Điện Thoại", price: 5000, details: "username|password|phone_verified" },
+            { name: "Shopee Đã Verify Sẵn Xu", price: 10000, details: "username|password|has_coins" }
+        ],
+        "Facebook": [
+            { name: "Clone VN Trắng Thông Tin", price: 3000, details: "uid|pass|2fa|cookie" },
+            { name: "Via Cổ Úp Avatar Có Tương Tác", price: 25000, details: "uid|pass|2fa|mail|mail_pass" }
+        ],
+        "Gmail": [
+            { name: "Gmail New Sẵn Recovery", price: 4000, details: "email|password|recovery_email" },
+            { name: "Gmail Ngâm Cổ 1 Năm", price: 8000, details: "email|password|recovery_email|phone" }
+        ],
+        "iCloud": [
+            { name: "iCloud Sạch Sẵn Thư Mục Mới", price: 6000, details: "email|password|secret_questions" },
+            { name: "iCloud Việt Nam Hoạt Động Tốt", price: 12000, details: "email|password|backup_mail" }
+        ],
+        "TikTok": [
+            { name: "TikTok New Reg Sẵn Xu", price: 4000, details: "username|password|login_method" },
+            { name: "TikTok Đã Đổi Tên Theo Yêu Cầu", price: 15000, details: "username|password|cookie" }
+        ]
+    };
+
+    function updateTemplatesDropdown() {
+        let plat = document.getElementById("postPlatform").value;
+        let select = document.getElementById("postTemplateSelect");
+        let list = PRODUCT_TEMPLATES[plat] || [];
+        
+        let html = `<option value="">-- Chọn mẫu có sẵn --</option>`;
+        list.forEach((item, idx) => {
+            html += `<option value="${idx}">${item.name} (${item.price.toLocaleString('vi-VN')}đ)</option>`;
+        });
+        select.innerHTML = html;
+        
+        // Reset ô nhập
+        document.getElementById("postTitle").value = list.length > 0 ? list[0].name : "";
+        document.getElementById("postDetails").value = list.length > 0 ? list[0].details : "";
+        document.getElementById("postPrice").value = list.length > 0 ? list[0].price : "";
+    }
+
+    function onPlatformChange() {
+        updateTemplatesDropdown();
+    }
+
+    function applyTemplate() {
+        let plat = document.getElementById("postPlatform").value;
+        let idx = document.getElementById("postTemplateSelect").value;
+        if(idx === "") return;
+        let item = PRODUCT_TEMPLATES[plat][idx];
+        if(item) {
+            document.getElementById("postTitle").value = item.name;
+            document.getElementById("postDetails").value = item.details;
+            document.getElementById("postPrice").value = item.price;
+        }
+    }
 
     function switchMainTab(tabName) {
         document.getElementById("navBtnMarket").classList.remove("active");
@@ -257,6 +328,7 @@
 
             if (currentUsername === ADMIN_USERNAME) {
                 document.getElementById("adminPostBox").style.display = "block";
+                updateTemplatesDropdown();
             } else {
                 document.getElementById("adminPostBox").style.display = "none";
             }
@@ -356,9 +428,7 @@
         if (error) showModal("Lỗi", "Không thể up: " + error.message);
         else {
             showModal("Thành công", "Đã đăng bán tài khoản!");
-            document.getElementById("postTitle").value = "";
             document.getElementById("postDetails").value = "";
-            document.getElementById("postPrice").value = "";
             loadStoreData();
         }
     }
