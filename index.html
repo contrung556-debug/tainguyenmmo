@@ -12,16 +12,11 @@
         .section-box { background: #fff8f5; padding: 15px; border-radius: 8px; border: 1px solid #faddd3; margin-bottom: 20px; }
         label { font-size: 13px; font-weight: bold; color: #444; display: block; margin-bottom: 5px; }
         input, textarea, select { width: 100%; padding: 10px; margin-bottom: 10px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; font-size: 14px; }
-        textarea { resize: vertical; min-height: 130px; }
+        textarea { resize: vertical; min-height: 100px; }
         .btn-main { background-color: #ee4d2d; color: white; border: none; padding: 11px; border-radius: 6px; cursor: pointer; font-weight: bold; width: 100%; font-size: 14px; margin-bottom: 8px;}
         .btn-main:hover { background-color: #d73211; }
         .btn-secondary { background-color: #3498db; color: white; border: none; padding: 9px; border-radius: 6px; cursor: pointer; font-weight: bold; width: 100%; font-size: 13px; margin-bottom: 8px; }
         .btn-check-all { background-color: #27ae60; color: white; border: none; padding: 9px; border-radius: 6px; cursor: pointer; font-weight: bold; width: 100%; font-size: 13px; margin-bottom: 10px; }
-        .order-actions { margin-top: 8px; display: flex; gap: 6px; }
-        .btn-action { flex: 1; padding: 6px; border: none; border-radius: 4px; font-weight: bold; font-size: 11px; cursor: pointer; color: white; text-align: center; }
-        .btn-check-single { background-color: #e67e22; }
-        .btn-edit { background-color: #2980b9; }
-        .btn-delete { background-color: #c0392b; }
         .order-card { padding: 12px; border-radius: 8px; margin-bottom: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); background: #fff; border: 1px solid #eee; }
         .tab-container { display: flex; background: #fce8e3; border-radius: 8px; padding: 4px; margin-bottom: 15px; border: 1px solid #faddd3; }
         .tab-btn { flex: 1; padding: 9px; border: none; background: transparent; font-weight: bold; font-size: 13px; color: #b5452c; cursor: pointer; border-radius: 6px; text-align: center; transition: all 0.2s; }
@@ -45,48 +40,10 @@
 <div class="container">
     <h2>HỆ THỐNG MMO & ĐƠN HÀNG</h2>
 
-    <!-- KHUNG TÀI KHOẢN -->
+    <!-- KHUNG TÀI KHOẢN & ĐĂNG NHẬP -->
     <div id="authSection" style="background: #eef2f3; padding: 12px 15px; border-radius: 8px; margin-bottom: 15px;"></div>
 
-    <!-- PHẦN 1: CỬA HÀNG TÀI KHOẢN -->
-    <div class="section-box">
-        <h3>🛒 CHỢ TÀI KHOẢN MMO</h3>
-        
-        <!-- Khung dành riêng cho ADMIN đăng bán -->
-        <div id="adminPostBox" style="display: none; background: #e8f8f5; padding: 12px; border-radius: 8px; border: 1px solid #2ecc71; margin-bottom: 15px;">
-            <h4 style="color: #27ae60; margin-top: 0;">🔧 [Admin] Đăng Bán Tài Khoản</h4>
-            <select id="postPlatform">
-                <option value="Shopee">Tài Khoản Shopee</option>
-                <option value="TikTok">Tài Khoản TikTok</option>
-                <option value="Gmail">Tài Khoản Gmail</option>
-                <option value="Khác">Khác</option>
-            </select>
-            <input type="text" id="postDetails" placeholder="Thông tin (VD: user|pass|2fa...)">
-            <input type="number" id="postPrice" placeholder="Giá bán (VNĐ) - VD: 15000">
-            <button class="btn-check-all" onclick="postNewAccount()">📤 Tải Lên Cửa Hàng</button>
-        </div>
-
-        <div class="tab-container">
-            <button class="tab-btn active" id="tabStore" onclick="switchStoreTab('market')">Mua Tài Khoản</button>
-            <button class="tab-btn" id="tabMyAcc" onclick="switchStoreTab('my')">TK Đã Mua</button>
-        </div>
-
-        <div id="marketList">
-            <div style="text-align: center; color: #888; padding: 15px;">Đang tải danh sách...</div>
-        </div>
-        
-        <div id="myAccList" style="display: none;"></div>
-    </div>
-
-    <!-- PHẦN 2: LẤY OTP -->
-    <div class="section-box">
-        <h3>SHOPEE LINK & OTP FETCHER</h3>
-        <input type="text" id="fetchInputEmail" placeholder="Nhập tên hoặc địa chỉ Email...">
-        <button class="btn-main" onclick="fetchOtpLink()">Lấy Link Xác Thực / OTP</button>
-        <div id="fetchResult" style="margin-top: 10px; font-size: 13px;"></div>
-    </div>
-
-    <!-- PHẦN 3: QUẢN LÝ ĐƠN HÀNG -->
+    <!-- PHẦN 1: QUẢN LÝ ĐƠN HÀNG -->
     <div class="section-box">
         <h3>📦 QUẢN LÝ ĐƠN SHOPEE</h3>
         <div class="tab-container">
@@ -112,6 +69,43 @@
         </div>
     </div>
 
+    <!-- PHẦN 2: LẤY OTP -->
+    <div class="section-box">
+        <h3>SHOPEE LINK & OTP FETCHER</h3>
+        <input type="text" id="fetchInputEmail" placeholder="Nhập tên hoặc địa chỉ Email...">
+        <button class="btn-main" onclick="fetchOtpLink()">Lấy Link Xác Thực / OTP</button>
+        <div id="fetchResult" style="margin-top: 10px; font-size: 13px;"></div>
+    </div>
+
+    <!-- PHẦN 3: CHỢ TÀI KHOẢN MMO -->
+    <div class="section-box">
+        <h3>🛒 CHỢ TÀI KHOẢN MMO</h3>
+        
+        <div id="adminPostBox" style="display: none; background: #e8f8f5; padding: 12px; border-radius: 8px; border: 1px solid #2ecc71; margin-bottom: 15px;">
+            <h4 style="color: #27ae60; margin-top: 0;">🔧 [Admin] Đăng Bán Tài Khoản</h4>
+            <select id="postPlatform">
+                <option value="Shopee">Tài Khoản Shopee</option>
+                <option value="TikTok">Tài Khoản TikTok</option>
+                <option value="Gmail">Tài Khoản Gmail</option>
+                <option value="Khác">Khác</option>
+            </select>
+            <input type="text" id="postDetails" placeholder="Thông tin (user|pass|2fa|cookie)">
+            <input type="number" id="postPrice" placeholder="Giá bán (VNĐ) - VD: 15000">
+            <button class="btn-check-all" onclick="postNewAccount()">📤 Tải Lên Cửa Hàng</button>
+        </div>
+
+        <div class="tab-container">
+            <button class="tab-btn active" id="tabStore" onclick="switchStoreTab('market')">Mua Tài Khoản</button>
+            <button class="tab-btn" id="tabMyAcc" onclick="switchStoreTab('my')">TK Đã Mua</button>
+        </div>
+
+        <div id="marketList">
+            <div style="text-align: center; color: #888; padding: 15px;">Đang tải danh sách...</div>
+        </div>
+        
+        <div id="myAccList" style="display: none;"></div>
+    </div>
+
 </div>
 
 <!-- MODAL CẢNH BÁO CHUNG -->
@@ -127,7 +121,6 @@
 </div>
 
 <script>
-    // ===== CẤU HÌNH HỆ THỐNG =====
     const SUPABASE_URL = "https://hsdbjzkxbdezysxwwtaw.supabase.co";
     const SUPABASE_ANON_KEY = "sb_publishable_LIeDI4UVn7MEo5vURP05hA_TM4h0vFd";
     const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -135,14 +128,12 @@
     const GAS_OTP_URL = "https://script.google.com/macros/s/AKfycbwk0RSNFUrzaU7nSlNgAgazt3BWUNR-meYBYvJcSkJIFxQe4XiDfGd3FsfcSTWzOLk/exec";
     const GAS_ORDER_URL = "https://script.google.com/macros/s/AKfycbxSO_B7KYFmTvJ9XTUMI4jU8N2Vyz0GwMnqxk3T0PnX-rcKtfGu5b0DTzNgHPovJVVIRw/exec";
 
-    // 👉 Đổi tên này thành tên tài khoản bạn dùng để đăng bán (Admin)
     const ADMIN_USERNAME = "admin"; 
 
     let currentUsername = localStorage.getItem("shopee_logged_user") || "";
     let currentUserBalance = 0;
     let modalCallback = null;
 
-    // ===== HỆ THỐNG MODAL (POPUP) =====
     function showModal(title, message, isConfirm = false, callback = null, customHtml = null) {
         document.getElementById("modalTitle").innerText = title;
         let msgDiv = document.getElementById("modalMessage");
@@ -165,14 +156,12 @@
         if (modalCallback) modalCallback(result);
     }
 
-    // ===== HỆ THỐNG TÀI KHOẢN VÀ ĐĂNG NHẬP =====
     async function updateAuthUI() {
         const authSection = document.getElementById("authSection");
         if (currentUsername) {
             const { data } = await _supabase.from('shopee_users').select('balance').eq('username', currentUsername);
             currentUserBalance = data && data.length > 0 ? data[0].balance || 0 : 0;
 
-            // Hiển thị khung đăng bài nếu là Admin
             if (currentUsername === ADMIN_USERNAME) {
                 document.getElementById("adminPostBox").style.display = "block";
             } else {
@@ -234,7 +223,7 @@
         let u = document.getElementById("regUser").value.trim();
         let p = document.getElementById("regPass").value.trim();
         const { data } = await _supabase.from('shopee_users').select('username').eq('username', u);
-        if (data && data.length > 0) { showModal("Lỗi", "Tài khoản đã tồn tái!"); return; }
+        if (data && data.length > 0) { showModal("Lỗi", "Tài khoản đã tồn tại!"); return; }
         
         await _supabase.from('shopee_users').insert([{ username: u, password: p, balance: 0 }]);
         showModal("Thành công", "Đăng ký thành công! Vui lòng đăng nhập lại.");
@@ -242,7 +231,6 @@
 
     function logout() { currentUsername = ""; localStorage.removeItem("shopee_logged_user"); updateAuthUI(); }
 
-    // ===== HỆ THỐNG CỬA HÀNG TÀI KHOẢN =====
     function switchStoreTab(tab) {
         if (tab === 'market') {
             document.getElementById("tabStore").classList.add("active");
@@ -279,7 +267,6 @@
     async function loadStoreData() {
         if (!currentUsername) return;
         
-        // Load Market (Đang bán)
         const { data: marketData } = await _supabase.from('mmo_accounts').select('*').eq('status', 'Đang bán').order('id', {ascending: false});
         let marketHtml = '';
         if(marketData && marketData.length > 0) {
@@ -296,7 +283,6 @@
         } else { marketHtml = "<div style='text-align:center;font-size:13px;'>Kho đang trống.</div>"; }
         document.getElementById("marketList").innerHTML = marketHtml;
 
-        // Load Lịch sử mua (Đã bán cho User hiện tại)
         const { data: myData } = await _supabase.from('mmo_accounts').select('*').eq('buyer_username', currentUsername).order('id', {ascending: false});
         let myHtml = '';
         if(myData && myData.length > 0) {
@@ -318,21 +304,18 @@
 
         showModal("Xác nhận Mua", `Thanh toán ${price.toLocaleString('vi-VN')}đ cho TK ${platform}?`, true, async (res) => {
             if (res) {
-                // Trừ tiền
                 let newBal = currentUserBalance - price;
                 const { error: e1 } = await _supabase.from('shopee_users').update({balance: newBal}).eq('username', currentUsername);
                 if (e1) { showModal("Lỗi", e1.message); return; }
 
-                // Cập nhật trạng thái TK
                 const { error: e2 } = await _supabase.from('mmo_accounts').update({status: 'Đã bán', buyer_username: currentUsername}).eq('id', id);
                 
                 showModal("Thành công", "Mua thành công! Xem thông tin ở mục 'TK Đã Mua'.");
-                updateAuthUI(); // Sẽ tự load lại số dư và danh sách
+                updateAuthUI();
             }
         });
     }
 
-    // ===== HỆ THỐNG LẤY LINK / OTP =====
     function fetchOtpLink() {
         let val = document.getElementById("fetchInputEmail").value.trim();
         let resultDiv = document.getElementById("fetchResult");
@@ -360,7 +343,6 @@
         document.body.appendChild(scriptTag);
     }
 
-    // ===== HỆ THỐNG NẠP ĐƠN =====
     function switchDepositTab(type) {
         document.getElementById("tabBtnSingle").classList.toggle("active", type === 'single');
         document.getElementById("tabBtnMultiple").classList.toggle("active", type === 'multiple');
@@ -404,7 +386,8 @@
                 html += `
                 <div class="order-card" style="border-left: 4px solid ${o.status==='Đã giao thành công'?'#27ae60':'#e67e22'}">
                     <b>#${o.order_code}</b> - <span style="font-size:11px; background:#eee; padding:2px 4px;">${o.status || 'Đang chờ'}</span><br>
-                    <div style="font-size:12px; margin-top:4px;">📧 ${o.email}</div>
+                    <div style="font-size:13px; font-weight:bold; color:#444; margin: 3px 0;">📦 ${o.product_name || 'Đơn Shopee'}</div>
+                    <div style="font-size:12px; color: #666;">📧 ${o.email}</div>
                 </div>`;
             });
         }
