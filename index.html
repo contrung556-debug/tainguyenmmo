@@ -393,17 +393,26 @@
         `);
     }
 
+    // Đã cập nhật gọi hàm RPC verify_user_login (bảo mật mật khẩu băm bcrypt)
     async function handleLogin(res) {
         if(!res) return;
         let u = document.getElementById("popUser").value.trim();
         let p = document.getElementById("popPass").value.trim();
-        const { data } = await _supabase.from('shopee_users').select('*').eq('username', u);
-        if (!data || data.length === 0 || data[0].password !== p) {
-            showModal("Lỗi", "Tài khoản hoặc mật khẩu không đúng!"); return;
+        
+        const { data, error } = await _supabase.rpc('verify_user_login', {
+            p_username: u,
+            p_password: p
+        });
+
+        if (error || !data || !data.success) {
+            showModal("Lỗi", data?.message || error?.message || "Tài khoản hoặc mật khẩu không đúng!");
+            return;
         }
-        currentUsername = u;
-        localStorage.setItem("shopee_logged_user", u);
+
+        currentUsername = data.user.username;
+        localStorage.setItem("shopee_logged_user", currentUsername);
         updateAuthUI();
+        showModal("Thành công", "Đăng nhập thành công!");
     }
 
     function openRegister() {
@@ -824,7 +833,6 @@
         showModal("Xác nhận Mua", `Thanh toán ${totalPrice.toLocaleString('vi-VN')}đ cho ${qty} tài khoản này?`, true, async (res) => {
             if (!res) return;
 
-            // Gọi RPC an toàn trên Supabase Database
             const { data, error } = await _supabase.rpc('mua_tai_khoan', {
                 p_username: currentUsername,
                 p_platform: platform,
