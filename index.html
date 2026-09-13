@@ -91,6 +91,7 @@
     <button class="main-nav-btn active" id="navBtnMarket" onclick="switchMainTab('market')">🛒 Chợ MMO</button>
     <button class="main-nav-btn" id="navBtnOtp" onclick="switchMainTab('otp')">🔗 Lấy OTP</button>
     <button class="main-nav-btn" id="navBtnOrders" onclick="switchMainTab('orders')">📦 Quản Lý Đơn</button>
+    <button class="main-nav-btn" id="navBtnMembers" style="display: none;" onclick="switchMainTab('members')">👥 Thành Viên</button>
 </div>
 
 <div class="container">
@@ -197,6 +198,14 @@
         </div>
     </div>
 
+    <div class="section-box" id="sectionMembers">
+        <div class="section-title">👥 [Admin] Danh Sách Thành Viên & Chi Tiêu</div>
+        <input type="text" id="searchMemberInput" placeholder="🔍 Tìm kiếm tên thành viên..." oninput="filterMembers()">
+        <div id="memberListContainer" style="margin-top: 8px;">
+            <div style="text-align: center; color: #888; padding: 15px;">Đang tải danh sách thành viên...</div>
+        </div>
+    </div>
+
 </div>
 
 <div id="customModalOverlay">
@@ -224,6 +233,7 @@
     let currentUserBalance = 0;
     let modalCallback = null;
     let cachedOrders = [];
+    let cachedMembers = [];
     let currentCategory = 'Shopee';
 
     const DEFAULT_TEMPLATES = {
@@ -285,10 +295,13 @@
         document.getElementById("navBtnMarket").classList.remove("active");
         document.getElementById("navBtnOtp").classList.remove("active");
         document.getElementById("navBtnOrders").classList.remove("active");
+        let btnMem = document.getElementById("navBtnMembers");
+        if(btnMem) btnMem.classList.remove("active");
 
         document.getElementById("sectionMarket").classList.remove("active-section");
         document.getElementById("sectionOtp").classList.remove("active-section");
         document.getElementById("sectionOrders").classList.remove("active-section");
+        document.getElementById("sectionMembers").classList.remove("active-section");
 
         if (tabName === 'market') {
             document.getElementById("navBtnMarket").classList.add("active");
@@ -299,6 +312,10 @@
         } else if (tabName === 'orders') {
             document.getElementById("navBtnOrders").classList.add("active");
             document.getElementById("sectionOrders").classList.add("active-section");
+        } else if (tabName === 'members') {
+            if(btnMem) btnMem.classList.add("active");
+            document.getElementById("sectionMembers").classList.add("active-section");
+            loadMemberList();
         }
         window.scrollTo({ top: 0, behavior: 'smooth' });
     }
@@ -328,6 +345,7 @@
     async function updateAuthUI() {
         const userActions = document.getElementById("headerUserActions");
         const walletBox = document.getElementById("headerWalletBox");
+        const btnMembers = document.getElementById("navBtnMembers");
 
         if (currentUsername) {
             const { data } = await _supabase.from('shopee_users').select('balance').eq('username', currentUsername);
@@ -336,10 +354,12 @@
             if (currentUsername === ADMIN_USERNAME) {
                 document.getElementById("adminPostBox").style.display = "block";
                 document.getElementById("adminWalletBox").style.display = "block";
+                if(btnMembers) btnMembers.style.display = "block";
                 updateTemplatesDropdown();
             } else {
                 document.getElementById("adminPostBox").style.display = "none";
                 document.getElementById("adminWalletBox").style.display = "none";
+                if(btnMembers) btnMembers.style.display = "none";
             }
 
             userActions.innerHTML = `
@@ -360,6 +380,7 @@
             walletBox.innerHTML = `<div>Chưa đăng nhập tài khoản.</div>`;
             document.getElementById("adminPostBox").style.display = "none";
             document.getElementById("adminWalletBox").style.display = "none";
+            if(btnMembers) btnMembers.style.display = "none";
         }
     }
 
@@ -413,7 +434,6 @@
             return;
         }
 
-        // Kiểm tra xem user đích có tồn tại không
         const { data: userRecord, error: errSearch } = await _supabase.from('shopee_users').select('*').eq('username', targetUser);
         if (errSearch || !userRecord || userRecord.length === 0) {
             showModal("Lỗi", `Không tìm thấy tài khoản "${targetUser}" trên hệ thống!`);
@@ -432,6 +452,73 @@
         showModal("Thành công", `Đã cập nhật ví cho tài khoản @${targetUser} thành công! Số dư mới: ${newBal.toLocaleString('vi-VN')}đ`);
         document.getElementById("adminTargetUser").value = "";
         document.getElementById("adminAddAmount").value = "";
+    }
+
+    async function loadMemberList() {
+        if (currentUsername !== ADMIN_USERNAME) return;
+
+        // Lấy danh sách toàn bộ user
+        const { data: usersData, error: errU } = await _supabase.from('shopee_users').select('*');
+        // Lấy danh sách toàn bộ tài khoản đã bán để tính tổng tiền chi tiêu
+        const { data: soldData, error: errS } = await _supabase.from('mmo_accounts').select('buyer_username, price').eq('status', 'Đã bán');
+
+        if (errU) {
+            document.getElementById("memberListContainer").innerHTML = `<div style="color: red; text-align:center;">Lỗi tải danh sách: ${errU.message}</div>`;
+            return;
+        }
+
+        // Tính tổng tiền chi tiêu theo từng user
+        let spendingMap = {};
+        if (soldData) {
+            soldData.forEach(item => {
+                let u = item.buyer_username;
+                if (u) {
+                    spendingMap[u] = (spendingMap[u] || 0) + (item.price || 0);
+                }
+            });
+        }
+
+        cachedMembers = (usersData || []).map(user => {
+            return {
+                username: user.username,
+                password: user.password,
+                balance: user.balance || 0,
+                created_at: user.created_at,
+                total_spent: spendingMap[user.username] || 0
+            };
+        });
+
+        renderMembers(cachedMembers);
+    }
+
+    function renderMembers(members) {
+        let html = '';
+        if (members && members.length > 0) {
+            members.forEach(m => {
+                let dateStr = m.created_at ? new Date(m.created_at).toLocaleString('vi-VN') : 'Không rõ';
+                html += `
+                <div class="order-card" style="border-left: 4px solid #16a085;">
+                    <div class="order-header">
+                        <span class="order-code" style="color: #16a085;">👤 @${m.username}</span>
+                        <span class="order-status" style="background: #34495e;">MK: ${m.password}</span>
+                    </div>
+                    <div class="order-time">⏱️ Ngày đăng ký: ${dateStr}</div>
+                    <div style="display: flex; justify-content: space-between; margin-top: 6px; font-size: 13px;">
+                        <div>💵 Số dư ví: <b style="color: #27ae60;">${m.balance.toLocaleString('vi-VN')}đ</b></div>
+                        <div>🛍️ Đã chi tiêu: <b style="color: #ee4d2d;">${m.total_spent.toLocaleString('vi-VN')}đ</b></div>
+                    </div>
+                </div>`;
+            });
+        } else {
+            html = `<div style="text-align: center; color: #888; font-size: 13px; padding: 15px;">Chưa có thành viên nào.</div>`;
+        }
+        document.getElementById("memberListContainer").innerHTML = html;
+    }
+
+    function filterMembers() {
+        let keyword = document.getElementById("searchMemberInput").value.toLowerCase().trim();
+        let filtered = cachedMembers.filter(m => m.username && m.username.toLowerCase().includes(keyword));
+        renderMembers(filtered);
     }
 
     function switchCategory(cat) {
