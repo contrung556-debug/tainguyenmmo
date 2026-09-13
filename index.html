@@ -118,19 +118,25 @@
                 <option value="TikTok">TikTok</option>
             </select>
 
-            <label style="font-size: 11px; font-weight: bold; color: #555;">Chọn mẫu sản phẩm nhanh:</label>
+            <label style="font-size: 11px; font-weight: bold; color: #555;">Chọn mẫu sản phẩm đã lưu:</label>
             <select id="postTemplateSelect" onchange="applyTemplate()">
-                <!-- Các mẫu sẽ tự động thay đổi theo nền tảng -->
+                <!-- Danh sách mẫu tải từ localStorage -->
             </select>
 
             <label style="font-size: 11px; font-weight: bold; color: #555;">Tiêu đề hiển thị:</label>
             <input type="text" id="postTitle" placeholder="Tên loại tài khoản...">
 
-            <label style="font-size: 11px; font-weight: bold; color: #555;">Thông tin tài khoản:</label>
+            <label style="font-size: 11px; font-weight: bold; color: #555;">Định dạng mẫu (Mô tả thông tin):</label>
             <textarea id="postDetails" placeholder="Thông tin đăng nhập (user|pass|2fa)..."></textarea>
 
-            <label style="font-size: 11px; font-weight: bold; color: #555;">Giá bán (VNĐ):</label>
+            <label style="font-size: 11px; font-weight: bold; color: #555;">Giá bán mặc định (VNĐ):</label>
             <input type="number" id="postPrice" placeholder="VD: 6000">
+
+            <!-- Ô Tích Chọn Lưu Mẫu -->
+            <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 10px; background: #fff; padding: 8px; border-radius: 6px; border: 1px solid #faddd3;">
+                <input type="checkbox" id="saveAsNewTemplate" style="width: 18px; height: 18px; margin: 0; cursor: pointer;">
+                <label for="saveAsNewTemplate" style="font-size: 11px; font-weight: bold; color: #ee4d2d; cursor: pointer; margin: 0;">💾 Lưu thông tin này thành mẫu mới để dùng lần sau</label>
+            </div>
 
             <button class="btn-main" style="margin-bottom:0;" onclick="postNewAccount()">📤 Tải Lên Cửa Hàng</button>
         </div>
@@ -217,45 +223,55 @@
     let cachedOrders = [];
     let currentCategory = 'Shopee';
 
-    // Kho mẫu sản phẩm giúp chọn nhanh đỡ phải gõ lại
-    const PRODUCT_TEMPLATES = {
+    // Mẫu mặc định ban đầu (nếu chưa tự tạo mẫu nào)
+    const DEFAULT_TEMPLATES = {
         "Shopee": [
-            { name: "Shopee Reg Sẵn Số Điện Thoại", price: 5000, details: "username|password|phone_verified" },
-            { name: "Shopee Đã Verify Sẵn Xu", price: 10000, details: "username|password|has_coins" }
+            { name: "Shopee Reg Sẵn Số Điện Thoại", price: 5000, details: "username|password|phone_verified" }
         ],
         "Facebook": [
-            { name: "Clone VN Trắng Thông Tin", price: 3000, details: "uid|pass|2fa|cookie" },
-            { name: "Via Cổ Úp Avatar Có Tương Tác", price: 25000, details: "uid|pass|2fa|mail|mail_pass" }
+            { name: "Clone VN Trắng Thông Tin", price: 3000, details: "uid|pass|2fa|cookie" }
         ],
         "Gmail": [
-            { name: "Gmail New Sẵn Recovery", price: 4000, details: "email|password|recovery_email" },
-            { name: "Gmail Ngâm Cổ 1 Năm", price: 8000, details: "email|password|recovery_email|phone" }
+            { name: "Gmail New Sẵn Recovery", price: 4000, details: "email|password|recovery_email" }
         ],
         "iCloud": [
-            { name: "iCloud Sạch Sẵn Thư Mục Mới", price: 6000, details: "email|password|secret_questions" },
-            { name: "iCloud Việt Nam Hoạt Động Tốt", price: 12000, details: "email|password|backup_mail" }
+            { name: "iCloud Sạch Sẵn Thư Mục Mới", price: 6000, details: "email|password|secret_questions" }
         ],
         "TikTok": [
-            { name: "TikTok New Reg Sẵn Xu", price: 4000, details: "username|password|login_method" },
-            { name: "TikTok Đã Đổi Tên Theo Yêu Cầu", price: 15000, details: "username|password|cookie" }
+            { name: "TikTok New Reg Sẵn Xu", price: 4000, details: "username|password|login_method" }
         ]
     };
+
+    // Lấy danh sách mẫu từ localStorage hoặc dùng mẫu mặc định
+    function getStoredTemplates() {
+        let saved = localStorage.getItem("mmo_custom_templates");
+        if (saved) {
+            try { return JSON.parse(saved); } catch(e) { return DEFAULT_TEMPLATES; }
+        }
+        return DEFAULT_TEMPLATES;
+    }
 
     function updateTemplatesDropdown() {
         let plat = document.getElementById("postPlatform").value;
         let select = document.getElementById("postTemplateSelect");
-        let list = PRODUCT_TEMPLATES[plat] || [];
+        let allTemplates = getStoredTemplates();
+        let list = allTemplates[plat] || [];
         
-        let html = `<option value="">-- Chọn mẫu có sẵn --</option>`;
+        let html = `<option value="">-- Chọn mẫu đã lưu --</option>`;
         list.forEach((item, idx) => {
             html += `<option value="${idx}">${item.name} (${item.price.toLocaleString('vi-VN')}đ)</option>`;
         });
         select.innerHTML = html;
         
-        // Reset ô nhập
-        document.getElementById("postTitle").value = list.length > 0 ? list[0].name : "";
-        document.getElementById("postDetails").value = list.length > 0 ? list[0].details : "";
-        document.getElementById("postPrice").value = list.length > 0 ? list[0].price : "";
+        if (list.length > 0) {
+            document.getElementById("postTitle").value = list[0].name;
+            document.getElementById("postDetails").value = list[0].details;
+            document.getElementById("postPrice").value = list[0].price;
+        } else {
+            document.getElementById("postTitle").value = "";
+            document.getElementById("postDetails").value = "";
+            document.getElementById("postPrice").value = "";
+        }
     }
 
     function onPlatformChange() {
@@ -266,7 +282,8 @@
         let plat = document.getElementById("postPlatform").value;
         let idx = document.getElementById("postTemplateSelect").value;
         if(idx === "") return;
-        let item = PRODUCT_TEMPLATES[plat][idx];
+        let allTemplates = getStoredTemplates();
+        let item = allTemplates[plat][idx];
         if(item) {
             document.getElementById("postTitle").value = item.name;
             document.getElementById("postDetails").value = item.details;
@@ -415,19 +432,41 @@
 
     async function postNewAccount() {
         let plat = document.getElementById("postPlatform").value;
-        let title = document.getElementById("postTitle").value.trim() || ("Tài khoản " + plat);
+        let title = document.getElementById("postTitle").value.trim();
         let det = document.getElementById("postDetails").value.trim();
         let pri = parseInt(document.getElementById("postPrice").value);
+        let saveTemplateChecked = document.getElementById("saveAsNewTemplate").checked;
 
-        if (!det || isNaN(pri)) { showModal("Lỗi", "Vui lòng điền đủ thông tin và giá hợp lệ!"); return; }
+        if (!title || !det || isNaN(pri)) { 
+            showModal("Lỗi", "Vui lòng điền đủ Tiêu đề, Định dạng và Giá bán hợp lệ!"); 
+            return; 
+        }
 
+        // Nếu người dùng tích chọn lưu mẫu mới
+        if (saveTemplateChecked) {
+            let allTemplates = getStoredTemplates();
+            if (!allTemplates[plat]) allTemplates[plat] = [];
+            
+            // Kiểm tra xem mẫu trùng tên chưa để cập nhật hoặc thêm mới
+            let existingIdx = allTemplates[plat].findIndex(item => item.name === title);
+            if (existingIdx >= 0) {
+                allTemplates[plat][existingIdx] = { name: title, price: pri, details: det };
+            } else {
+                allTemplates[plat].push({ name: title, price: pri, details: det });
+            }
+            localStorage.setItem("mmo_custom_templates", JSON.stringify(allTemplates));
+            document.getElementById("saveAsNewTemplate").checked = false;
+            updateTemplatesDropdown();
+        }
+
+        // Đăng sản phẩm lên cửa hàng Supabase
         const { error } = await _supabase.from('mmo_accounts').insert([{
             platform: plat, account_details: det, price: pri, status: 'Đang bán'
         }]);
 
         if (error) showModal("Lỗi", "Không thể up: " + error.message);
         else {
-            showModal("Thành công", "Đã đăng bán tài khoản!");
+            showModal("Thành công", "Đã đăng bán tài khoản lên cửa hàng!");
             document.getElementById("postDetails").value = "";
             loadStoreData();
         }
