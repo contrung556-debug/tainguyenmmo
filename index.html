@@ -171,8 +171,8 @@
     const GAS_OTP_URL = "https://script.google.com/macros/s/AKfycbwk0RSNFUrzaU7nSlNgAgazt3BWUNR-meYBYvJcSkJIFxQe4XiDfGd3FsfcSTWzOLk/exec";
     const GAS_ORDER_URL = "https://script.google.com/macros/s/AKfycbxSO_B7KYFmTvJ9XTUMI4jU8N2Vyz0GwMnqxk3T0PnX-rcKtfGu5b0DTzNgHPovJVVIRw/exec";
 
-    let currentUsername = localStorage.getItem("shopee_logged_user") || "";
-    let currentUserBalance = 0;
+    let currentUser = null;
+    let currentUserProfile = null;
     let modalCallback = null;
     let cachedOrders = [];
     let currentCategory = 'Shopee';
@@ -225,21 +225,32 @@
         const userActions = document.getElementById("headerUserActions");
         const walletBox = document.getElementById("headerWalletBox");
 
-        if (currentUsername) {
-            const { data } = await _supabase.rpc('get_user_profile', { p_username: currentUsername });
-            currentUserBalance = (data && data.success) ? (data.balance || 0) : 0;
+        const { data: { user } } = await _supabase.auth.getUser();
+        currentUser = user;
+
+        if (currentUser) {
+            const { data: profile } = await _supabase
+                .from('profiles')
+                .select('*')
+                .eq('id', currentUser.id)
+                .single();
+            
+            currentUserProfile = profile;
+            const displayName = profile?.username || currentUser.email;
+            const balance = profile?.balance || 0;
 
             userActions.innerHTML = `
-                <span style="font-size: 11px; font-weight: bold; align-self: center;">${currentUsername}</span>
+                <span style="font-size: 11px; font-weight: bold; align-self: center;">${displayName}</span>
                 <button class="top-btn" onclick="logout()">Thoát</button>
             `;
             walletBox.innerHTML = `
-                <div>💵 Số dư Ví: <b style="color: #fff3e0; font-size: 13px;">${currentUserBalance.toLocaleString('vi-VN')}đ</b></div>
-                <button class="top-btn" style="background:#27ae60; border:none;" onclick="showModal('Nạp Tiền', 'Bank: Techcombank / Momo\\nTên: Admin MMO\\nNội dung CK: napvi ${currentUsername}\\nAdmin sẽ cộng tiền vào ví cho bạn sau khi nhận.')">➕ Nạp Ví</button>
+                <div>💵 Số dư Ví: <b style="color: #fff3e0; font-size: 13px;">${balance.toLocaleString('vi-VN')}đ</b></div>
+                <button class="top-btn" style="background:#27ae60; border:none;" onclick="showModal('Nạp Tiền', 'Bank: Techcombank / Momo\\nTên: Admin MMO\\nNội dung CK: napvi ${displayName}\\nAdmin sẽ cộng tiền vào ví cho bạn sau khi nhận.')">➕ Nạp Ví</button>
             `;
             loadStoreData();
             loadOrdersFromSupabase();
         } else {
+            currentUserProfile = null;
             userActions.innerHTML = `
                 <button class="top-btn" onclick="openLogin()">Đăng Nhập</button>
                 <button class="top-btn" onclick="openRegister()">Đăng Ký</button>
@@ -251,35 +262,34 @@
 
     function openLogin() {
         showModal("ĐĂNG NHẬP", "", true, handleLogin, `
-            <input type="text" id="popUser" placeholder="Tài khoản...">
+            <input type="email" id="popEmail" placeholder="Email đăng nhập...">
             <input type="password" id="popPass" placeholder="Mật khẩu...">
         `);
     }
 
     async function handleLogin(res) {
         if(!res) return;
-        let u = document.getElementById("popUser").value.trim();
-        let p = document.getElementById("popPass").value.trim();
+        let email = document.getElementById("popEmail").value.trim();
+        let pass = document.getElementById("popPass").value.trim();
 
-        const { data, error } = await _supabase.rpc('verify_user_login', {
-            p_username: u,
-            p_password: p
+        const { data, error } = await _supabase.auth.signInWithPassword({
+            email: email,
+            password: pass
         });
 
-        if (error || !data || !data.success) {
-            showModal("Lỗi", data?.message || error?.message || "Tài khoản hoặc mật khẩu không đúng!");
+        if (error) {
+            showModal("Lỗi", error.message || "Đăng nhập thất bại!");
             return;
         }
 
-        currentUsername = data.user.username;
-        localStorage.setItem("shopee_logged_user", currentUsername);
-        updateAuthUI();
+        await updateAuthUI();
         showModal("Thành công", "Đăng nhập thành công!");
     }
 
     function openRegister() {
         showModal("ĐĂNG KÝ", "", true, handleReg, `
-            <input type="text" id="regUser" placeholder="Tên đăng nhập...">
+            <input type="text" id="regUser" placeholder="Tên đăng nhập (Username)...">
+            <input type="email" id="regEmail" placeholder="Email của bạn...">
             <input type="password" id="regPass" placeholder="Mật khẩu...">
             <input type="password" id="regPassConfirm" placeholder="Nhập lại mật khẩu...">
         `);
@@ -287,34 +297,44 @@
 
     async function handleReg(res) {
         if(!res) return;
-        let u = document.getElementById("regUser").value.trim();
-        let p = document.getElementById("regPass").value.trim();
-        let pConfirm = document.getElementById("regPassConfirm").value.trim();
+        let username = document.getElementById("regUser").value.trim();
+        let email = document.getElementById("regEmail").value.trim();
+        let pass = document.getElementById("regPass").value.trim();
+        let passConfirm = document.getElementById("regPassConfirm").value.trim();
 
-        if (!u || !p) {
-            showModal("Lỗi", "Vui lòng nhập đầy đủ tài khoản và mật khẩu!");
+        if (!username || !email || !pass) {
+            showModal("Lỗi", "Vui lòng nhập đầy đủ thông tin!");
             return;
         }
 
-        if (p !== pConfirm) {
-            showModal("Lỗi", "Mật khẩu xác nhận không khớp, vui lòng kiểm tra lại!");
+        if (pass !== passConfirm) {
+            showModal("Lỗi", "Mật khẩu xác nhận không khớp!");
             return;
         }
 
-        const { data, error } = await _supabase.rpc('register_user', {
-            p_username: u,
-            p_password: p
+        const { data, error } = await _supabase.auth.signUp({
+            email: email,
+            password: pass,
+            options: {
+                data: {
+                    username: username
+                }
+            }
         });
 
-        if (error || !data || !data.success) {
-            showModal("Lỗi", data?.message || error?.message || "Đăng ký thất bại!");
+        if (error) {
+            showModal("Lỗi", error.message);
             return;
         }
 
-        showModal("Thành công", "Đăng ký thành công! Vui lòng đăng nhập lại.");
+        showModal("Thành công", "Đăng ký thành công! Bạn có thể sử dụng luôn.");
+        await updateAuthUI();
     }
 
-    function logout() { currentUsername = ""; localStorage.removeItem("shopee_logged_user"); updateAuthUI(); }
+    async function logout() {
+        await _supabase.auth.signOut();
+        await updateAuthUI();
+    }
 
     function switchCategory(cat) {
         currentCategory = cat;
@@ -396,7 +416,7 @@
             document.getElementById("marketList").innerHTML = marketHtml;
         }
 
-        if (!currentUsername) {
+        if (!currentUser) {
             document.getElementById("myAccList").innerHTML = `
                 <div style="text-align: center; padding: 20px; color: #888; font-size: 13px;">
                     Vui lòng đăng nhập để xem danh sách tài khoản đã mua.
@@ -404,7 +424,7 @@
             return;
         }
 
-        const { data: resMyData } = await _supabase.rpc('get_user_orders', { p_username: currentUsername });
+        const { data: resMyData } = await _supabase.rpc('get_user_orders');
         const myData = (resMyData && resMyData.success) ? resMyData.orders : [];
 
         let myHtml = '';
@@ -470,7 +490,7 @@
     }
 
     async function buyGroupAccounts(platform, price, maxStock, firstId, btnEl) {
-        if (!currentUsername) {
+        if (!currentUser) {
             showModal("Thông báo", "Vui lòng đăng nhập để mua tài khoản!");
             return;
         }
@@ -489,7 +509,6 @@
             if(btnEl) { btnEl.disabled = true; btnEl.innerText = "⏳ Đang xử lý..."; }
 
             const { data, error } = await _supabase.rpc('mua_tai_khoan', {
-                p_username: currentUsername,
                 p_platform: platform,
                 p_price: price,
                 p_qty: qty
@@ -558,7 +577,7 @@
     }
 
     async function addNewOrder(btnEl) {
-        if(!currentUsername) { showModal("Lỗi", "Vui lòng đăng nhập!"); return; }
+        if(!currentUser) { showModal("Lỗi", "Vui lòng đăng nhập!"); return; }
         let c = document.getElementById("inputOrderCode").value.trim();
         let e = document.getElementById("inputEmail").value.trim();
         let n = document.getElementById("inputProductName").value.trim() || 'Đơn Shopee';
@@ -567,7 +586,6 @@
         if(btnEl) { btnEl.disabled = true; btnEl.innerText = "⏳ Đang nạp..."; }
 
         const { data, error } = await _supabase.rpc('add_shopee_order', {
-            p_username: currentUsername,
             p_order_code: c,
             p_product_name: n,
             p_email: e
@@ -588,11 +606,17 @@
     }
 
     async function addMultipleOrders(btnEl) {
-        if(!currentUsername) return;
+        if(!currentUser) return;
         let lines = document.getElementById("inputMultipleLines").value.trim().split('\n');
         let insertData = lines.map(line => {
             let p = line.split('|').map(x=>x.trim());
-            return p[0] ? { order_code: p[0], email: p[1] || 'none@icloud.com', product_name: p[2] || 'Đơn', username: currentUsername, status: 'Đang chờ giao' } : null;
+            return p[0] ? { 
+                order_code: p[0], 
+                email: p[1] || 'none@icloud.com', 
+                product_name: p[2] || 'Đơn', 
+                user_id: currentUser.id, 
+                status: 'Đang chờ giao' 
+            } : null;
         }).filter(Boolean);
 
         if(insertData.length > 0) {
@@ -607,10 +631,10 @@
     }
 
     async function loadOrdersFromSupabase() {
-        if (!currentUsername) return;
-        await _supabase.rpc('cleanup_old_shopee_orders', { p_username: currentUsername });
+        if (!currentUser) return;
+        await _supabase.rpc('cleanup_old_shopee_orders');
 
-        const { data, error } = await _supabase.rpc('get_shopee_orders', { p_username: currentUsername });
+        const { data, error } = await _supabase.rpc('get_shopee_orders');
         cachedOrders = (data && data.success) ? data.orders : [];
         renderOrders(cachedOrders);
     }
@@ -672,7 +696,6 @@
                 
                 const { data, error } = await _supabase.rpc('update_shopee_order', {
                     p_id: id,
-                    p_username: currentUsername,
                     p_order_code: newCode,
                     p_product_name: newProd,
                     p_email: newEmail
@@ -700,8 +723,7 @@
         showModal("Xác nhận xóa", "Bạn có chắc muốn xóa đơn này khỏi hệ thống?", true, async (res) => {
             if(res) {
                 const { data, error } = await _supabase.rpc('delete_shopee_order', {
-                    p_id: id,
-                    p_username: currentUsername
+                    p_id: id
                 });
 
                 if (error || !data.success) {
