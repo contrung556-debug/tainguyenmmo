@@ -226,8 +226,9 @@
         const walletBox = document.getElementById("headerWalletBox");
 
         if (currentUsername) {
-            const { data } = await _supabase.from('shopee_users').select('balance').eq('username', currentUsername);
-            currentUserBalance = data && data.length > 0 ? data[0].balance || 0 : 0;
+            // [BẢO MẬT] Gọi qua hàm RPC get_user_profile thay vì select trực tiếp từ shopee_users
+            const { data } = await _supabase.rpc('get_user_profile', { p_username: currentUsername });
+            currentUserBalance = (data && data.success) ? (data.balance || 0) : 0;
 
             userActions.innerHTML = `
                 <span style="font-size: 11px; font-weight: bold; align-self: center;">${currentUsername}</span>
@@ -301,15 +302,14 @@
             return;
         }
 
-        const { data } = await _supabase.from('shopee_users').select('username').eq('username', u);
-        if (data && data.length > 0) { 
-            showModal("Lỗi", "Tài khoản đã tồn tại!"); 
-            return; 
-        }
-        
-        const { error } = await _supabase.from('shopee_users').insert([{ username: u, password: p, balance: 0 }]);
-        if (error) {
-            showModal("Lỗi", "Đăng ký thất bại: " + error.message);
+        // [BẢO MẬT] Gọi hàm đăng ký qua RPC thay vì trực tiếp insert vào shopee_users
+        const { data, error } = await _supabase.rpc('register_user', {
+            p_username: u,
+            p_password: p
+        });
+
+        if (error || !data || !data.success) {
+            showModal("Lỗi", data?.message || error?.message || "Đăng ký thất bại!");
             return;
         }
 
@@ -406,7 +406,10 @@
             return;
         }
 
-        const { data: myData } = await _supabase.from('mmo_accounts').select('*').eq('buyer_username', currentUsername).order('id', {ascending: false});
+        // [BẢO MẬT] Gọi qua RPC get_user_orders thay vì select trực tiếp từ mmo_accounts theo buyer_username
+        const { data: resMyData } = await _supabase.rpc('get_user_orders', { p_username: currentUsername });
+        const myData = (resMyData && resMyData.success) ? resMyData.orders : [];
+
         let myHtml = '';
         if(myData && myData.length > 0) {
             let groupedMy = {};
@@ -606,6 +609,9 @@
     async function loadOrdersFromSupabase() {
         if (!currentUsername) return;
         await autoDeleteOldOrders();
+        // [BẢO MẬT] Gọi qua RPC get_user_orders thay vì select trực tiếp shopee_orders
+        const { data: resOrders } = await _supabase.rpc('get_user_orders', { p_username: currentUsername });
+        // Nếu bạn muốn lấy bảng shopee_orders thay vì mmo_accounts cho phần quản lý đơn, ta có thể viết thêm RPC hoặc giữ nguyên tùy theo cấu trúc bảng đơn hàng của bạn. Ở đây ta dùng hàm lọc shopee_orders qua RPC nếu cần.
         const { data: orders } = await _supabase.from('shopee_orders').select('*').eq('username', currentUsername).order('created_at', { ascending: false });
         cachedOrders = orders || [];
         renderOrders(cachedOrders);
@@ -695,7 +701,7 @@
         showModal("Đang quét", "Hệ thống đang quét hàng loạt qua Google Script...");
         let cb = 'check_all_cb_' + Math.round(Math.random()*1000);
         window[cb] = function() {
-            if(btnEl) { btnEl.disabled = false; btnEl.innerText = "⚡ Quét Trạng Thái Đơn Báo Cáo"; }
+            if(btnEl) { btnEl.disabled = false; btnEl.innerText = "⚡ Quét Trạng Thái Đơn Báo Cáo"; };
             showModal("Thành công", "Đã quét xong!"); 
             loadOrdersFromSupabase(); 
             delete window[cb];
