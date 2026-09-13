@@ -1,0 +1,15 @@
+export default async function handler(req, res) {
+    const { hide } = req.query;
+    if (!hide) return res.status(400).json({ status: "error", message: "Thiếu email" });
+
+    try {
+        // Truyền sẵn callback để GAS trả về đúng định dạng cũ, sau đó cắt bỏ callback để lấy JSON chuẩn
+        const response = await fetch(`${process.env.GAS_OTP_URL}?hide=${encodeURIComponent(hide)}&callback=vercel_cb`);
+        const text = await response.text();
+        const jsonString = text.replace(/^vercel_cb\((.*)\)$/s, "$1"); 
+        
+        return res.status(200).json(JSON.parse(jsonString));
+    } catch (error) {
+        return res.status(500).json({ status: "error", message: "Lỗi kết nối App Script" });
+    }
+}
