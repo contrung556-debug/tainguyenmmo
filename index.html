@@ -17,7 +17,7 @@
         
         .wallet-box { background: rgba(0, 0, 0, 0.2); padding: 8px 12px; border-radius: 10px; display: flex; justify-content: space-between; align-items: center; font-size: 12px; }
 
-        /* Main Navigation Bar (Tab Chuyển đổi chính) */
+        /* Main Navigation Bar */
         .main-nav-bar { display: flex; background: #fff; padding: 8px 12px; gap: 6px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); position: sticky; top: 0; z-index: 100; border-bottom: 1px solid #faddd3; }
         .main-nav-btn { flex: 1; padding: 9px 4px; border: none; background: #fff8f5; font-weight: bold; font-size: 12px; color: #777; cursor: pointer; border-radius: 8px; text-align: center; transition: all 0.2s; border: 1px solid #faddd3; }
         .main-nav-btn.active { background: #ee4d2d; color: white; border-color: #ee4d2d; box-shadow: 0 2px 5px rgba(238,77,45,0.3); }
@@ -54,9 +54,20 @@
         .sub-tab-btn { flex: 0 0 auto; padding: 7px 10px; border: none; background: transparent; font-weight: bold; font-size: 11px; color: #ee4d2d; cursor: pointer; border-radius: 6px; text-align: center; transition: all 0.2s; }
         .sub-tab-btn.active { background: #ee4d2d; color: white; box-shadow: 0 2px 4px rgba(238,77,45,0.3); }
         
-        .acc-card { background: #fff; border: 1px solid #faddd3; padding: 10px; border-radius: 8px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;}
-        .acc-platform { font-weight: bold; color: #d35400; font-size: 13px; }
-        .acc-price { color: #ee4d2d; font-weight: bold; font-size: 13px; }
+        /* Giao diện danh mục kiểu mẫu Pro */
+        .store-product-card { background: #fff; border: 1px solid #faddd3; border-radius: 10px; padding: 12px; margin-bottom: 12px; box-shadow: 0 2px 6px rgba(0,0,0,0.02); }
+        .store-product-header { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 8px; }
+        .store-product-badge { background: #3498db; color: white; font-size: 11px; font-weight: bold; width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; border-radius: 4px; flex-shrink: 0; }
+        .store-product-info { flex: 1; }
+        .store-product-name { font-weight: bold; font-size: 13px; color: #2c3e50; margin-bottom: 2px; }
+        .store-product-meta { font-size: 12px; color: #666; }
+        
+        .store-product-desc { background: #fff8f5; border: 1px dashed #faddd3; padding: 8px 10px; border-radius: 6px; font-size: 11px; color: #555; margin-bottom: 10px; line-height: 1.4; }
+        
+        .store-product-action { display: flex; gap: 8px; align-items: center; }
+        .store-qty-input { width: 55px !important; padding: 6px !important; text-align: center; margin-bottom: 0 !important; font-weight: bold; font-size: 12px; }
+        .store-buy-btn { flex: 1; background: #ee4d2d; color: white; border: none; padding: 7px; border-radius: 6px; font-weight: bold; font-size: 12px; cursor: pointer; }
+        .store-buy-btn.out-of-stock { background: #bdc3c7; cursor: not-allowed; }
 
         /* Modal chuẩn */
         #customModalOverlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.5); z-index: 9999; justify-content: center; align-items: center; padding: 20px; box-sizing: border-box; }
@@ -104,8 +115,9 @@
                 <option value="iCloud">iCloud</option>
                 <option value="TikTok">TikTok</option>
             </select>
-            <input type="text" id="postDetails" placeholder="Thông tin (user|pass|2fa|cookie)">
-            <input type="number" id="postPrice" placeholder="Giá bán (VNĐ) - VD: 15000">
+            <input type="text" id="postTitle" placeholder="Tên loại tài khoản (VD: ACC New Reg Phone Sẵn Mã)">
+            <textarea id="postDetails" placeholder="Thông tin đăng nhập (user|pass|2fa) hoặc danh sách acc (mỗi dòng 1 acc)"></textarea>
+            <input type="number" id="postPrice" placeholder="Giá bán (VNĐ) - VD: 6000">
             <button class="btn-main" style="margin-bottom:0;" onclick="postNewAccount()">📤 Tải Lên Cửa Hàng</button>
         </div>
 
@@ -183,13 +195,13 @@
     const GAS_OTP_URL = "https://script.google.com/macros/s/AKfycbwk0RSNFUrzaU7nSlNgAgazt3BWUNR-meYBYvJcSkJIFxQe4XiDfGd3FsfcSTWzOLk/exec";
     const GAS_ORDER_URL = "https://script.google.com/macros/s/AKfycbxSO_B7KYFmTvJ9XTUMI4jU8N2Vyz0GwMnqxk3T0PnX-rcKtfGu5b0DTzNgHPovJVVIRw/exec";
 
-    const ADMIN_USERNAME = "admin"; 
+    const ADMIN_USERNAME = "Cuong123"; // Đã đặt quyền admin cho tài khoản của bạn
 
     let currentUsername = localStorage.getItem("shopee_logged_user") || "";
     let currentUserBalance = 0;
     let modalCallback = null;
     let cachedOrders = [];
-    let currentCategory = 'Shopee'; // Mặc định hiển thị tab Shopee
+    let currentCategory = 'Shopee';
 
     function switchMainTab(tabName) {
         document.getElementById("navBtnMarket").classList.remove("active");
@@ -331,6 +343,7 @@
 
     async function postNewAccount() {
         let plat = document.getElementById("postPlatform").value;
+        let title = document.getElementById("postTitle").value.trim() || ("Tài khoản " + plat);
         let det = document.getElementById("postDetails").value.trim();
         let pri = parseInt(document.getElementById("postPrice").value);
 
@@ -343,7 +356,9 @@
         if (error) showModal("Lỗi", "Không thể up: " + error.message);
         else {
             showModal("Thành công", "Đã đăng bán tài khoản!");
+            document.getElementById("postTitle").value = "";
             document.getElementById("postDetails").value = "";
+            document.getElementById("postPrice").value = "";
             loadStoreData();
         }
     }
@@ -355,20 +370,31 @@
             const { data: marketData } = await _supabase.from('mmo_accounts').select('*').eq('status', 'Đang bán').eq('platform', currentCategory).order('id', {ascending: false});
             let marketHtml = '';
             if(marketData && marketData.length > 0) {
-                marketData.forEach(item => {
+                marketData.forEach((item, index) => {
                     marketHtml += `
-                        <div class="acc-card">
-                            <div>
-                                <div class="acc-platform">⭐ TK ${item.platform}</div>
-                                <div class="acc-price">${item.price.toLocaleString('vi-VN')} VNĐ</div>
+                        <div class="store-product-card">
+                            <div class="store-product-header">
+                                <div class="store-product-badge">${index + 1}</div>
+                                <div class="store-product-info">
+                                    <div class="store-product-name">Tài khoản ${item.platform} (#${item.id})</div>
+                                    <div class="store-product-meta">Giá: <b style="color: #ee4d2d;">${item.price.toLocaleString('vi-VN')}đ</b> | Kho: <b style="color: #27ae60;">Có sẵn</b></div>
+                                </div>
                             </div>
-                            <button onclick="buyAccount(${item.id}, ${item.price}, '${item.platform}')" style="background: #ee4d2d; color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-weight: bold; font-size:12px;">Mua Ngay</button>
+                            <div class="store-product-desc">
+                                <b>Thông tin & Lưu ý:</b><br>
+                                - Mua về nên đổi User / Pass<br>
+                                - Định dạng: ${item.account_details}
+                            </div>
+                            <div class="store-product-action">
+                                <input type="number" id="qty_${item.id}" class="store-qty-input" value="1" min="1" max="1">
+                                <button class="store-buy-btn" onclick="buyAccount(${item.id}, ${item.price}, '${item.platform}')">Mua Ngay</button>
+                            </div>
                         </div>`;
                 });
             } else { 
                 marketHtml = `
-                    <div style="text-align: center; padding: 20px 10px; color: #888; font-size: 13px;">
-                        <div style="font-size: 22px; margin-bottom: 4px;">🛍️</div>
+                    <div style="text-align: center; padding: 25px 10px; color: #888; font-size: 13px;">
+                        <div style="font-size: 24px; margin-bottom: 5px;">🛍️</div>
                         Danh mục <b>${currentCategory}</b> hiện chưa có tài khoản nào.<br>
                         <span style="font-size: 11px; color: #aaa;">Vui lòng quay lại sau hoặc chọn danh mục khác nhé!</span>
                     </div>`; 
@@ -388,8 +414,8 @@
             });
         } else { 
             myHtml = `
-                <div style="text-align: center; padding: 20px 10px; color: #888; font-size: 13px;">
-                    <div style="font-size: 22px; margin-bottom: 4px;">📦</div>
+                <div style="text-align: center; padding: 25px 10px; color: #888; font-size: 13px; background: #fff; border-radius: 10px; border: 1px solid #faddd3;">
+                    <div style="font-size: 24px; margin-bottom: 5px;">📦</div>
                     Bạn chưa mua tài khoản nào.
                 </div>`; 
         }
