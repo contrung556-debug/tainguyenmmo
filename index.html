@@ -50,7 +50,7 @@
         .order-btn-edit { flex: 1; background: #2980b9; color: white; border: none; padding: 6px; border-radius: 6px; font-size: 12px; font-weight: bold; cursor: pointer; }
         .order-btn-del { flex: 1; background: #c0392b; color: white; border: none; padding: 6px; border-radius: 6px; font-size: 12px; font-weight: bold; cursor: pointer; }
 
-        .sub-tab-container { display: flex; background: #fff8f5; border-radius: 8px; padding: 3px; margin-bottom: 12px; border: 1px solid #faddd3; overflow-x: auto; gap: 4px; }
+        .sub-tab-container { display: flex; background: #fff8f5; border-radius: 8px; padding: 3px; margin-bottom: 12px; border: 1px solid #faddd3; overflow-x: auto; gap: 4px; align-items: center; }
         .sub-tab-btn { flex: 0 0 auto; padding: 7px 10px; border: none; background: transparent; font-weight: bold; font-size: 11px; color: #ee4d2d; cursor: pointer; border-radius: 6px; text-align: center; transition: all 0.2s; }
         .sub-tab-btn.active { background: #ee4d2d; color: white; box-shadow: 0 2px 4px rgba(238,77,45,0.3); }
         
@@ -365,7 +365,14 @@
                             <button onclick="buyAccount(${item.id}, ${item.price}, '${item.platform}')" style="background: #ee4d2d; color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-weight: bold; font-size:12px;">Mua Ngay</button>
                         </div>`;
                 });
-            } else { marketHtml = `<div style='text-align:center;font-size:12px;color:#777;'>Danh mục ${currentCategory} hiện đang trống.</div>`; }
+            } else { 
+                marketHtml = `
+                    <div style="text-align: center; padding: 20px 10px; color: #888; font-size: 13px;">
+                        <div style="font-size: 22px; margin-bottom: 4px;">🛍️</div>
+                        Danh mục <b>${currentCategory}</b> hiện chưa có tài khoản nào.<br>
+                        <span style="font-size: 11px; color: #aaa;">Vui lòng quay lại sau hoặc chọn danh mục khác nhé!</span>
+                    </div>`; 
+            }
             document.getElementById("marketList").innerHTML = marketHtml;
         }
 
@@ -379,7 +386,13 @@
                         <div style="background: #fff; padding: 6px; border: 1px solid #ddd; word-break: break-all; border-radius: 4px; user-select: all;">${item.account_details}</div>
                     </div>`;
             });
-        } else { myHtml = "<div style='text-align:center;font-size:12px;color:#777;'>Bạn chưa mua TK nào.</div>"; }
+        } else { 
+            myHtml = `
+                <div style="text-align: center; padding: 20px 10px; color: #888; font-size: 13px;">
+                    <div style="font-size: 22px; margin-bottom: 4px;">📦</div>
+                    Bạn chưa mua tài khoản nào.
+                </div>`; 
+        }
         document.getElementById("myAccList").innerHTML = myHtml;
     }
 
