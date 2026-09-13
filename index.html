@@ -200,6 +200,7 @@
 
     <div class="section-box" id="sectionMembers">
         <div class="section-title">👥 [Admin] Danh Sách Thành Viên & Chi Tiêu</div>
+        <div style="font-size: 11px; color: #666; margin-bottom: 8px;">💡 Mẹo: Nhấn trực tiếp vào thẻ của thành viên bất kỳ để cộng/trừ số dư nhanh chóng.</div>
         <input type="text" id="searchMemberInput" placeholder="🔍 Tìm kiếm tên thành viên..." oninput="filterMembers()">
         <div id="memberListContainer" style="margin-top: 8px;">
             <div style="text-align: center; color: #888; padding: 15px;">Đang tải danh sách thành viên...</div>
@@ -454,12 +455,47 @@
         document.getElementById("adminAddAmount").value = "";
     }
 
+    async function adminQuickAdjust(targetUser) {
+        if (currentUsername !== ADMIN_USERNAME) return;
+        showModal(`Cập Nhật Ví: @${targetUser}`, "", true, async (res) => {
+            if (res) {
+                let amountInput = document.getElementById("quickAdjustAmount").value;
+                let amountToAdd = parseInt(amountInput);
+                if (isNaN(amountToAdd)) {
+                    showModal("Lỗi", "Vui lòng nhập số tiền hợp lệ!");
+                    return;
+                }
+
+                const { data: userRecord, error: errSearch } = await _supabase.from('shopee_users').select('*').eq('username', targetUser);
+                if (errSearch || !userRecord || userRecord.length === 0) {
+                    showModal("Lỗi", "Không tìm thấy tài khoản!");
+                    return;
+                }
+
+                let currentBal = userRecord[0].balance || 0;
+                let newBal = currentBal + amountToAdd;
+
+                const { error: errUpdate } = await _supabase.from('shopee_users').update({ balance: newBal }).eq('username', targetUser);
+                if (errUpdate) {
+                    showModal("Lỗi", errUpdate.message);
+                    return;
+                }
+
+                showModal("Thành công", `Đã cập nhật số dư cho @${targetUser} thành công! Số dư mới: ${newBal.toLocaleString('vi-VN')}đ`);
+                loadMemberList();
+                if (currentUsername === targetUser) updateAuthUI();
+            }
+        }, `
+            <div style="font-size:12px; color:#555; margin-bottom:8px;">Nhập số tiền muốn cộng hoặc trừ cho <b>@${targetUser}</b>:</div>
+            <label style="font-size:11px; font-weight:bold; color:#555;">Số tiền (Dương để cộng, Âm để trừ VD: -20000):</label>
+            <input type="number" id="quickAdjustAmount" placeholder="Nhập số tiền...">
+        `);
+    }
+
     async function loadMemberList() {
         if (currentUsername !== ADMIN_USERNAME) return;
 
-        // Lấy danh sách toàn bộ user
         const { data: usersData, error: errU } = await _supabase.from('shopee_users').select('*');
-        // Lấy danh sách toàn bộ tài khoản đã bán để tính tổng tiền chi tiêu
         const { data: soldData, error: errS } = await _supabase.from('mmo_accounts').select('buyer_username, price').eq('status', 'Đã bán');
 
         if (errU) {
@@ -467,7 +503,6 @@
             return;
         }
 
-        // Tính tổng tiền chi tiêu theo từng user
         let spendingMap = {};
         if (soldData) {
             soldData.forEach(item => {
@@ -497,7 +532,7 @@
             members.forEach(m => {
                 let dateStr = m.created_at ? new Date(m.created_at).toLocaleString('vi-VN') : 'Không rõ';
                 html += `
-                <div class="order-card" style="border-left: 4px solid #16a085;">
+                <div class="order-card" style="border-left: 4px solid #16a085; cursor: pointer; transition: background 0.2s;" onclick="adminQuickAdjust('${m.username}')" onmouseover="this.style.background='#f0f9f8'" onmouseout="this.style.background='#fff'">
                     <div class="order-header">
                         <span class="order-code" style="color: #16a085;">👤 @${m.username}</span>
                         <span class="order-status" style="background: #34495e;">MK: ${m.password}</span>
@@ -507,6 +542,7 @@
                         <div>💵 Số dư ví: <b style="color: #27ae60;">${m.balance.toLocaleString('vi-VN')}đ</b></div>
                         <div>🛍️ Đã chi tiêu: <b style="color: #ee4d2d;">${m.total_spent.toLocaleString('vi-VN')}đ</b></div>
                     </div>
+                    <div style="text-align: right; margin-top: 6px; font-size: 11px; color: #16a085; font-weight: bold;">⚡ Nhấn vào đây để cộng/trừ số dư</div>
                 </div>`;
             });
         } else {
