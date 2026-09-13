@@ -178,8 +178,9 @@
     const SUPABASE_ANON_KEY = "sb_publishable_LIeDI4UVn7MEo5vURP05hA_TM4h0vFd";
     const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-    const GAS_OTP_URL = "https://script.google.com/macros/s/AKfycbwk0RSNFUrzaU7nSlNgAgazt3BWUNR-meYBYvJcSkJIFxQe4XiDfGd3FsfcSTWzOLk/exec";
-    const GAS_ORDER_URL = "https://script.google.com/macros/s/AKfycbxSO_B7KYFmTvJ9XTUMI4jU8N2Vyz0GwMnqxk3T0PnX-rcKtfGu5b0DTzNgHPovJVVIRw/exec";
+    // ĐÃ ẨN LINK GAS: Gọi qua Serverless Proxy trên Vercel
+    const GAS_OTP_URL = "/api/otp";
+    const GAS_ORDER_URL = "/api/order";
 
     let currentUser = null;
     let currentUserMember = null;
