@@ -375,22 +375,23 @@
     }
 
     async function loadStoreData() {
-        let metaMap = JSON.parse(localStorage.getItem("mmo_meta_info") || "{}");
-
         if (currentCategory !== 'my') {
-            const { data: marketData } = await _supabase.from('mmo_accounts').select('*').eq('status', 'Đang bán').eq('platform', currentCategory);
+            const { data: marketData } = await _supabase
+                .from('mmo_accounts')
+                .select('*')
+                .eq('status', 'Đang bán')
+                .eq('platform', currentCategory);
             
             let marketHtml = '';
             if(marketData && marketData.length > 0) {
                 let grouped = {};
                 marketData.forEach(item => {
-                    let groupKey = item.price;
+                    let groupKey = `${item.platform}_${item.price}`;
                     if (!grouped[groupKey]) {
-                        let meta = metaMap[`${item.platform}_${item.price}`] || { title: `Tài khoản ${item.platform}`, description: item.description || "Không có mô tả." };
                         grouped[groupKey] = {
-                            title: escapeHtml(meta.title),
+                            title: escapeHtml(item.title || `Tài khoản ${item.platform}`),
                             price: item.price,
-                            description: escapeHtml(meta.description || item.description),
+                            description: escapeHtml(item.description || "Không có mô tả."),
                             platform: escapeHtml(item.platform),
                             items: []
                         };
@@ -466,9 +467,8 @@
                 let group = groupedMy[key];
                 let count = group.items.length;
                 let dateStr = group.updated_at ? new Date(group.updated_at).toLocaleString('vi-VN') : 'Gần đây';
-                let meta = metaMap[`${group.platform}_${group.price}`] || { title: `Tài khoản ${group.platform}`, description: group.items[0].description || '' };
-                let titleText = escapeHtml(meta.title || `Tài khoản ${group.platform}`);
-                let descText = escapeHtml(meta.description || group.items[0].description || '');
+                let titleText = escapeHtml(group.items[0].title || `Tài khoản ${group.platform}`);
+                let descText = escapeHtml(group.items[0].description || '');
                 let combinedDetails = escapeHtml(group.items.map(i => i.account_details).join('\n'));
                 let firstId = group.items[0].id;
                 let totalCost = group.price * count;
@@ -557,7 +557,6 @@
         });
     }
 
-    // Đã thay thế JSONP bằng fetch chuẩn để không bị đứng "Đang kết nối..."
     async function fetchOtpLink(btnEl) {
         let val = document.getElementById("fetchInputEmail").value.trim();
         let resultDiv = document.getElementById("fetchResult");
