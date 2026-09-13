@@ -8,7 +8,6 @@
     <style>
         body { font-family: Arial, sans-serif; background-color: #f8f9fa; margin: 0; padding: 0; color: #333; }
         
-        /* Header Shopee MMO Store */
         .store-header { background: linear-gradient(135deg, #f53d2d, #ff6633); color: white; padding: 12px 15px; border-bottom-left-radius: 16px; border-bottom-right-radius: 16px; box-shadow: 0 4px 12px rgba(238,77,45,0.25); }
         .store-title-area { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
         .store-name { font-size: 17px; font-weight: bold; display: flex; align-items: center; gap: 6px; }
@@ -17,7 +16,6 @@
         
         .wallet-box { background: rgba(0, 0, 0, 0.2); padding: 8px 12px; border-radius: 10px; display: flex; justify-content: space-between; align-items: center; font-size: 12px; }
 
-        /* Main Navigation Bar */
         .main-nav-bar { display: flex; background: #fff; padding: 8px 12px; gap: 6px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); position: sticky; top: 0; z-index: 100; border-bottom: 1px solid #faddd3; }
         .main-nav-btn { flex: 1; padding: 9px 4px; border: none; background: #fff8f5; font-weight: bold; font-size: 12px; color: #777; cursor: pointer; border-radius: 8px; text-align: center; transition: all 0.2s; border: 1px solid #faddd3; }
         .main-nav-btn.active { background: #ee4d2d; color: white; border-color: #ee4d2d; box-shadow: 0 2px 5px rgba(238,77,45,0.3); }
@@ -35,7 +33,6 @@
         .btn-main { background-color: #ee4d2d; color: white; border: none; padding: 11px; border-radius: 8px; cursor: pointer; font-weight: bold; width: 100%; font-size: 13px; margin-bottom: 8px; box-shadow: 0 2px 5px rgba(238,77,45,0.3); }
         .btn-main:hover { background-color: #d73211; }
         
-        /* Card đơn hàng chi tiết */
         .order-card { padding: 12px; border-radius: 10px; margin-bottom: 10px; background: #fff; border: 1px solid #eee; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
         .order-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; }
         .order-code { font-weight: bold; font-size: 14px; color: #2c3e50; }
@@ -54,10 +51,10 @@
         .sub-tab-btn { flex: 0 0 auto; padding: 7px 10px; border: none; background: transparent; font-weight: bold; font-size: 11px; color: #ee4d2d; cursor: pointer; border-radius: 6px; text-align: center; transition: all 0.2s; }
         .sub-tab-btn.active { background: #ee4d2d; color: white; box-shadow: 0 2px 4px rgba(238,77,45,0.3); }
         
-        /* Giao diện danh mục kiểu mẫu Pro */
+        /* Giao diện gom nhóm sản phẩm chuyên nghiệp */
         .store-product-card { background: #fff; border: 1px solid #faddd3; border-radius: 10px; padding: 12px; margin-bottom: 12px; box-shadow: 0 2px 6px rgba(0,0,0,0.02); }
         .store-product-header { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 8px; }
-        .store-product-badge { background: #3498db; color: white; font-size: 11px; font-weight: bold; width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; border-radius: 4px; flex-shrink: 0; }
+        .store-product-badge { background: #ee4d2d; color: white; font-size: 11px; font-weight: bold; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; border-radius: 4px; flex-shrink: 0; }
         .store-product-info { flex: 1; }
         .store-product-name { font-weight: bold; font-size: 13px; color: #2c3e50; margin-bottom: 2px; }
         .store-product-meta { font-size: 12px; color: #666; }
@@ -65,11 +62,10 @@
         .store-product-desc { background: #fff8f5; border: 1px dashed #faddd3; padding: 8px 10px; border-radius: 6px; font-size: 11px; color: #555; margin-bottom: 10px; line-height: 1.4; }
         
         .store-product-action { display: flex; gap: 8px; align-items: center; }
-        .store-qty-input { width: 55px !important; padding: 6px !important; text-align: center; margin-bottom: 0 !important; font-weight: bold; font-size: 12px; }
-        .store-buy-btn { flex: 1; background: #ee4d2d; color: white; border: none; padding: 7px; border-radius: 6px; font-weight: bold; font-size: 12px; cursor: pointer; }
+        .store-qty-input { width: 65px !important; padding: 7px !important; text-align: center; margin-bottom: 0 !important; font-weight: bold; font-size: 12px; border: 1px solid #ee4d2d; border-radius: 6px; }
+        .store-buy-btn { flex: 1; background: #ee4d2d; color: white; border: none; padding: 8px; border-radius: 6px; font-weight: bold; font-size: 12px; cursor: pointer; }
         .store-buy-btn.out-of-stock { background: #bdc3c7; cursor: not-allowed; }
 
-        /* Modal chuẩn */
         #customModalOverlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.5); z-index: 9999; justify-content: center; align-items: center; padding: 20px; box-sizing: border-box; }
         #customModalBox { background: #fff; width: 100%; max-width: 340px; border-radius: 14px; padding: 20px; box-shadow: 0 8px 25px rgba(0,0,0,0.2); text-align: center; }
         #modalTitle { font-size: 16px; font-weight: bold; color: #ee4d2d; margin-bottom: 10px; }
@@ -82,7 +78,6 @@
 </head>
 <body>
 
-<!-- HEADER SHOPEE MMO STORE -->
 <div class="store-header">
     <div class="store-title-area">
         <div class="store-name">⚡ Shopee MMO Store 🛒</div>
@@ -93,7 +88,6 @@
     </div>
 </div>
 
-<!-- THANH ĐIỀU HƯỚNG CHÍNH -->
 <div class="main-nav-bar">
     <button class="main-nav-btn active" id="navBtnMarket" onclick="switchMainTab('market')">🛒 Chợ MMO</button>
     <button class="main-nav-btn" id="navBtnOtp" onclick="switchMainTab('otp')">🔗 Lấy OTP</button>
@@ -102,11 +96,10 @@
 
 <div class="container">
 
-    <!-- PHẦN 1: CHỢ TÀI KHOẢN MMO -->
     <div class="section-box active-section" id="sectionMarket">
         <div class="section-title">🛒 Chợ Tài Khoản MMO</div>
         
-        <!-- Khung Admin Đăng Bài Đã Tách Riêng Danh Sách Acc & Mô Tả + Lưu Mẫu -->
+        <!-- Khung Admin Đăng Bài -->
         <div id="adminPostBox" style="display: none; background: #fff8f5; padding: 12px; border-radius: 8px; border: 1px solid #faddd3; margin-bottom: 12px;">
             <div style="font-weight: bold; color: #ee4d2d; font-size: 13px; margin-bottom: 8px;">🔧 [Admin] Đăng Bán Tài Khoản Mới</div>
             
@@ -120,35 +113,29 @@
             </select>
 
             <label style="font-size: 11px; font-weight: bold; color: #555;">Chọn mẫu sản phẩm đã lưu:</label>
-            <select id="postTemplateSelect" onchange="applyTemplate()">
-                <!-- Danh sách mẫu tải từ localStorage -->
-            </select>
+            <select id="postTemplateSelect" onchange="applyTemplate()"></select>
 
-            <label style="font-size: 11px; font-weight: bold; color: #555;">Tiêu đề hiển thị:</label>
+            <label style="font-size: 11px; font-weight: bold; color: #555;">Tiêu đề hiển thị (Tên gói sản phẩm):</label>
             <input type="text" id="postTitle" placeholder="Ví dụ: Cho Thuê iCloud add acc Shopee">
 
-            <!-- Ô 1: Danh sách tài khoản (Nhiều dòng) -->
             <label style="font-size: 11px; font-weight: bold; color: #555;">Danh sách tài khoản (Mỗi dòng 1 acc):</label>
             <textarea id="postAccountList" rows="4" placeholder="dredge-12-sprier@icloud.com|password&#10;account2@icloud.com|password"></textarea>
-            <small style="font-size: 10px; color: #777; display: block; margin-top: -6px; margin-bottom: 8px;">Mỗi dòng tương ứng với 1 tài khoản bán ra độc lập.</small>
+            <small style="font-size: 10px; color: #777; display: block; margin-top: -6px; margin-bottom: 8px;">Hệ thống sẽ gom các dòng này vào cùng loại sản phẩm.</small>
 
-            <!-- Ô 2: Mô tả thông tin & Lưu ý -->
             <label style="font-size: 11px; font-weight: bold; color: #555;">Mô tả thông tin acc & Hướng dẫn:</label>
             <textarea id="postDescription" rows="3" placeholder="Nhập mô tả chi tiết, chính sách bảo hành..."></textarea>
 
-            <label style="font-size: 11px; font-weight: bold; color: #555;">Giá bán mặc định (VNĐ):</label>
+            <label style="font-size: 11px; font-weight: bold; color: #555;">Giá bán mỗi tài khoản (VNĐ):</label>
             <input type="number" id="postPrice" placeholder="VD: 2000">
 
-            <!-- Ô Tích Chọn Lưu Mẫu -->
             <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 10px; background: #fff; padding: 8px; border-radius: 6px; border: 1px solid #faddd3;">
                 <input type="checkbox" id="saveAsNewTemplate" style="width: 18px; height: 18px; margin: 0; cursor: pointer;">
-                <label for="saveAsNewTemplate" style="font-size: 11px; font-weight: bold; color: #ee4d2d; cursor: pointer; margin: 0;">💾 Lưu thông tin này thành mẫu mới để dùng lần sau</label>
+                <label for="saveAsNewTemplate" style="font-size: 11px; font-weight: bold; color: #ee4d2d; cursor: pointer; margin: 0;">💾 Lưu thông tin này thành mẫu mới</label>
             </div>
 
             <button class="btn-main" style="margin-bottom:0;" onclick="postNewAccount()">📤 Tải Lên Cửa Hàng</button>
         </div>
 
-        <!-- DANH MỤC CÁC LOẠI TÀI KHOẢN -->
         <div class="sub-tab-container">
             <button class="sub-tab-btn active" id="tabShopee" onclick="switchCategory('Shopee')">Shopee</button>
             <button class="sub-tab-btn" id="tabFacebook" onclick="switchCategory('Facebook')">Facebook</button>
@@ -165,7 +152,6 @@
         <div id="myAccList" style="display: none;"></div>
     </div>
 
-    <!-- PHẦN 2: LẤY LINK & OTP -->
     <div class="section-box" id="sectionOtp">
         <div class="section-title">🔗 Shopee Link & OTP Fetcher</div>
         <input type="text" id="fetchInputEmail" placeholder="Nhập tên hoặc địa chỉ Email...">
@@ -173,7 +159,6 @@
         <div id="fetchResult" style="margin-top: 8px; font-size: 12px;"></div>
     </div>
 
-    <!-- PHẦN 3: QUẢN LÝ ĐƠN HÀNG -->
     <div class="section-box" id="sectionOrders">
         <div class="section-title">📦 Quản Lý Đơn Hàng Shopee</div>
         <div class="sub-tab-container" style="justify-content: center;">
@@ -202,7 +187,6 @@
 
 </div>
 
-<!-- MODAL CẢNH BÁO -->
 <div id="customModalOverlay">
     <div id="customModalBox">
         <div id="modalTitle">Thông Báo</div>
@@ -230,30 +214,17 @@
     let cachedOrders = [];
     let currentCategory = 'Shopee';
 
-    // Mẫu mặc định ban đầu
     const DEFAULT_TEMPLATES = {
-        "Shopee": [
-            { name: "Shopee Reg Sẵn Số Điện Thoại", price: 5000, desc: "Bao test lần đầu, đúng định dạng.", details: "username|password" }
-        ],
-        "Facebook": [
-            { name: "Clone VN Trắng Thông Tin", price: 3000, desc: "Clone sạch, via ngoại.", details: "uid|pass|2fa" }
-        ],
-        "Gmail": [
-            { name: "Gmail New Sẵn Recovery", price: 4000, desc: "Gmail reg mới, khôi phục sẵn.", details: "email|password|recovery" }
-        ],
-        "iCloud": [
-            { name: "Cho Thuê iCloud add acc Shopee", price: 2000, desc: "Dùng add acc Shopee mượt mà, bao test.", details: "dredge-12-sprier@icloud.com|password" }
-        ],
-        "TikTok": [
-            { name: "TikTok New Reg Sẵn Xu", price: 4000, desc: "Acc sạch chuẩn.", details: "username|password" }
-        ]
+        "Shopee": [{ name: "Shopee Reg Sẵn Số Điện Thoại", price: 5000, desc: "Bao test lần đầu, đúng định dạng.", details: "username|password" }],
+        "Facebook": [{ name: "Clone VN Trắng Thông Tin", price: 3000, desc: "Clone sạch, via ngoại.", details: "uid|pass|2fa" }],
+        "Gmail": [{ name: "Gmail New Sẵn Recovery", price: 4000, desc: "Gmail reg mới, khôi phục sẵn.", details: "email|password|recovery" }],
+        "iCloud": [{ name: "Cho Thuê iCloud add acc Shopee", price: 2000, desc: "Dùng add acc Shopee mượt mà, bao test.", details: "dredge-12-sprier@icloud.com|password" }],
+        "TikTok": [{ name: "TikTok New Reg Sẵn Xu", price: 4000, desc: "Acc sạch chuẩn.", details: "username|password" }]
     };
 
     function getStoredTemplates() {
         let saved = localStorage.getItem("mmo_custom_templates");
-        if (saved) {
-            try { return JSON.parse(saved); } catch(e) { return DEFAULT_TEMPLATES; }
-        }
+        if (saved) { try { return JSON.parse(saved); } catch(e) { return DEFAULT_TEMPLATES; } }
         return DEFAULT_TEMPLATES;
     }
 
@@ -282,9 +253,7 @@
         }
     }
 
-    function onPlatformChange() {
-        updateTemplatesDropdown();
-    }
+    function onPlatformChange() { updateTemplatesDropdown(); }
 
     function applyTemplate() {
         let plat = document.getElementById("postPlatform").value;
@@ -448,30 +417,27 @@
         let saveTemplateChecked = document.getElementById("saveAsNewTemplate").checked;
 
         if (!title || lines.length === 0 || isNaN(pri)) { 
-            showModal("Lỗi", "Vui lòng nhập đủ Tiêu đề, Danh sách tài khoản ít nhất 1 dòng và Giá bán hợp lệ!"); 
+            showModal("Lỗi", "Vui lòng nhập đủ Tiêu đề, Danh sách tài khoản và Giá bán!"); 
             return; 
         }
 
-        // Lưu mẫu nếu tích chọn
         if (saveTemplateChecked) {
             let allTemplates = getStoredTemplates();
             if (!allTemplates[plat]) allTemplates[plat] = [];
-            
             let existingIdx = allTemplates[plat].findIndex(item => item.name === title);
             let templateData = { name: title, price: pri, desc: desc, details: lines.join('\n') };
-            if (existingIdx >= 0) {
-                allTemplates[plat][existingIdx] = templateData;
-            } else {
-                allTemplates[plat].push(templateData);
-            }
+            if (existingIdx >= 0) allTemplates[plat][existingIdx] = templateData;
+            else allTemplates[plat].push(templateData);
             localStorage.setItem("mmo_custom_templates", JSON.stringify(allTemplates));
             document.getElementById("saveAsNewTemplate").checked = false;
             updateTemplatesDropdown();
         }
 
-        // Đưa danh sách acc lên Supabase (mỗi dòng thành 1 bản ghi kèm mô tả)
+        // Đẩy lên Supabase, lưu thêm trường title và description để gom nhóm
         let insertRecords = lines.map(accLine => ({
             platform: plat,
+            title: title,
+            description: desc,
             account_details: accLine,
             price: pri,
             status: 'Đang bán'
@@ -481,7 +447,7 @@
 
         if (error) showModal("Lỗi", "Không thể up: " + error.message);
         else {
-            showModal("Thành công", `Đã đăng bán thành công ${insertRecords.length} tài khoản lên cửa hàng!`);
+            showModal("Thành công", `Đã đăng thành công ${insertRecords.length} tài khoản lên cửa hàng!`);
             document.getElementById("postAccountList").value = "";
             document.getElementById("postDescription").value = "";
             loadStoreData();
@@ -492,30 +458,54 @@
         if (!currentUsername) return;
         
         if (currentCategory !== 'my') {
-            const { data: marketData } = await _supabase.from('mmo_accounts').select('*').eq('status', 'Đang bán').eq('platform', currentCategory).order('id', {ascending: false});
+            const { data: marketData } = await _supabase.from('mmo_accounts').select('*').eq('status', 'Đang bán').eq('platform', currentCategory);
+            
             let marketHtml = '';
             if(marketData && marketData.length > 0) {
-                marketData.forEach((item, index) => {
+                // Gom nhóm các tài khoản có cùng Tiêu đề + Giá + Mô tả
+                let grouped = {};
+                marketData.forEach(item => {
+                    let groupKey = (item.title || "Tài khoản " + item.platform) + "_" + item.price + "_" + (item.description || "");
+                    if (!grouped[groupKey]) {
+                        grouped[groupKey] = {
+                            title: item.title || "Tài khoản " + item.platform,
+                            price: item.price,
+                            description: item.description || "Không có mô tả.",
+                            platform: item.platform,
+                            items: []
+                        };
+                    }
+                    grouped[groupKey].items.push(item);
+                });
+
+                let index = 1;
+                for (let key in grouped) {
+                    let group = grouped[key];
+                    let stockCount = group.items.length;
+                    let firstId = group.items[0].id; // Lấy ID đại diện để mua
+
                     marketHtml += `
                         <div class="store-product-card">
                             <div class="store-product-header">
-                                <div class="store-product-badge">${index + 1}</div>
+                                <div class="store-product-badge">${index++}</div>
                                 <div class="store-product-info">
-                                    <div class="store-product-name">Tài khoản ${item.platform} (#${item.id})</div>
-                                    <div class="store-product-meta">Giá: <b style="color: #ee4d2d;">${item.price.toLocaleString('vi-VN')}đ</b> | Trạng thái: <b style="color: #27ae60;">Còn hàng</b></div>
+                                    <div class="store-product-name">${group.title}</div>
+                                    <div class="store-product-meta">Giá: <b style="color: #ee4d2d;">${group.price.toLocaleString('vi-VN')}đ</b> | Kho: <b style="color: ${stockCount > 0 ? '#27ae60' : '#c0392b'};">${stockCount} sẵn có</b></div>
                                 </div>
                             </div>
                             <div class="store-product-desc">
-                                <b>Thông tin sản phẩm:</b><br>
-                                - Định dạng: ${item.account_details}<br>
-                                - Mua xong nhớ đổi mật khẩu.
+                                <b>Mô tả & Hướng dẫn:</b><br>
+                                ${group.description}
                             </div>
                             <div class="store-product-action">
-                                <button class="store-buy-btn" onclick="buyAccount(${item.id}, ${item.price}, '${item.platform}')">🛒 Mua Ngay</button>
-                                <button class="order-btn-del" style="flex:0 0 50px; padding:7px;" onclick="deleteAdminAccount(${item.id})">🗑️ Xoá</button>
+                                <input type="number" id="qty_${firstId}" class="store-qty-input" value="1" min="1" max="${stockCount}">
+                                <button class="store-buy-btn ${stockCount === 0 ? 'out-of-stock' : ''}" onclick="buyGroupAccounts('${group.platform}', '${encodeURIComponent(group.title)}', ${group.price}, ${stockCount})">
+                                    🛒 Mua Ngay
+                                </button>
+                                ${currentUsername === ADMIN_USERNAME ? `<button class="order-btn-del" style="flex:0 0 45px; padding:7px;" onclick="deleteGroupAccounts('${group.title}', ${group.price})">🗑️ Xoá</button>` : ''}
                             </div>
                         </div>`;
-                });
+                }
             } else { 
                 marketHtml = `
                     <div style="text-align: center; padding: 25px 10px; color: #888; font-size: 13px;">
@@ -532,7 +522,7 @@
             myData.forEach(item => {
                 myHtml += `
                     <div style="background: #fff8f5; border: 1px solid #faddd3; padding: 10px; border-radius: 8px; margin-bottom: 8px; font-size: 12px;">
-                        <div style="font-weight: bold; color: #ee4d2d; margin-bottom: 4px;">✅ Đã mua: ${item.platform}</div>
+                        <div style="font-weight: bold; color: #ee4d2d; margin-bottom: 4px;">✅ Đã mua: ${item.title || item.platform}</div>
                         <div style="background: #fff; padding: 6px; border: 1px solid #ddd; word-break: break-all; border-radius: 4px; user-select: all;">${item.account_details}</div>
                     </div>`;
             });
@@ -546,31 +536,57 @@
         document.getElementById("myAccList").innerHTML = myHtml;
     }
 
-    async function deleteAdminAccount(id) {
-        if (currentUsername !== ADMIN_USERNAME) return;
-        showModal("Xác nhận xóa", "Bạn có muốn xóa tài khoản này khỏi cửa hàng không?", true, async (res) => {
-            if(res) {
-                await _supabase.from('mmo_accounts').delete().eq('id', id);
-                showModal("Thành công", "Đã xóa tài khoản!");
-                loadStoreData();
+    async function buyGroupAccounts(platform, encodedTitle, price, maxStock) {
+        let title = decodeURIComponent(encodedTitle);
+        // Tìm ID đầu tiên của nhóm để lấy ô input số lượng
+        const { data: marketData } = await _supabase.from('mmo_accounts').select('id').eq('status', 'Đang bán').eq('platform', platform).eq('title', title).eq('price', price);
+        if(!marketData || marketData.length === 0) { showModal("Lỗi", "Sản phẩm đã hết hàng!"); return; }
+        
+        let firstId = marketData[0].id;
+        let qtyInput = document.getElementById(`qty_${firstId}`);
+        let qty = parseInt(qtyInput ? qtyInput.value : 1);
+
+        if (isNaN(qty) || qty < 1) { showModal("Lỗi", "Số lượng mua không hợp lệ!"); return; }
+        if (qty > maxStock) { showModal("Lỗi", `Kho chỉ còn lại ${maxStock} tài khoản!`); return; }
+
+        let totalPrice = price * qty;
+        if (currentUserBalance < totalPrice) {
+            showModal("Lỗi", `Số dư ví không đủ! Cần ${totalPrice.toLocaleString('vi-VN')}đ nhưng bạn chỉ có ${currentUserBalance.toLocaleString('vi-VN')}đ.`);
+            return;
+        }
+
+        showModal("Xác nhận Mua", `Thanh toán ${totalPrice.toLocaleString('vi-VN')}đ cho ${qty} tài khoản "${title}"?`, true, async (res) => {
+            if (res) {
+                // Lấy ra đúng số lượng acc đang bán trong kho
+                const { data: itemsToBuy } = await _supabase.from('mmo_accounts').select('id').eq('status', 'Đang bán').eq('platform', platform).eq('title', title).eq('price', price).limit(qty);
+                
+                if(!itemsToBuy || itemsToBuy.length < qty) {
+                    showModal("Lỗi", "Không đủ số lượng tài khoản trong kho!"); return;
+                }
+
+                let idsToUpdate = itemsToBuy.map(i => i.id);
+
+                // Trừ tiền ví
+                let newBal = currentUserBalance - totalPrice;
+                const { error: e1 } = await _supabase.from('shopee_users').update({balance: newBal}).eq('username', currentUsername);
+                if (e1) { showModal("Lỗi", e1.message); return; }
+
+                // Cập nhật trạng thái thành Đã bán và gán cho user
+                await _supabase.from('mmo_accounts').update({status: 'Đã bán', buyer_username: currentUsername}).in('id', idsToUpdate);
+                
+                showModal("Thành công", `Mua thành công ${qty} tài khoản! Xem thông tin chi tiết ở mục '📦 Đã Mua'.`);
+                updateAuthUI();
             }
         });
     }
 
-    async function buyAccount(id, price, platform) {
-        if (currentUserBalance < price) {
-            showModal("Lỗi", "Số dư ví không đủ! Vui lòng nạp thêm tiền."); return;
-        }
-
-        showModal("Xác nhận Mua", `Thanh toán ${price.toLocaleString('vi-VN')}đ cho TK ${platform}?`, true, async (res) => {
-            if (res) {
-                let newBal = currentUserBalance - price;
-                const { error: e1 } = await _supabase.from('shopee_users').update({balance: newBal}).eq('username', currentUsername);
-                if (e1) { showModal("Lỗi", e1.message); return; }
-
-                await _supabase.from('mmo_accounts').update({status: 'Đã bán', buyer_username: currentUsername}).eq('id', id);
-                showModal("Thành công", "Mua thành công! Xem thông tin ở mục 'Đã Mua'.");
-                updateAuthUI();
+    async function deleteGroupAccounts(title, price) {
+        if (currentUsername !== ADMIN_USERNAME) return;
+        showModal("Xác nhận xóa", `Bạn có chắc muốn xóa toàn bộ sản phẩm "${title}" đang có trong kho không?`, true, async (res) => {
+            if(res) {
+                await _supabase.from('mmo_accounts').delete().eq('title', title).eq('price', price).eq('status', 'Đang bán');
+                showModal("Thành công", "Đã xóa sản phẩm khỏi cửa hàng!");
+                loadStoreData();
             }
         });
     }
