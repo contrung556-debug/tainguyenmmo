@@ -606,9 +606,11 @@
         metaMap[`${plat}_${pri}`] = { title: title, description: desc };
         localStorage.setItem("mmo_meta_info", JSON.stringify(metaMap));
 
+        // Lưu kèm cột description vào database
         let insertRecords = lines.map(accLine => ({
             platform: plat,
             account_details: accLine,
+            description: desc,
             price: pri,
             status: 'Đang bán'
         }));
@@ -639,11 +641,11 @@
                 marketData.forEach(item => {
                     let groupKey = item.price;
                     if (!grouped[groupKey]) {
-                        let meta = metaMap[`${item.platform}_${item.price}`] || { title: `Tài khoản ${item.platform}`, description: "Không có mô tả." };
+                        let meta = metaMap[`${item.platform}_${item.price}`] || { title: `Tài khoản ${item.platform}`, description: item.description || "Không có mô tả." };
                         grouped[groupKey] = {
                             title: meta.title,
                             price: item.price,
-                            description: meta.description,
+                            description: meta.description || item.description,
                             platform: item.platform,
                             items: []
                         };
@@ -691,15 +693,15 @@
             document.getElementById("marketList").innerHTML = marketHtml;
         }
 
-        // Tải danh sách đơn đã mua theo giao diện mới
+        // Tải danh sách đơn đã mua
         const { data: myData } = await _supabase.from('mmo_accounts').select('*').eq('buyer_username', currentUsername).order('id', {ascending: false});
         let myHtml = '';
         if(myData && myData.length > 0) {
-            // Gom nhóm các acc mua cùng lúc hoặc hiển thị từng đơn giao dịch
-            myData.forEach((item, idx) => {
+            myData.forEach((item) => {
                 let dateStr = item.updated_at ? new Date(item.updated_at).toLocaleString('vi-VN') : 'Gần đây';
-                let meta = metaMap[`${item.platform}_${item.price}`] || { title: `Tài khoản ${item.platform}` };
+                let meta = metaMap[`${item.platform}_${item.price}`] || { title: `Tài khoản ${item.platform}`, description: item.description || '' };
                 let titleText = meta.title || `Tài khoản ${item.platform}`;
+                let descText = meta.description || item.description || '';
 
                 myHtml += `
                     <div class="order-card" style="border-left: 4px solid #27ae60; margin-bottom: 12px;">
@@ -709,6 +711,7 @@
                         </div>
                         <div class="order-time">${dateStr} | Loại: ${titleText} | Đã trừ: <b style="color:#ee4d2d;">${item.price.toLocaleString('vi-VN')}đ</b>.</div>
                         <div style="font-size: 11px; color: #666; margin-bottom: 6px;">Cần hỗ trợ? Vui lòng liên hệ admin.</div>
+                        ${descText ? `<div style="background: #fff8f5; border: 1px dashed #faddd3; padding: 6px 8px; border-radius: 6px; font-size: 11px; color: #555; margin-bottom: 6px;">${descText}</div>` : ''}
                         <textarea readonly style="width: 100%; background: #fafafa; font-family: monospace; font-weight: bold; color: #c0392b; font-size: 12px; padding: 8px; border: 1px solid #ddd; border-radius: 6px; resize: none; height: 40px; margin-bottom: 8px;" id="acc_text_${item.id}">${item.account_details}</textarea>
                         <div style="display: flex; gap: 6px;">
                             <button class="order-btn-check" style="background: #bdc3c7; color: #333;" onclick="copyAccText('acc_text_${item.id}')">📋 Copy danh sách acc</button>
@@ -748,7 +751,7 @@
                 }
 
                 const { error } = await _supabase.from('mmo_accounts')
-                    .update({ price: newPrice })
+                    .update({ price: newPrice, description: newDesc })
                     .eq('platform', platform)
                     .eq('price', oldPrice)
                     .eq('status', 'Đang bán');
