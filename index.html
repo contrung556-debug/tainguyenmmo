@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="vi">
 <head>
@@ -33,6 +32,7 @@
         
         .btn-main { background-color: #ee4d2d; color: white; border: none; padding: 11px; border-radius: 8px; cursor: pointer; font-weight: bold; width: 100%; font-size: 13px; margin-bottom: 8px; box-shadow: 0 2px 5px rgba(238,77,45,0.3); }
         .btn-main:hover { background-color: #d73211; }
+        .btn-main:disabled { background-color: #95a5a6 !important; cursor: not-allowed; }
         
         .order-card { padding: 12px; border-radius: 10px; margin-bottom: 10px; background: #fff; border: 1px solid #eee; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
         .order-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; }
@@ -65,6 +65,7 @@
         .store-qty-input { width: 55px !important; padding: 7px !important; text-align: center; margin-bottom: 0 !important; font-weight: bold; font-size: 12px; border: 1px solid #ee4d2d; border-radius: 6px; }
         .store-buy-btn { flex: 1; background: #ee4d2d; color: white; border: none; padding: 8px; border-radius: 6px; font-weight: bold; font-size: 12px; cursor: pointer; }
         .store-buy-btn.out-of-stock { background: #bdc3c7; cursor: not-allowed; }
+        .store-buy-btn:disabled { background-color: #95a5a6 !important; cursor: not-allowed; }
 
         #customModalOverlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.5); z-index: 9999; justify-content: center; align-items: center; padding: 20px; box-sizing: border-box; }
         #customModalBox { background: #fff; width: 100%; max-width: 340px; border-radius: 14px; padding: 20px; box-shadow: 0 8px 25px rgba(0,0,0,0.2); text-align: center; max-height: 90vh; overflow-y: auto; }
@@ -72,6 +73,7 @@
         #modalMessage { font-size: 13px; color: #444; margin-bottom: 18px; line-height: 1.4; text-align: left; word-break: break-all; }
         .modal-buttons { display: flex; gap: 8px; }
         .modal-btn { flex: 1; padding: 9px; border: none; border-radius: 8px; font-weight: bold; font-size: 12px; cursor: pointer; }
+        .modal-btn:disabled { opacity: 0.6; cursor: not-allowed; }
         #modalBtnCancel { background: #f5f5f5; color: #666; }
         #modalBtnOk { background: #ee4d2d; color: #fff; }
     </style>
@@ -92,7 +94,6 @@
     <button class="main-nav-btn active" id="navBtnMarket" onclick="switchMainTab('market')">🛒 Chợ MMO</button>
     <button class="main-nav-btn" id="navBtnOtp" onclick="switchMainTab('otp')">🔗 Lấy OTP</button>
     <button class="main-nav-btn" id="navBtnOrders" onclick="switchMainTab('orders')">📦 Quản Lý Đơn</button>
-    <button class="main-nav-btn" id="navBtnMembers" style="display: none;" onclick="switchMainTab('members')">👥 Thành Viên</button>
 </div>
 
 <div class="container">
@@ -100,56 +101,6 @@
     <div class="section-box active-section" id="sectionMarket">
         <div class="section-title">🛒 Chợ Tài Khoản MMO</div>
         
-        <!-- Khung Admin Nạp Tiền Cho Thành Viên -->
-        <div id="adminWalletBox" style="display: none; background: #e8f8f5; padding: 12px; border-radius: 8px; border: 1px solid #a3e4d7; margin-bottom: 12px;">
-            <div style="font-weight: bold; color: #16a085; font-size: 13px; margin-bottom: 8px;">💳 [Admin] Quản Lý Số Dư Thành Viên</div>
-            
-            <label style="font-size: 11px; font-weight: bold; color: #555;">Tên tài khoản khách:</label>
-            <input type="text" id="adminTargetUser" placeholder="Nhập username của khách...">
-
-            <label style="font-size: 11px; font-weight: bold; color: #555;">Số tiền cộng (hoặc trừ nếu nhập số âm):</label>
-            <input type="number" id="adminAddAmount" placeholder="VD: 50000 hoặc -10000">
-
-            <button class="btn-main" style="background-color: #16a085; margin-bottom:0;" onclick="adminAdjustUserBalance()">💰 Cập Nhật Số Dư Cho Khách</button>
-        </div>
-
-        <!-- Khung Admin Đăng Bài -->
-        <div id="adminPostBox" style="display: none; background: #fff8f5; padding: 12px; border-radius: 8px; border: 1px solid #faddd3; margin-bottom: 12px;">
-            <div style="font-weight: bold; color: #ee4d2d; font-size: 13px; margin-bottom: 8px;">🔧 [Admin] Đăng Bán Tài Khoản Mới</div>
-            
-            <label style="font-size: 11px; font-weight: bold; color: #555;">Chọn nền tảng:</label>
-            <select id="postPlatform" onchange="onPlatformChange()">
-                <option value="Shopee">Shopee</option>
-                <option value="Facebook">Facebook</option>
-                <option value="Gmail">Gmail</option>
-                <option value="iCloud">iCloud</option>
-                <option value="TikTok">TikTok</option>
-            </select>
-
-            <label style="font-size: 11px; font-weight: bold; color: #555;">Chọn mẫu sản phẩm đã lưu:</label>
-            <select id="postTemplateSelect" onchange="applyTemplate()"></select>
-
-            <label style="font-size: 11px; font-weight: bold; color: #555;">Tiêu đề hiển thị (Tên gói sản phẩm):</label>
-            <input type="text" id="postTitle" placeholder="Ví dụ: Cho Thuê iCloud add acc Shopee">
-
-            <label style="font-size: 11px; font-weight: bold; color: #555;">Danh sách tài khoản (Mỗi dòng 1 acc):</label>
-            <textarea id="postAccountList" rows="4" placeholder="dredge-12-sprier@icloud.com|password&#10;account2@icloud.com|password"></textarea>
-            <small style="font-size: 10px; color: #777; display: block; margin-top: -6px; margin-bottom: 8px;">Hệ thống sẽ gom các dòng này vào cùng loại sản phẩm theo mức giá.</small>
-
-            <label style="font-size: 11px; font-weight: bold; color: #555;">Mô tả thông tin acc & Hướng dẫn:</label>
-            <textarea id="postDescription" rows="3" placeholder="Nhập mô tả chi tiết, chính sách bảo hành..."></textarea>
-
-            <label style="font-size: 11px; font-weight: bold; color: #555;">Giá bán mỗi tài khoản (VNĐ):</label>
-            <input type="number" id="postPrice" placeholder="VD: 2000">
-
-            <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 10px; background: #fff; padding: 8px; border-radius: 6px; border: 1px solid #faddd3;">
-                <input type="checkbox" id="saveAsNewTemplate" style="width: 18px; height: 18px; margin: 0; cursor: pointer;">
-                <label for="saveAsNewTemplate" style="font-size: 11px; font-weight: bold; color: #ee4d2d; cursor: pointer; margin: 0;">💾 Lưu thông tin này thành mẫu mới</label>
-            </div>
-
-            <button class="btn-main" style="margin-bottom:0;" onclick="postNewAccount()">📤 Tải Lên Cửa Hàng</button>
-        </div>
-
         <div class="sub-tab-container">
             <button class="sub-tab-btn active" id="tabShopee" onclick="switchCategory('Shopee')">Shopee</button>
             <button class="sub-tab-btn" id="tabFacebook" onclick="switchCategory('Facebook')">Facebook</button>
@@ -169,7 +120,7 @@
     <div class="section-box" id="sectionOtp">
         <div class="section-title">🔗 Shopee Link & OTP Fetcher</div>
         <input type="text" id="fetchInputEmail" placeholder="Nhập tên hoặc địa chỉ Email...">
-        <button class="btn-main" onclick="fetchOtpLink()">Lấy Link Xác Thực / OTP</button>
+        <button id="btnFetchOtp" class="btn-main" onclick="fetchOtpLink(this)">Lấy Link Xác Thực / OTP</button>
         <div id="fetchResult" style="margin-top: 8px; font-size: 12px;"></div>
     </div>
 
@@ -184,27 +135,18 @@
             <input type="text" id="inputOrderCode" placeholder="Mã đơn hàng Shopee">
             <input type="text" id="inputProductName" placeholder="Tên sản phẩm">
             <input type="text" id="inputEmail" placeholder="Email hòm thư iCloud">
-            <button class="btn-main" onclick="addNewOrder()">Nạp Đơn Vào Hệ Thống</button>
+            <button id="btnAddSingleOrder" class="btn-main" onclick="addNewOrder(this)">Nạp Đơn Vào Hệ Thống</button>
         </div>
 
         <div id="depositMultipleForm" style="display: none;">
             <textarea id="inputMultipleLines" placeholder="Mã Đơn | Email | Tên SP (Mỗi dòng 1 đơn)"></textarea>
-            <button class="btn-main" onclick="addMultipleOrders()">Nạp Hàng Loạt</button>
+            <button id="btnAddMultiOrder" class="btn-main" onclick="addMultipleOrders(this)">Nạp Hàng Loạt</button>
         </div>
         
         <div style="margin-top: 10px;">
             <input type="text" id="searchOrderInput" placeholder="🔍 Tìm kiếm nhanh mã đơn hoặc tên sản phẩm..." oninput="filterOrders()">
-            <button class="btn-main" style="background-color: #27ae60;" onclick="checkAllOrders()">⚡ Quét Trạng Thái Đơn Báo Cáo</button>
+            <button id="btnCheckAllOrders" class="btn-main" style="background-color: #27ae60;" onclick="checkAllOrders(this)">⚡ Quét Trạng Thái Đơn Báo Cáo</button>
             <div id="orderListContainer" style="margin-top: 8px;"></div>
-        </div>
-    </div>
-
-    <div class="section-box" id="sectionMembers">
-        <div class="section-title">👥 [Admin] Danh Sách Thành Viên & Chi Tiêu</div>
-        <div style="font-size: 11px; color: #666; margin-bottom: 8px;">💡 Mẹo: Nhấn trực tiếp vào thẻ của thành viên bất kỳ để cộng/trừ số dư nhanh chóng.</div>
-        <input type="text" id="searchMemberInput" placeholder="🔍 Tìm kiếm tên thành viên..." oninput="filterMembers()">
-        <div id="memberListContainer" style="margin-top: 8px;">
-            <div style="text-align: center; color: #888; padding: 15px;">Đang tải danh sách thành viên...</div>
         </div>
     </div>
 
@@ -229,81 +171,20 @@
     const GAS_OTP_URL = "https://script.google.com/macros/s/AKfycbwk0RSNFUrzaU7nSlNgAgazt3BWUNR-meYBYvJcSkJIFxQe4XiDfGd3FsfcSTWzOLk/exec";
     const GAS_ORDER_URL = "https://script.google.com/macros/s/AKfycbxSO_B7KYFmTvJ9XTUMI4jU8N2Vyz0GwMnqxk3T0PnX-rcKtfGu5b0DTzNgHPovJVVIRw/exec";
 
-    const ADMIN_USERNAME = "Cuong123";
-
     let currentUsername = localStorage.getItem("shopee_logged_user") || "";
     let currentUserBalance = 0;
     let modalCallback = null;
     let cachedOrders = [];
-    let cachedMembers = [];
     let currentCategory = 'Shopee';
-
-    const DEFAULT_TEMPLATES = {
-        "Shopee": [{ name: "Shopee Reg Sẵn Số Điện Thoại", price: 5000, desc: "- ACC Chưa ADD Mail - Cần add mail để xác minh login\n- Mua thử 1 Acc trước khi mua sl\n- Định dạng : SPC_F|USER|PASS\n- *LƯU Ý : KHI NÀO SỬ DỤNG HÃY ADD MAIL - NGÂM ACC THÌ KO ADD MAIL - TRÁNH BỊ QUÉT ACC", details: "SPC_F|user1|pass1\nSPC_F|user2|pass2" }],
-        "Facebook": [{ name: "Clone VN Trắng Thông Tin", price: 3000, desc: "- Clone sạch, via ngoại.\n- Định dạng : uid|pass|2fa", details: "uid|pass|2fa" }],
-        "Gmail": [{ name: "Gmail New Sẵn Recovery", price: 4000, desc: "- Gmail reg mới, khôi phục sẵn.", details: "email|password|recovery" }],
-        "iCloud": [{ name: "Cho Thuê iCloud add acc Shopee", price: 2000, desc: "- Dùng add acc Shopee mượt mà, bao test.", details: "dredge-12-sprier@icloud.com|password" }],
-        "TikTok": [{ name: "TikTok New Reg Sẵn Xu", price: 4000, desc: "- Acc sạch chuẩn.", details: "username|password" }]
-    };
-
-    function getStoredTemplates() {
-        let saved = localStorage.getItem("mmo_custom_templates");
-        if (saved) { try { return JSON.parse(saved); } catch(e) { return DEFAULT_TEMPLATES; } }
-        return DEFAULT_TEMPLATES;
-    }
-
-    function updateTemplatesDropdown() {
-        let plat = document.getElementById("postPlatform").value;
-        let select = document.getElementById("postTemplateSelect");
-        let allTemplates = getStoredTemplates();
-        let list = allTemplates[plat] || [];
-        
-        let html = `<option value="">-- Chọn mẫu đã lưu --</option>`;
-        list.forEach((item, idx) => {
-            html += `<option value="${idx}">${item.name} (${item.price.toLocaleString('vi-VN')}đ)</option>`;
-        });
-        select.innerHTML = html;
-        
-        if (list.length > 0) {
-            document.getElementById("postTitle").value = list[0].name;
-            document.getElementById("postAccountList").value = list[0].details;
-            document.getElementById("postDescription").value = list[0].desc || '';
-            document.getElementById("postPrice").value = list[0].price;
-        } else {
-            document.getElementById("postTitle").value = "";
-            document.getElementById("postAccountList").value = "";
-            document.getElementById("postDescription").value = "";
-            document.getElementById("postPrice").value = "";
-        }
-    }
-
-    function onPlatformChange() { updateTemplatesDropdown(); }
-
-    function applyTemplate() {
-        let plat = document.getElementById("postPlatform").value;
-        let idx = document.getElementById("postTemplateSelect").value;
-        if(idx === "") return;
-        let allTemplates = getStoredTemplates();
-        let item = allTemplates[plat][idx];
-        if(item) {
-            document.getElementById("postTitle").value = item.name;
-            document.getElementById("postAccountList").value = item.details;
-            document.getElementById("postDescription").value = item.desc || '';
-            document.getElementById("postPrice").value = item.price;
-        }
-    }
 
     function switchMainTab(tabName) {
         document.getElementById("navBtnMarket").classList.remove("active");
         document.getElementById("navBtnOtp").classList.remove("active");
         document.getElementById("navBtnOrders").classList.remove("active");
-        let btnMem = document.getElementById("navBtnMembers");
-        if(btnMem) btnMem.classList.remove("active");
 
         document.getElementById("sectionMarket").classList.remove("active-section");
         document.getElementById("sectionOtp").classList.remove("active-section");
         document.getElementById("sectionOrders").classList.remove("active-section");
-        document.getElementById("sectionMembers").classList.remove("active-section");
 
         if (tabName === 'market') {
             document.getElementById("navBtnMarket").classList.add("active");
@@ -314,10 +195,6 @@
         } else if (tabName === 'orders') {
             document.getElementById("navBtnOrders").classList.add("active");
             document.getElementById("sectionOrders").classList.add("active-section");
-        } else if (tabName === 'members') {
-            if(btnMem) btnMem.classList.add("active");
-            document.getElementById("sectionMembers").classList.add("active-section");
-            loadMemberList();
         }
         window.scrollTo({ top: 0, behavior: 'smooth' });
     }
@@ -347,22 +224,10 @@
     async function updateAuthUI() {
         const userActions = document.getElementById("headerUserActions");
         const walletBox = document.getElementById("headerWalletBox");
-        const btnMembers = document.getElementById("navBtnMembers");
 
         if (currentUsername) {
             const { data } = await _supabase.from('shopee_users').select('balance').eq('username', currentUsername);
             currentUserBalance = data && data.length > 0 ? data[0].balance || 0 : 0;
-
-            if (currentUsername === ADMIN_USERNAME) {
-                document.getElementById("adminPostBox").style.display = "block";
-                document.getElementById("adminWalletBox").style.display = "block";
-                if(btnMembers) btnMembers.style.display = "block";
-                updateTemplatesDropdown();
-            } else {
-                document.getElementById("adminPostBox").style.display = "none";
-                document.getElementById("adminWalletBox").style.display = "none";
-                if(btnMembers) btnMembers.style.display = "none";
-            }
 
             userActions.innerHTML = `
                 <span style="font-size: 11px; font-weight: bold; align-self: center;">${currentUsername}</span>
@@ -380,9 +245,6 @@
                 <button class="top-btn" onclick="openRegister()">Đăng Ký</button>
             `;
             walletBox.innerHTML = `<div>Chưa đăng nhập tài khoản.</div>`;
-            document.getElementById("adminPostBox").style.display = "none";
-            document.getElementById("adminWalletBox").style.display = "none";
-            if(btnMembers) btnMembers.style.display = "none";
             loadStoreData();
         }
     }
@@ -398,7 +260,7 @@
         if(!res) return;
         let u = document.getElementById("popUser").value.trim();
         let p = document.getElementById("popPass").value.trim();
-        
+
         const { data, error } = await _supabase.rpc('verify_user_login', {
             p_username: u,
             p_password: p
@@ -456,138 +318,6 @@
 
     function logout() { currentUsername = ""; localStorage.removeItem("shopee_logged_user"); updateAuthUI(); }
 
-    async function adminAdjustUserBalance() {
-        if (currentUsername !== ADMIN_USERNAME) return;
-        let targetUser = document.getElementById("adminTargetUser").value.trim();
-        let amountToAdd = parseInt(document.getElementById("adminAddAmount").value);
-
-        if (!targetUser || isNaN(amountToAdd)) {
-            showModal("Lỗi", "Vui lòng nhập đúng Tên tài khoản khách và Số tiền cần cộng!");
-            return;
-        }
-
-        const { data: userRecord, error: errSearch } = await _supabase.from('shopee_users').select('*').eq('username', targetUser);
-        if (errSearch || !userRecord || userRecord.length === 0) {
-            showModal("Lỗi", `Không tìm thấy tài khoản "${targetUser}" trên hệ thống!`);
-            return;
-        }
-
-        let currentBal = userRecord[0].balance || 0;
-        let newBal = currentBal + amountToAdd;
-
-        const { error: errUpdate } = await _supabase.from('shopee_users').update({ balance: newBal }).eq('username', targetUser);
-        if (errUpdate) {
-            showModal("Lỗi", "Không thể cập nhật số dư: " + errUpdate.message);
-            return;
-        }
-
-        showModal("Thành công", `Đã cập nhật ví cho tài khoản @${targetUser} thành công! Số dư mới: ${newBal.toLocaleString('vi-VN')}đ`);
-        document.getElementById("adminTargetUser").value = "";
-        document.getElementById("adminAddAmount").value = "";
-    }
-
-    async function adminQuickAdjust(targetUser) {
-        if (currentUsername !== ADMIN_USERNAME) return;
-        showModal(`Cập Nhật Ví: @${targetUser}`, "", true, async (res) => {
-            if (res) {
-                let amountInput = document.getElementById("quickAdjustAmount").value;
-                let amountToAdd = parseInt(amountInput);
-                if (isNaN(amountToAdd)) {
-                    showModal("Lỗi", "Vui lòng nhập số tiền hợp lệ!");
-                    return;
-                }
-
-                const { data: userRecord, error: errSearch } = await _supabase.from('shopee_users').select('*').eq('username', targetUser);
-                if (errSearch || !userRecord || userRecord.length === 0) {
-                    showModal("Lỗi", "Không tìm thấy tài khoản!");
-                    return;
-                }
-
-                let currentBal = userRecord[0].balance || 0;
-                let newBal = currentBal + amountToAdd;
-
-                const { error: errUpdate } = await _supabase.from('shopee_users').update({ balance: newBal }).eq('username', targetUser);
-                if (errUpdate) {
-                    showModal("Lỗi", errUpdate.message);
-                    return;
-                }
-
-                showModal("Thành công", `Đã cập nhật số dư cho @${targetUser} thành công! Số dư mới: ${newBal.toLocaleString('vi-VN')}đ`);
-                loadMemberList();
-                if (currentUsername === targetUser) updateAuthUI();
-            }
-        }, `
-            <div style="font-size:12px; color:#555; margin-bottom:8px;">Nhập số tiền muốn cộng hoặc trừ cho <b>@${targetUser}</b>:</div>
-            <label style="font-size:11px; font-weight:bold; color:#555;">Số tiền (Dương để cộng, Âm để trừ VD: -20000):</label>
-            <input type="number" id="quickAdjustAmount" placeholder="Nhập số tiền...">
-        `);
-    }
-
-    async function loadMemberList() {
-        if (currentUsername !== ADMIN_USERNAME) return;
-
-        const { data: usersData, error: errU } = await _supabase.from('shopee_users').select('*');
-        const { data: soldData, error: errS } = await _supabase.from('mmo_accounts').select('buyer_username, price').eq('status', 'Đã bán');
-
-        if (errU) {
-            document.getElementById("memberListContainer").innerHTML = `<div style="color: red; text-align:center;">Lỗi tải danh sách: ${errU.message}</div>`;
-            return;
-        }
-
-        let spendingMap = {};
-        if (soldData) {
-            soldData.forEach(item => {
-                let u = item.buyer_username;
-                if (u) {
-                    spendingMap[u] = (spendingMap[u] || 0) + (item.price || 0);
-                }
-            });
-        }
-
-        cachedMembers = (usersData || []).map(user => {
-            return {
-                username: user.username,
-                password: user.password,
-                balance: user.balance || 0,
-                created_at: user.created_at,
-                total_spent: spendingMap[user.username] || 0
-            };
-        });
-
-        renderMembers(cachedMembers);
-    }
-
-    function renderMembers(members) {
-        let html = '';
-        if (members && members.length > 0) {
-            members.forEach(m => {
-                let dateStr = m.created_at ? new Date(m.created_at).toLocaleString('vi-VN') : 'Không rõ';
-                html += `
-                <div class="order-card" style="border-left: 4px solid #16a085; cursor: pointer; transition: background 0.2s;" onclick="adminQuickAdjust('${m.username}')" onmouseover="this.style.background='#f0f9f8'" onmouseout="this.style.background='#fff'">
-                    <div class="order-header">
-                        <span class="order-code" style="color: #16a085;">👤 @${m.username}</span>
-                        <span class="order-status" style="background: #34495e;">MK: ${m.password}</span>
-                    </div>
-                    <div class="order-time">⏱️ Ngày đăng ký: ${dateStr}</div>
-                    <div style="display: flex; justify-content: space-between; margin-top: 6px; font-size: 13px;">
-                        <div>💵 Số dư ví: <b style="color: #27ae60;">${m.balance.toLocaleString('vi-VN')}đ</b></div>
-                        <div>🛍️ Đã chi tiêu: <b style="color: #ee4d2d;">${m.total_spent.toLocaleString('vi-VN')}đ</b></div>
-                    </div>
-                    <div style="text-align: right; margin-top: 6px; font-size: 11px; color: #16a085; font-weight: bold;">⚡ Nhấn vào đây để cộng/trừ số dư</div>
-                </div>`;
-            });
-        } else {
-            html = `<div style="text-align: center; color: #888; font-size: 13px; padding: 15px;">Chưa có thành viên nào.</div>`;
-        }
-        document.getElementById("memberListContainer").innerHTML = html;
-    }
-
-    function filterMembers() {
-        let keyword = document.getElementById("searchMemberInput").value.toLowerCase().trim();
-        let filtered = cachedMembers.filter(m => m.username && m.username.toLowerCase().includes(keyword));
-        renderMembers(filtered);
-    }
-
     function switchCategory(cat) {
         currentCategory = cat;
         ['Shopee', 'Facebook', 'Gmail', 'iCloud', 'TikTok', 'MyAcc'].forEach(c => {
@@ -606,55 +336,6 @@
             document.getElementById("myAccList").style.display = "none";
         }
         loadStoreData();
-    }
-
-    async function postNewAccount() {
-        let plat = document.getElementById("postPlatform").value;
-        let title = document.getElementById("postTitle").value.trim();
-        let lines = document.getElementById("postAccountList").value.trim().split('\n').map(x => x.trim()).filter(Boolean);
-        let desc = document.getElementById("postDescription").value.trim();
-        let pri = parseInt(document.getElementById("postPrice").value);
-        let saveTemplateChecked = document.getElementById("saveAsNewTemplate").checked;
-
-        if (!title || lines.length === 0 || isNaN(pri)) { 
-            showModal("Lỗi", "Vui lòng nhập đủ Tiêu đề, Danh sách tài khoản và Giá bán!"); 
-            return; 
-        }
-
-        if (saveTemplateChecked) {
-            let allTemplates = getStoredTemplates();
-            if (!allTemplates[plat]) allTemplates[plat] = [];
-            let existingIdx = allTemplates[plat].findIndex(item => item.name === title);
-            let templateData = { name: title, price: pri, desc: desc, details: lines.join('\n') };
-            if (existingIdx >= 0) allTemplates[plat][existingIdx] = templateData;
-            else allTemplates[plat].push(templateData);
-            localStorage.setItem("mmo_custom_templates", JSON.stringify(allTemplates));
-            document.getElementById("saveAsNewTemplate").checked = false;
-            updateTemplatesDropdown();
-        }
-
-        let metaMap = JSON.parse(localStorage.getItem("mmo_meta_info") || "{}");
-        metaMap[`${plat}_${pri}`] = { title: title, description: desc };
-        localStorage.setItem("mmo_meta_info", JSON.stringify(metaMap));
-
-        let insertRecords = lines.map(accLine => ({
-            platform: plat,
-            account_details: accLine,
-            description: desc,
-            price: pri,
-            status: 'Đang bán'
-        }));
-
-        const { error } = await _supabase.from('mmo_accounts').insert(insertRecords);
-
-        if (error) {
-            showModal("Lỗi", "Không thể up: " + error.message);
-        } else {
-            showModal("Thành công", `Đã đăng thành công ${insertRecords.length} tài khoản lên cửa hàng!`);
-            document.getElementById("postAccountList").value = "";
-            document.getElementById("postDescription").value = "";
-            loadStoreData();
-        }
     }
 
     async function loadStoreData() {
@@ -701,13 +382,9 @@
                             </div>
                             <div class="store-product-action">
                                 <input type="number" id="qty_${firstId}" class="store-qty-input" value="1" min="1" max="${stockCount}">
-                                <button class="store-buy-btn ${stockCount === 0 ? 'out-of-stock' : ''}" onclick="buyGroupAccounts('${group.platform}', ${group.price}, ${stockCount}, ${firstId})">
+                                <button id="btnBuy_${firstId}" class="store-buy-btn ${stockCount === 0 ? 'out-of-stock' : ''}" ${stockCount === 0 ? 'disabled' : ''} onclick="buyGroupAccounts('${group.platform}', ${group.price}, ${stockCount}, ${firstId}, this)">
                                     🛒 Mua Ngay
                                 </button>
-                                ${currentUsername === ADMIN_USERNAME ? `
-                                    <button class="order-btn-edit" style="flex:0; padding:7px 9px;" onclick="editGroupInfo('${group.platform}', ${group.price}, \`${group.title.replace(/[`']/g, "\\'")}\`, \`${group.description.replace(/[`']/g, "\\'")}\`)">✏️ Sửa</button>
-                                    <button class="order-btn-del" style="flex:0; padding:7px 9px;" onclick="deleteGroupAccounts('${group.platform}', ${group.price})">🗑️ Xoá</button>
-                                ` : ''}
                             </div>
                         </div>`;
                 }
@@ -792,51 +469,7 @@
         showModal("Thành công", "Đã sao chép tất cả thông tin tài khoản vào bộ nhớ tạm!");
     }
 
-    async function editGroupInfo(platform, oldPrice, currentTitle, currentDesc) {
-        if (currentUsername !== ADMIN_USERNAME) return;
-        showModal("Chỉnh Sửa Sản Phẩm", "", true, async (res) => {
-            if (res) {
-                let newTitle = document.getElementById("editGroupTitle").value.trim();
-                let newDesc = document.getElementById("editGroupDesc").value.trim();
-                let newPrice = parseInt(document.getElementById("editGroupPrice").value);
-
-                if (!newTitle || isNaN(newPrice)) {
-                    showModal("Lỗi", "Tiêu đề và Giá tiền không được để trống!");
-                    return;
-                }
-
-                const { error } = await _supabase.from('mmo_accounts')
-                    .update({ price: newPrice, description: newDesc })
-                    .eq('platform', platform)
-                    .eq('price', oldPrice)
-                    .eq('status', 'Đang bán');
-
-                if (error) {
-                    showModal("Lỗi", error.message);
-                    return;
-                }
-
-                let metaMap = JSON.parse(localStorage.getItem("mmo_meta_info") || "{}");
-                delete metaMap[`${platform}_${oldPrice}`];
-                metaMap[`${platform}_${newPrice}`] = { title: newTitle, description: newDesc };
-                localStorage.setItem("mmo_meta_info", JSON.stringify(metaMap));
-
-                showModal("Thành công", "Đã cập nhật thông tin sản phẩm!");
-                loadStoreData();
-            }
-        }, `
-            <label style="font-size:11px; font-weight:bold; color:#555;">Tiêu đề sản phẩm:</label>
-            <input type="text" id="editGroupTitle" value="${currentTitle}">
-            
-            <label style="font-size:11px; font-weight:bold; color:#555;">Mô tả & Hướng dẫn:</label>
-            <textarea id="editGroupDesc" rows="3">${currentDesc}</textarea>
-            
-            <label style="font-size:11px; font-weight:bold; color:#555;">Giá mới (VNĐ):</label>
-            <input type="number" id="editGroupPrice" value="${oldPrice}">
-        `);
-    }
-
-    async function buyGroupAccounts(platform, price, maxStock, firstId) {
+    async function buyGroupAccounts(platform, price, maxStock, firstId, btnEl) {
         if (!currentUsername) {
             showModal("Thông báo", "Vui lòng đăng nhập để mua tài khoản!");
             return;
@@ -853,12 +486,16 @@
         showModal("Xác nhận Mua", `Thanh toán ${totalPrice.toLocaleString('vi-VN')}đ cho ${qty} tài khoản này?`, true, async (res) => {
             if (!res) return;
 
+            if(btnEl) { btnEl.disabled = true; btnEl.innerText = "⏳ Đang xử lý..."; }
+
             const { data, error } = await _supabase.rpc('mua_tai_khoan', {
                 p_username: currentUsername,
                 p_platform: platform,
                 p_price: price,
                 p_qty: qty
             });
+
+            if(btnEl) { btnEl.disabled = false; btnEl.innerText = "🛒 Mua Ngay"; }
 
             if (error) {
                 showModal("Lỗi hệ thống", error.message);
@@ -883,27 +520,19 @@
         });
     }
 
-    async function deleteGroupAccounts(platform, price) {
-        if (currentUsername !== ADMIN_USERNAME) return;
-        showModal("Xác nhận xóa", `Bạn có chắc muốn xóa toàn bộ sản phẩm giá ${price.toLocaleString('vi-VN')}đ này đang có trong kho không?`, true, async (res) => {
-            if(res) {
-                await _supabase.from('mmo_accounts').delete().eq('platform', platform).eq('price', price).eq('status', 'Đang bán');
-                showModal("Thành công", "Đã xóa sản phẩm khỏi cửa hàng!");
-                loadStoreData();
-            }
-        });
-    }
-
-    function fetchOtpLink() {
+    function fetchOtpLink(btnEl) {
         let val = document.getElementById("fetchInputEmail").value.trim();
         let resultDiv = document.getElementById("fetchResult");
         if (!val) { showModal("Thông Báo", "Vui lòng nhập tên hoặc email!"); return; }
 
+        if(btnEl) { btnEl.disabled = true; btnEl.innerText = "⏳ Đang kết nối..."; }
         resultDiv.innerHTML = `<span style="color: #e67e22;">⏳ Đang kết nối...</span>`;
         let callbackName = 'shopee_cb_' + Math.round(Math.random() * 100000);
         
         window[callbackName] = function(data) {
-            document.getElementById('jsonpScriptTag').remove();
+            if(btnEl) { btnEl.disabled = false; btnEl.innerText = "Lấy Link Xác Thực / OTP"; }
+            let tag = document.getElementById('jsonpScriptTag');
+            if(tag) tag.remove();
             delete window[callbackName];
             if (data.status === "success") {
                 resultDiv.innerHTML = `
@@ -928,14 +557,17 @@
         document.getElementById("depositMultipleForm").style.display = type === 'multiple' ? 'block' : 'none';
     }
 
-    async function addNewOrder() {
+    async function addNewOrder(btnEl) {
         if(!currentUsername) { showModal("Lỗi", "Vui lòng đăng nhập!"); return; }
         let c = document.getElementById("inputOrderCode").value.trim();
         let e = document.getElementById("inputEmail").value.trim();
         let n = document.getElementById("inputProductName").value.trim() || 'Đơn Shopee';
         if (!c || !e) { showModal("Lỗi", "Mã đơn và Email không được để trống!"); return; }
 
+        if(btnEl) { btnEl.disabled = true; btnEl.innerText = "⏳ Đang nạp..."; }
         await _supabase.from('shopee_orders').insert([{ order_code: c, email: e, product_name: n, username: currentUsername, status: 'Đang chờ giao' }]);
+        if(btnEl) { btnEl.disabled = false; btnEl.innerText = "Nạp Đơn Vào Hệ Thống"; }
+
         showModal("Thành công", "Đã nạp đơn!");
         document.getElementById("inputOrderCode").value = "";
         document.getElementById("inputProductName").value = "";
@@ -943,7 +575,7 @@
         loadOrdersFromSupabase();
     }
 
-    async function addMultipleOrders() {
+    async function addMultipleOrders(btnEl) {
         if(!currentUsername) return;
         let lines = document.getElementById("inputMultipleLines").value.trim().split('\n');
         let insertData = lines.map(line => {
@@ -952,7 +584,10 @@
         }).filter(Boolean);
 
         if(insertData.length > 0) {
+            if(btnEl) { btnEl.disabled = true; btnEl.innerText = "⏳ Đang nạp hàng loạt..."; }
             await _supabase.from('shopee_orders').insert(insertData);
+            if(btnEl) { btnEl.disabled = false; btnEl.innerText = "Nạp Hàng Loạt"; }
+
             showModal("Thành công", `Đã nạp ${insertData.length} đơn!`);
             document.getElementById("inputMultipleLines").value = "";
             loadOrdersFromSupabase();
@@ -1055,11 +690,15 @@
         });
     }
 
-    function checkAllOrders() {
+    function checkAllOrders(btnEl) {
+        if(btnEl) { btnEl.disabled = true; btnEl.innerText = "⏳ Đang quét..."; }
         showModal("Đang quét", "Hệ thống đang quét hàng loạt qua Google Script...");
         let cb = 'check_all_cb_' + Math.round(Math.random()*1000);
         window[cb] = function() {
-            showModal("Thành công", "Đã quét xong!"); loadOrdersFromSupabase(); delete window[cb];
+            if(btnEl) { btnEl.disabled = false; btnEl.innerText = "⚡ Quét Trạng Thái Đơn Báo Cáo"; }
+            showModal("Thành công", "Đã quét xong!"); 
+            loadOrdersFromSupabase(); 
+            delete window[cb];
         };
         let s = document.createElement('script');
         s.src = `${GAS_ORDER_URL}?action=check_all&callback=${cb}`;
