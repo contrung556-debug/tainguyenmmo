@@ -226,7 +226,6 @@
         const walletBox = document.getElementById("headerWalletBox");
 
         if (currentUsername) {
-            // [BẢO MẬT] Gọi qua hàm RPC get_user_profile thay vì select trực tiếp từ shopee_users
             const { data } = await _supabase.rpc('get_user_profile', { p_username: currentUsername });
             currentUserBalance = (data && data.success) ? (data.balance || 0) : 0;
 
@@ -302,7 +301,6 @@
             return;
         }
 
-        // [BẢO MẬT] Gọi hàm đăng ký qua RPC thay vì trực tiếp insert vào shopee_users
         const { data, error } = await _supabase.rpc('register_user', {
             p_username: u,
             p_password: p
@@ -406,7 +404,6 @@
             return;
         }
 
-        // [BẢO MẬT] Gọi qua RPC get_user_orders thay vì select trực tiếp từ mmo_accounts theo buyer_username
         const { data: resMyData } = await _supabase.rpc('get_user_orders', { p_username: currentUsername });
         const myData = (resMyData && resMyData.success) ? resMyData.orders : [];
 
@@ -568,8 +565,20 @@
         if (!c || !e) { showModal("Lỗi", "Mã đơn và Email không được để trống!"); return; }
 
         if(btnEl) { btnEl.disabled = true; btnEl.innerText = "⏳ Đang nạp..."; }
-        await _supabase.from('shopee_orders').insert([{ order_code: c, email: e, product_name: n, username: currentUsername, status: 'Đang chờ giao' }]);
+
+        const { data, error } = await _supabase.rpc('add_shopee_order', {
+            p_username: currentUsername,
+            p_order_code: c,
+            p_product_name: n,
+            p_email: e
+        });
+
         if(btnEl) { btnEl.disabled = false; btnEl.innerText = "Nạp Đơn Vào Hệ Thống"; }
+
+        if (error || !data.success) {
+            showModal("Lỗi", error?.message || data?.message || "Không thể nạp đơn!");
+            return;
+        }
 
         showModal("Thành công", "Đã nạp đơn!");
         document.getElementById("inputOrderCode").value = "";
@@ -597,23 +606,12 @@
         }
     }
 
-    async function autoDeleteOldOrders() {
-        if (!currentUsername) return;
-        const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-        await _supabase.from('shopee_orders')
-            .delete()
-            .eq('username', currentUsername)
-            .lt('created_at', twentyFourHoursAgo);
-    }
-
     async function loadOrdersFromSupabase() {
         if (!currentUsername) return;
-        await autoDeleteOldOrders();
-        // [BẢO MẬT] Gọi qua RPC get_user_orders thay vì select trực tiếp shopee_orders
-        const { data: resOrders } = await _supabase.rpc('get_user_orders', { p_username: currentUsername });
-        // Nếu bạn muốn lấy bảng shopee_orders thay vì mmo_accounts cho phần quản lý đơn, ta có thể viết thêm RPC hoặc giữ nguyên tùy theo cấu trúc bảng đơn hàng của bạn. Ở đây ta dùng hàm lọc shopee_orders qua RPC nếu cần.
-        const { data: orders } = await _supabase.from('shopee_orders').select('*').eq('username', currentUsername).order('created_at', { ascending: false });
-        cachedOrders = orders || [];
+        await _supabase.rpc('cleanup_old_shopee_orders', { p_username: currentUsername });
+
+        const { data, error } = await _supabase.rpc('get_shopee_orders', { p_username: currentUsername });
+        cachedOrders = (data && data.success) ? data.orders : [];
         renderOrders(cachedOrders);
     }
 
@@ -672,7 +670,19 @@
                 let newProd = document.getElementById("editProd").value.trim();
                 let newEmail = document.getElementById("editEmail").value.trim();
                 
-                await _supabase.from('shopee_orders').update({ order_code: newCode, product_name: newProd, email: newEmail }).eq('id', id);
+                const { data, error } = await _supabase.rpc('update_shopee_order', {
+                    p_id: id,
+                    p_username: currentUsername,
+                    p_order_code: newCode,
+                    p_product_name: newProd,
+                    p_email: newEmail
+                });
+
+                if (error || !data.success) {
+                    showModal("Lỗi", "Không thể cập nhật đơn hàng!");
+                    return;
+                }
+
                 showModal("Thành công", "Đã cập nhật đơn hàng!");
                 loadOrdersFromSupabase();
             }
@@ -689,7 +699,16 @@
     function deleteOrder(id) {
         showModal("Xác nhận xóa", "Bạn có chắc muốn xóa đơn này khỏi hệ thống?", true, async (res) => {
             if(res) {
-                await _supabase.from('shopee_orders').delete().eq('id', id);
+                const { data, error } = await _supabase.rpc('delete_shopee_order', {
+                    p_id: id,
+                    p_username: currentUsername
+                });
+
+                if (error || !data.success) {
+                    showModal("Lỗi", "Không thể xóa đơn hàng!");
+                    return;
+                }
+
                 showModal("Thành công", "Đã xóa đơn hàng!");
                 loadOrdersFromSupabase();
             }
