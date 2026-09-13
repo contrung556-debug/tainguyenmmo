@@ -1,3 +1,4 @@
+Dưới đây là toàn bộ mã nguồn index.html hoàn chỉnh đã được cập nhật thêm ô Nhập lại mật khẩu ở phần đăng ký. Bạn chỉ cần bấm nút Copy ở góc phải khung code rồi dán đè vào file index.html của bạn nhé:
 <!DOCTYPE html>
 <html lang="vi">
 <head>
@@ -393,7 +394,6 @@
         `);
     }
 
-    // Đã cập nhật gọi hàm RPC verify_user_login (bảo mật mật khẩu băm bcrypt)
     async function handleLogin(res) {
         if(!res) return;
         let u = document.getElementById("popUser").value.trim();
@@ -419,6 +419,7 @@
         showModal("ĐĂNG KÝ", "", true, handleReg, `
             <input type="text" id="regUser" placeholder="Tên đăng nhập...">
             <input type="password" id="regPass" placeholder="Mật khẩu...">
+            <input type="password" id="regPassConfirm" placeholder="Nhập lại mật khẩu...">
         `);
     }
 
@@ -426,10 +427,30 @@
         if(!res) return;
         let u = document.getElementById("regUser").value.trim();
         let p = document.getElementById("regPass").value.trim();
+        let pConfirm = document.getElementById("regPassConfirm").value.trim();
+
+        if (!u || !p) {
+            showModal("Lỗi", "Vui lòng nhập đầy đủ tài khoản và mật khẩu!");
+            return;
+        }
+
+        if (p !== pConfirm) {
+            showModal("Lỗi", "Mật khẩu xác nhận không khớp, vui lòng kiểm tra lại!");
+            return;
+        }
+
         const { data } = await _supabase.from('shopee_users').select('username').eq('username', u);
-        if (data && data.length > 0) { showModal("Lỗi", "Tài khoản đã tồn tại!"); return; }
+        if (data && data.length > 0) { 
+            showModal("Lỗi", "Tài khoản đã tồn tại!"); 
+            return; 
+        }
         
-        await _supabase.from('shopee_users').insert([{ username: u, password: p, balance: 0 }]);
+        const { error } = await _supabase.from('shopee_users').insert([{ username: u, password: p, balance: 0 }]);
+        if (error) {
+            showModal("Lỗi", "Đăng ký thất bại: " + error.message);
+            return;
+        }
+
         showModal("Thành công", "Đăng ký thành công! Vui lòng đăng nhập lại.");
     }
 
@@ -815,7 +836,6 @@
         `);
     }
 
-    // [BẢO MẬT] Hàm Mua Tài Khoản gọi qua Supabase RPC an toàn tuyệt đối
     async function buyGroupAccounts(platform, price, maxStock, firstId) {
         if (!currentUsername) {
             showModal("Thông báo", "Vui lòng đăng nhập để mua tài khoản!");
@@ -1051,3 +1071,4 @@
 
 </body>
 </html>
+
