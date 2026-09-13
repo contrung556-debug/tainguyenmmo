@@ -1,15 +1,22 @@
 export default async function handler(req, res) {
-    const { hide } = req.query;
-    if (!hide) return res.status(400).json({ status: "error", message: "Thiếu email" });
+  const realGasUrl = process.env.GAS_OTP_REAL; // Link Google Apps Script thật
+  const { hide, callback } = req.query;
 
-    try {
-        // Truyền sẵn callback để GAS trả về đúng định dạng cũ, sau đó cắt bỏ callback để lấy JSON chuẩn
-        const response = await fetch(`${process.env.GAS_OTP_URL}?hide=${encodeURIComponent(hide)}&callback=vercel_cb`);
-        const text = await response.text();
-        const jsonString = text.replace(/^vercel_cb\((.*)\)$/s, "$1"); 
-        
-        return res.status(200).json(JSON.parse(jsonString));
-    } catch (error) {
-        return res.status(500).json({ status: "error", message: "Lỗi kết nối App Script" });
+  try {
+    const response = await fetch(`${realGasUrl}?hide=${encodeURIComponent(hide || '')}`);
+    const textData = await response.text();
+
+    res.setHeader('Access-Control-Allow-Origin', '*');
+
+    if (callback) {
+      // Trả về dạng JSONP cho script tag
+      res.setHeader('Content-Type', 'application/javascript');
+      res.status(200).send(`${callback}(${textData});`);
+    } else {
+      res.setHeader('Content-Type', 'application/json');
+      res.status(200).send(textData);
     }
+  } catch (error) {
+    res.status(500).json({ status: 'error', message: error.message });
+  }
 }
