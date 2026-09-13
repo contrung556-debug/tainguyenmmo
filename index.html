@@ -671,7 +671,7 @@
                             </div>
                             <div class="store-product-action">
                                 <input type="number" id="qty_${firstId}" class="store-qty-input" value="1" min="1" max="${stockCount}">
-                                <button class="store-buy-btn ${stockCount === 0 ? 'out-of-stock' : ''}" onclick="buyGroupAccounts('${group.platform}', ${group.price}, ${stockCount})">
+                                <button class="store-buy-btn ${stockCount === 0 ? 'out-of-stock' : ''}" onclick="buyGroupAccounts('${group.platform}', ${group.price}, ${stockCount}, ${firstId})">
                                     🛒 Mua Ngay
                                 </button>
                                 ${currentUsername === ADMIN_USERNAME ? `
@@ -699,7 +699,6 @@
             return;
         }
 
-        // Tải danh sách đơn đã mua và gom nhóm theo thời gian mua (batch)
         const { data: myData } = await _supabase.from('mmo_accounts').select('*').eq('buyer_username', currentUsername).order('id', {ascending: false});
         let myHtml = '';
         if(myData && myData.length > 0) {
@@ -807,16 +806,13 @@
         `);
     }
 
-    async function buyGroupAccounts(platform, price, maxStock) {
+    // [BẢO MẬT] Hàm Mua Tài Khoản gọi qua Supabase RPC an toàn tuyệt đối
+    async function buyGroupAccounts(platform, price, maxStock, firstId) {
         if (!currentUsername) {
             showModal("Thông báo", "Vui lòng đăng nhập để mua tài khoản!");
             return;
         }
 
-        const { data: marketData } = await _supabase.from('mmo_accounts').select('id').eq('status', 'Đang bán').eq('platform', platform).eq('price', price);
-        if(!marketData || marketData.length === 0) { showModal("Lỗi", "Sản phẩm đã hết hàng!"); return; }
-        
-        let firstId = marketData[0].id;
         let qtyInput = document.getElementById(`qty_${firstId}`);
         let qty = parseInt(qtyInput ? qtyInput.value : 1);
 
@@ -824,37 +820,38 @@
         if (qty > maxStock) { showModal("Lỗi", `Kho chỉ còn lại ${maxStock} tài khoản!`); return; }
 
         let totalPrice = price * qty;
-        if (currentUserBalance < totalPrice) {
-            showModal("Lỗi", `Số dư ví không đủ! Cần ${totalPrice.toLocaleString('vi-VN')}đ nhưng bạn chỉ có ${currentUserBalance.toLocaleString('vi-VN')}đ.`);
-            return;
-        }
 
         showModal("Xác nhận Mua", `Thanh toán ${totalPrice.toLocaleString('vi-VN')}đ cho ${qty} tài khoản này?`, true, async (res) => {
-            if (res) {
-                const { data: itemsToBuy } = await _supabase.from('mmo_accounts').select('*').eq('status', 'Đang bán').eq('platform', platform).eq('price', price).limit(qty);
-                
-                if(!itemsToBuy || itemsToBuy.length < qty) {
-                    showModal("Lỗi", "Không đủ số lượng tài khoản trong kho!"); return;
-                }
+            if (!res) return;
 
-                let idsToUpdate = itemsToBuy.map(i => i.id);
-                let combinedDetails = itemsToBuy.map(i => i.account_details).join('\n');
+            // Gọi RPC an toàn trên Supabase Database
+            const { data, error } = await _supabase.rpc('mua_tai_khoan', {
+                p_username: currentUsername,
+                p_platform: platform,
+                p_price: price,
+                p_qty: qty
+            });
 
-                let newBal = currentUserBalance - totalPrice;
-                const { error: e1 } = await _supabase.from('shopee_users').update({balance: newBal}).eq('username', currentUsername);
-                if (e1) { showModal("Lỗi", e1.message); return; }
-
-                await _supabase.from('mmo_accounts').update({status: 'Đã bán', buyer_username: currentUsername, updated_at: new Date().toISOString()}).in('id', idsToUpdate);
-                
-                updateAuthUI();
-
-                let uniqueModalId = 'modal_acc_list_' + Date.now();
-                showModal(`Mua thành công ${qty} tài khoản!`, "", false, null, `
-                    <div style="font-size: 12px; color: #555; margin-bottom: 6px;">Danh sách tài khoản của bạn:</div>
-                    <textarea readonly id="${uniqueModalId}" style="width: 100%; height: 90px; background: #fafafa; font-family: monospace; font-weight: bold; color: #c0392b; font-size: 12px; padding: 8px; border: 1px solid #ddd; border-radius: 6px; resize: none; margin-bottom: 8px;">${combinedDetails}</textarea>
-                    <button class="order-btn-check" style="width: 100%; background: #27ae60; padding: 9px; font-size: 13px;" onclick="copyAccText('${uniqueModalId}')">📋 Copy Danh Sách Acc</button>
-                `);
+            if (error) {
+                showModal("Lỗi hệ thống", error.message);
+                return;
             }
+
+            if (!data.success) {
+                showModal("Không thể mua", data.message);
+                return;
+            }
+
+            updateAuthUI();
+            loadStoreData();
+
+            let combinedDetails = (data.details || []).join('\n');
+            let uniqueModalId = 'modal_acc_list_' + Date.now();
+            showModal(`Mua thành công ${qty} tài khoản!`, "", false, null, `
+                <div style="font-size: 12px; color: #555; margin-bottom: 6px;">Danh sách tài khoản của bạn:</div>
+                <textarea readonly id="${uniqueModalId}" style="width: 100%; height: 90px; background: #fafafa; font-family: monospace; font-weight: bold; color: #c0392b; font-size: 12px; padding: 8px; border: 1px solid #ddd; border-radius: 6px; resize: none; margin-bottom: 8px;">${combinedDetails}</textarea>
+                <button class="order-btn-check" style="width: 100%; background: #27ae60; padding: 9px; font-size: 13px;" onclick="copyAccText('${uniqueModalId}')">📋 Copy Danh Sách Acc</button>
+            `);
         });
     }
 
@@ -945,7 +942,7 @@
 
     async function loadOrdersFromSupabase() {
         if (!currentUsername) return;
-        await autoDeleteOldOrders(); // Tự động xóa đơn cũ hơn 24 giờ
+        await autoDeleteOldOrders();
         const { data: orders } = await _supabase.from('shopee_orders').select('*').eq('username', currentUsername).order('created_at', { ascending: false });
         cachedOrders = orders || [];
         renderOrders(cachedOrders);
