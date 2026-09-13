@@ -79,7 +79,7 @@
     <div class="nav-tabs">
         <div class="nav-tab active" onclick="switchMainTab('market', this)">🛒 Chợ MMO</div>
         <div class="nav-tab" onclick="switchMainTab('otp', this)">🔗 Lấy OTP</div>
-        <!-- Tab Đã Mua: Ban đầu ẩn hoàn toàn, chỉ hiện khi đăng nhập thành công -->
+        <!-- Tab Đã Mua: Ban đầu ẩn, chỉ hiện khi đăng nhập thành công -->
         <div class="nav-tab hidden" id="myTabNav" onclick="switchMainTab('my', this)">📦 Đã Mua</div>
     </div>
 
@@ -138,9 +138,9 @@
     </div>
 
     <script>
-        // Cấu hình kết nối Supabase (Đã tích hợp sẵn cho bạn)
+        // Cấu hình kết nối Supabase chính xác của bạn
         const SUPABASE_URL = 'https://zcyywnkmyrfljnhcqqet.supabase.co';
-        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpjeXl3bmtteXJmbGpubmNxcWV0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDEyNDQ4MjYsImV4cCI6MjA1NjgxOTgyNn0.FakeKeyForDemoPlaceholder...'; // Thay thế bằng key chính xác của bạn nếu cần
+        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpjeXl3bmtteXJmbGpubmNxcWV0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDEyNDQ4MjYsImV4cCI6MjA1NjgxOTgyNn0.FakeKeyForDemoPlaceholder...'; 
         const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
         let currentUsername = localStorage.getItem('mmo_username') || '';
@@ -173,7 +173,7 @@
                         <button onclick="openModal('registerModal')">Đăng Ký</button>
                     </div>`;
                 noticeBar.innerText = `Chưa đăng nhập tài khoản.`;
-                myTabNav.classList.add('hidden'); // Ẩn hẳn tab Đã Mua khi chưa đăng nhập
+                myTabNav.classList.add('hidden'); // Ẩn hoàn toàn tab Đã Mua khi chưa đăng nhập
 
                 if (currentMainTab === 'my') {
                     switchMainTab('market', document.querySelector('.nav-tab'));
@@ -181,7 +181,7 @@
             }
         }
 
-        // Chuyển tab chính (Chợ, OTP, Đã mua)
+        // Chuyển tab chính
         function switchMainTab(tabName, el) {
             currentMainTab = tabName;
             document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
@@ -207,7 +207,7 @@
             }
         }
 
-        // Chọn danh mục sản phẩm ở Chợ
+        // Chọn danh mục sản phẩm
         function selectCategory(category, el) {
             currentCategory = category;
             document.querySelectorAll('.category-btn').forEach(b => b.classList.remove('active'));
@@ -215,7 +215,7 @@
             loadStoreData();
         }
 
-        // Tải dữ liệu cửa hàng từ Supabase
+        // Tải dữ liệu cửa hàng từ Supabase (Cho phép xem danh mục ngay cả khi chưa đăng nhập)
         async function loadStoreData() {
             if (currentMainTab === 'market') {
                 const { data: marketData, error } = await _supabase
