@@ -98,6 +98,19 @@
     <div class="section-box active-section" id="sectionMarket">
         <div class="section-title">🛒 Chợ Tài Khoản MMO</div>
         
+        <!-- Khung Admin Nạp Tiền Cho Thành Viên -->
+        <div id="adminWalletBox" style="display: none; background: #e8f8f5; padding: 12px; border-radius: 8px; border: 1px solid #a3e4d7; margin-bottom: 12px;">
+            <div style="font-weight: bold; color: #16a085; font-size: 13px; margin-bottom: 8px;">💳 [Admin] Quản Lý Số Dư Thành Viên</div>
+            
+            <label style="font-size: 11px; font-weight: bold; color: #555;">Tên tài khoản khách:</label>
+            <input type="text" id="adminTargetUser" placeholder="Nhập username của khách...">
+
+            <label style="font-size: 11px; font-weight: bold; color: #555;">Số tiền cộng (hoặc trừ nếu nhập số âm):</label>
+            <input type="number" id="adminAddAmount" placeholder="VD: 50000 hoặc -10000">
+
+            <button class="btn-main" style="background-color: #16a085; margin-bottom:0;" onclick="adminAdjustUserBalance()">💰 Cập Nhật Số Dư Cho Khách</button>
+        </div>
+
         <!-- Khung Admin Đăng Bài -->
         <div id="adminPostBox" style="display: none; background: #fff8f5; padding: 12px; border-radius: 8px; border: 1px solid #faddd3; margin-bottom: 12px;">
             <div style="font-weight: bold; color: #ee4d2d; font-size: 13px; margin-bottom: 8px;">🔧 [Admin] Đăng Bán Tài Khoản Mới</div>
@@ -322,9 +335,11 @@
 
             if (currentUsername === ADMIN_USERNAME) {
                 document.getElementById("adminPostBox").style.display = "block";
+                document.getElementById("adminWalletBox").style.display = "block";
                 updateTemplatesDropdown();
             } else {
                 document.getElementById("adminPostBox").style.display = "none";
+                document.getElementById("adminWalletBox").style.display = "none";
             }
 
             userActions.innerHTML = `
@@ -344,6 +359,7 @@
             `;
             walletBox.innerHTML = `<div>Chưa đăng nhập tài khoản.</div>`;
             document.getElementById("adminPostBox").style.display = "none";
+            document.getElementById("adminWalletBox").style.display = "none";
         }
     }
 
@@ -386,6 +402,37 @@
     }
 
     function logout() { currentUsername = ""; localStorage.removeItem("shopee_logged_user"); updateAuthUI(); }
+
+    async function adminAdjustUserBalance() {
+        if (currentUsername !== ADMIN_USERNAME) return;
+        let targetUser = document.getElementById("adminTargetUser").value.trim();
+        let amountToAdd = parseInt(document.getElementById("adminAddAmount").value);
+
+        if (!targetUser || isNaN(amountToAdd)) {
+            showModal("Lỗi", "Vui lòng nhập đúng Tên tài khoản khách và Số tiền cần cộng!");
+            return;
+        }
+
+        // Kiểm tra xem user đích có tồn tại không
+        const { data: userRecord, error: errSearch } = await _supabase.from('shopee_users').select('*').eq('username', targetUser);
+        if (errSearch || !userRecord || userRecord.length === 0) {
+            showModal("Lỗi", `Không tìm thấy tài khoản "${targetUser}" trên hệ thống!`);
+            return;
+        }
+
+        let currentBal = userRecord[0].balance || 0;
+        let newBal = currentBal + amountToAdd;
+
+        const { error: errUpdate } = await _supabase.from('shopee_users').update({ balance: newBal }).eq('username', targetUser);
+        if (errUpdate) {
+            showModal("Lỗi", "Không thể cập nhật số dư: " + errUpdate.message);
+            return;
+        }
+
+        showModal("Thành công", `Đã cập nhật ví cho tài khoản @${targetUser} thành công! Số dư mới: ${newBal.toLocaleString('vi-VN')}đ`);
+        document.getElementById("adminTargetUser").value = "";
+        document.getElementById("adminAddAmount").value = "";
+    }
 
     function switchCategory(cat) {
         currentCategory = cat;
@@ -554,7 +601,6 @@
                     return;
                 }
 
-                // Cập nhật giá trên Supabase cho tất cả acc đang bán có mức giá cũ này
                 const { error } = await _supabase.from('mmo_accounts')
                     .update({ price: newPrice })
                     .eq('platform', platform)
@@ -566,7 +612,6 @@
                     return;
                 }
 
-                // Cập nhật lại meta info trong localStorage
                 let metaMap = JSON.parse(localStorage.getItem("mmo_meta_info") || "{}");
                 delete metaMap[`${platform}_${oldPrice}`];
                 metaMap[`${platform}_${newPrice}`] = { title: newTitle, description: newDesc };
