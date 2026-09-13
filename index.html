@@ -17,13 +17,29 @@
         .btn-main:hover { background-color: #d73211; }
         .btn-secondary { background-color: #3498db; color: white; border: none; padding: 9px; border-radius: 6px; cursor: pointer; font-weight: bold; width: 100%; font-size: 13px; margin-bottom: 8px; }
         .btn-check-all { background-color: #27ae60; color: white; border: none; padding: 9px; border-radius: 6px; cursor: pointer; font-weight: bold; width: 100%; font-size: 13px; margin-bottom: 10px; }
-        .order-card { padding: 12px; border-radius: 8px; margin-bottom: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); background: #fff; border: 1px solid #eee; }
+        
+        /* Card đơn hàng chi tiết */
+        .order-card { padding: 12px; border-radius: 8px; margin-bottom: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); background: #fff; border: 1px solid #eee; position: relative; }
+        .order-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+        .order-code { font-weight: bold; font-size: 15px; color: #2c3e50; }
+        .order-status { font-size: 11px; padding: 3px 8px; border-radius: 4px; color: white; font-weight: bold; }
+        .status-pending { background: #e67e22; }
+        .status-success { background: #27ae60; }
+        .order-time { font-size: 11px; color: #7f8c8d; margin-bottom: 6px; }
+        .order-prod { font-size: 13px; font-weight: bold; color: #333; margin-bottom: 4px; }
+        .order-email { font-size: 12px; color: #555; margin-bottom: 10px; word-break: break-all; }
+        .order-actions { display: flex; gap: 6px; }
+        .order-btn-check { flex: 1; background: #e67e22; color: white; border: none; padding: 6px; border-radius: 4px; font-size: 12px; font-weight: bold; cursor: pointer; }
+        .order-btn-edit { flex: 1; background: #2980b9; color: white; border: none; padding: 6px; border-radius: 4px; font-size: 12px; font-weight: bold; cursor: pointer; }
+        .order-btn-del { flex: 1; background: #c0392b; color: white; border: none; padding: 6px; border-radius: 4px; font-size: 12px; font-weight: bold; cursor: pointer; }
+
         .tab-container { display: flex; background: #fce8e3; border-radius: 8px; padding: 4px; margin-bottom: 15px; border: 1px solid #faddd3; }
         .tab-btn { flex: 1; padding: 9px; border: none; background: transparent; font-weight: bold; font-size: 13px; color: #b5452c; cursor: pointer; border-radius: 6px; text-align: center; transition: all 0.2s; }
         .tab-btn.active { background: #ee4d2d; color: white; box-shadow: 0 2px 5px rgba(238, 77, 45, 0.3); }
         .acc-card { background: #fff; border: 1px solid #ddd; padding: 10px; border-radius: 8px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;}
         .acc-platform { font-weight: bold; color: #8e44ad; font-size: 14px; }
         .acc-price { color: #e74c3c; font-weight: bold; font-size: 14px; }
+
         /* Modal CSS */
         #customModalOverlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.5); z-index: 9999; justify-content: center; align-items: center; padding: 20px; box-sizing: border-box; }
         #customModalBox { background: #fff; width: 100%; max-width: 360px; border-radius: 14px; padding: 22px; box-shadow: 0 8px 25px rgba(0,0,0,0.2); text-align: center; }
@@ -43,41 +59,7 @@
     <!-- KHUNG TÀI KHOẢN & ĐĂNG NHẬP -->
     <div id="authSection" style="background: #eef2f3; padding: 12px 15px; border-radius: 8px; margin-bottom: 15px;"></div>
 
-    <!-- PHẦN 1: QUẢN LÝ ĐƠN HÀNG -->
-    <div class="section-box">
-        <h3>📦 QUẢN LÝ ĐƠN SHOPEE</h3>
-        <div class="tab-container">
-            <button class="tab-btn active" id="tabBtnSingle" onclick="switchDepositTab('single')">Nạp 1 Đơn</button>
-            <button class="tab-btn" id="tabBtnMultiple" onclick="switchDepositTab('multiple')">Nạp Nhiều Đơn</button>
-        </div>
-
-        <div id="depositSingleForm">
-            <input type="text" id="inputOrderCode" placeholder="Mã đơn hàng Shopee">
-            <input type="text" id="inputProductName" placeholder="Tên sản phẩm">
-            <input type="text" id="inputEmail" placeholder="Email hòm thư iCloud">
-            <button class="btn-main" onclick="addNewOrder()">Nạp Đơn Vào Hệ Thống</button>
-        </div>
-
-        <div id="depositMultipleForm" style="display: none;">
-            <textarea id="inputMultipleLines" placeholder="Mã Đơn | Email | Tên SP (Mỗi dòng 1 đơn)"></textarea>
-            <button class="btn-main" onclick="addMultipleOrders()">Nạp Hàng Loạt</button>
-        </div>
-        
-        <div style="margin-top: 15px;">
-            <button class="btn-check-all" onclick="checkAllOrders()">⚡ Quét Trạng Thái Đơn Báo Cáo</button>
-            <div id="orderListContainer" style="margin-top: 10px;"></div>
-        </div>
-    </div>
-
-    <!-- PHẦN 2: LẤY OTP -->
-    <div class="section-box">
-        <h3>SHOPEE LINK & OTP FETCHER</h3>
-        <input type="text" id="fetchInputEmail" placeholder="Nhập tên hoặc địa chỉ Email...">
-        <button class="btn-main" onclick="fetchOtpLink()">Lấy Link Xác Thực / OTP</button>
-        <div id="fetchResult" style="margin-top: 10px; font-size: 13px;"></div>
-    </div>
-
-    <!-- PHẦN 3: CHỢ TÀI KHOẢN MMO -->
+    <!-- PHẦN 1: CHỢ TÀI KHOẢN MMO (Đưa lên đầu) -->
     <div class="section-box">
         <h3>🛒 CHỢ TÀI KHOẢN MMO</h3>
         
@@ -104,6 +86,41 @@
         </div>
         
         <div id="myAccList" style="display: none;"></div>
+    </div>
+
+    <!-- PHẦN 2: LẤY LINK & OTP (Ở giữa) -->
+    <div class="section-box">
+        <h3>SHOPEE LINK & OTP FETCHER</h3>
+        <input type="text" id="fetchInputEmail" placeholder="Nhập tên hoặc địa chỉ Email...">
+        <button class="btn-main" onclick="fetchOtpLink()">Lấy Link Xác Thực / OTP</button>
+        <div id="fetchResult" style="margin-top: 10px; font-size: 13px;"></div>
+    </div>
+
+    <!-- PHẦN 3: QUẢN LÝ ĐƠN HÀNG (Ở cuối) -->
+    <div class="section-box">
+        <h3>📦 QUẢN LÝ ĐƠN SHOPEE</h3>
+        <div class="tab-container">
+            <button class="tab-btn active" id="tabBtnSingle" onclick="switchDepositTab('single')">Nạp 1 Đơn</button>
+            <button class="tab-btn" id="tabBtnMultiple" onclick="switchDepositTab('multiple')">Nạp Nhiều Đơn</button>
+        </div>
+
+        <div id="depositSingleForm">
+            <input type="text" id="inputOrderCode" placeholder="Mã đơn hàng Shopee">
+            <input type="text" id="inputProductName" placeholder="Tên sản phẩm">
+            <input type="text" id="inputEmail" placeholder="Email hòm thư iCloud">
+            <button class="btn-main" onclick="addNewOrder()">Nạp Đơn Vào Hệ Thống</button>
+        </div>
+
+        <div id="depositMultipleForm" style="display: none;">
+            <textarea id="inputMultipleLines" placeholder="Mã Đơn | Email | Tên SP (Mỗi dòng 1 đơn)"></textarea>
+            <button class="btn-main" onclick="addMultipleOrders()">Nạp Hàng Loạt</button>
+        </div>
+        
+        <div style="margin-top: 15px;">
+            <input type="text" id="searchOrderInput" placeholder="🔍 Tìm kiếm nhanh mã đơn hoặc tên sản phẩm..." oninput="filterOrders()" style="margin-bottom: 10px;">
+            <button class="btn-check-all" onclick="checkAllOrders()">⚡ Quét Trạng Thái Đơn Báo Cáo</button>
+            <div id="orderListContainer" style="margin-top: 10px;"></div>
+        </div>
     </div>
 
 </div>
@@ -133,6 +150,7 @@
     let currentUsername = localStorage.getItem("shopee_logged_user") || "";
     let currentUserBalance = 0;
     let modalCallback = null;
+    let cachedOrders = [];
 
     function showModal(title, message, isConfirm = false, callback = null, customHtml = null) {
         document.getElementById("modalTitle").innerText = title;
@@ -359,6 +377,9 @@
 
         await _supabase.from('shopee_orders').insert([{ order_code: c, email: e, product_name: n, username: currentUsername, status: 'Đang chờ giao' }]);
         showModal("Thành công", "Đã nạp đơn!");
+        document.getElementById("inputOrderCode").value = "";
+        document.getElementById("inputProductName").value = "";
+        document.getElementById("inputEmail").value = "";
         loadOrdersFromSupabase();
     }
 
@@ -373,6 +394,7 @@
         if(insertData.length > 0) {
             await _supabase.from('shopee_orders').insert(insertData);
             showModal("Thành công", `Đã nạp ${insertData.length} đơn!`);
+            document.getElementById("inputMultipleLines").value = "";
             loadOrdersFromSupabase();
         }
     }
@@ -380,18 +402,87 @@
     async function loadOrdersFromSupabase() {
         if (!currentUsername) return;
         const { data: orders } = await _supabase.from('shopee_orders').select('*').eq('username', currentUsername).order('created_at', { ascending: false });
+        cachedOrders = orders || [];
+        renderOrders(cachedOrders);
+    }
+
+    function renderOrders(orders) {
         let html = '';
         if(orders && orders.length > 0) {
             orders.forEach(o => {
+                let isSuccess = o.status === 'Đã giao thành công';
+                let timeStr = o.created_at ? new Date(o.created_at).toLocaleString('vi-VN') : '';
                 html += `
-                <div class="order-card" style="border-left: 4px solid ${o.status==='Đã giao thành công'?'#27ae60':'#e67e22'}">
-                    <b>#${o.order_code}</b> - <span style="font-size:11px; background:#eee; padding:2px 4px;">${o.status || 'Đang chờ'}</span><br>
-                    <div style="font-size:13px; font-weight:bold; color:#444; margin: 3px 0;">📦 ${o.product_name || 'Đơn Shopee'}</div>
-                    <div style="font-size:12px; color: #666;">📧 ${o.email}</div>
+                <div class="order-card" style="border-left: 4px solid ${isSuccess ? '#27ae60' : '#e67e22'}">
+                    <div class="order-header">
+                        <span class="order-code">#${o.order_code}</span>
+                        <span class="order-status ${isSuccess ? 'status-success' : 'status-pending'}">${o.status || 'Đang chờ giao'}</span>
+                    </div>
+                    ${timeStr ? `<div class="order-time">⏱️ Nạp lúc: ${timeStr}</div>` : ''}
+                    <div class="order-prod">📦 ${o.product_name || 'Đơn Shopee'}</div>
+                    <div class="order-email">📧 Email: ${o.email}</div>
+                    <div class="order-actions">
+                        <button class="order-btn-check" onclick="checkSingleOrder('${o.order_code}')">🔍 Check</button>
+                        <button class="order-btn-edit" onclick="editOrder(${o.id}, '${o.order_code}', '${o.product_name || ''}', '${o.email}')">✏️ Sửa</button>
+                        <button class="order-btn-del" onclick="deleteOrder(${o.id})">🗑️ Xóa</button>
+                    </div>
                 </div>`;
             });
         }
-        document.getElementById("orderListContainer").innerHTML = html || "<div style='text-align:center; font-size:13px;'>Chưa có đơn hàng</div>";
+        document.getElementById("orderListContainer").innerHTML = html || "<div style='text-align:center; font-size:13px;'>Chưa có đơn hàng nào</div>";
+    }
+
+    function filterOrders() {
+        let keyword = document.getElementById("searchOrderInput").value.toLowerCase().trim();
+        let filtered = cachedOrders.filter(o => 
+            (o.order_code && o.order_code.toLowerCase().includes(keyword)) ||
+            (o.product_name && o.product_name.toLowerCase().includes(keyword))
+        );
+        renderOrders(filtered);
+    }
+
+    function checkSingleOrder(orderCode) {
+        showModal("Đang kiểm tra", `Đang check đơn #${orderCode}...`);
+        let cb = 'check_single_' + Math.round(Math.random()*1000);
+        window[cb] = function(res) {
+            showModal("Kết quả", res.message || "Đã kiểm tra xong!");
+            loadOrdersFromSupabase();
+            delete window[cb];
+        };
+        let s = document.createElement('script');
+        s.src = `${GAS_ORDER_URL}?action=check_one&code=${orderCode}&callback=${cb}`;
+        document.body.appendChild(s);
+    }
+
+    function editOrder(id, code, prod, email) {
+        showModal("Sửa Đơn Hàng", "", true, async (res) => {
+            if(res) {
+                let newCode = document.getElementById("editCode").value.trim();
+                let newProd = document.getElementById("editProd").value.trim();
+                let newEmail = document.getElementById("editEmail").value.trim();
+                
+                await _supabase.from('shopee_orders').update({ order_code: newCode, product_name: newProd, email: newEmail }).eq('id', id);
+                showModal("Thành công", "Đã cập nhật đơn hàng!");
+                loadOrdersFromSupabase();
+            }
+        }, `
+            <label>Mã đơn hàng:</label>
+            <input type="text" id="editCode" value="${code}">
+            <label>Tên sản phẩm:</label>
+            <input type="text" id="editProd" value="${prod}">
+            <label>Email iCloud:</label>
+            <input type="text" id="editEmail" value="${email}">
+        `);
+    }
+
+    function deleteOrder(id) {
+        showModal("Xác nhận xóa", "Bạn có chắc muốn xóa đơn này khỏi hệ thống?", true, async (res) => {
+            if(res) {
+                await _supabase.from('shopee_orders').delete().eq('id', id);
+                showModal("Thành công", "Đã xóa đơn hàng!");
+                loadOrdersFromSupabase();
+            }
+        });
     }
 
     function checkAllOrders() {
