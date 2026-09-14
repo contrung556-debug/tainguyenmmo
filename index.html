@@ -565,8 +565,8 @@
         resultDiv.innerHTML = `<span style="color: #e67e22;">⏳ Đang kết nối...</span>`;
 
         try {
-            // SỬ DỤNG ĐƯỜNG DẪN TUYỆT ĐỐI ĐỂ KHÔNG BỊ LỖI PATTERN TRÊN ĐIỆN THOẠI
-            let targetUrl = window.location.origin + GAS_OTP_URL + `?hide=` + encodeURIComponent(val);
+            // Sử dụng đường dẫn tương đối để tương thích hoàn toàn với iOS/Safari
+            let targetUrl = `${GAS_OTP_URL}?hide=${encodeURIComponent(val)}`;
             
             let response = await fetch(targetUrl);
             let data = await response.json();
@@ -711,7 +711,7 @@
             delete window[cb];
         };
         let s = document.createElement('script');
-        s.src = window.location.origin + GAS_ORDER_URL + `?action=check_one&code=${encodeURIComponent(orderCode)}&callback=${cb}`;
+        s.src = `${GAS_ORDER_URL}?action=check_one&code=${encodeURIComponent(orderCode)}&callback=${cb}`;
         document.body.appendChild(s);
     }
 
@@ -780,7 +780,7 @@
             delete window[cb];
         };
         let s = document.createElement('script');
-        s.src = window.location.origin + GAS_ORDER_URL + `?action=check_all&callback=${cb}`;
+        s.src = `${GAS_ORDER_URL}?action=check_all&callback=${cb}`;
         document.body.appendChild(s);
     }
 
