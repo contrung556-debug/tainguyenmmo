@@ -445,7 +445,6 @@
     }
 
     function showModal(title, message, isConfirm = false, callback = null, customHtml = null) {
-        document.getElementById("modalTitleinnerText" in document.getElementById("modalTitle") ? "modalTitle" : "modalTitle").innerText = title;
         document.getElementById("modalTitle").innerText = title;
         let msgDiv = document.getElementById("modalMessage");
         if (customHtml) msgDiv.innerHTML = customHtml; else msgDiv.innerText = message;
@@ -994,19 +993,56 @@
         renderOrders(filtered);
     }
 
-    function checkSingleOrder(orderCode) {
-        showModal("Đang kiểm tra", `Đang check đơn #${escapeHtml(orderCode)}...`);
-        let cb = 'check_single_' + Math.round(Math.random()*1000);
-        window[cb] = function(res) {
+    // --- CẬP NHẬT DÙNG FETCH (AN TOÀN HƠN) ---
+    async function checkSingleOrder(orderCode) {
+        let safeCode = escapeHtml(orderCode);
+        showModal("Đang kiểm tra", `Đang check đơn #${safeCode}...`);
+        
+        try {
+            let baseUrl = window.location.protocol + '//' + window.location.host;
+            let response = await fetch(`${baseUrl}/api/order?action=check_one&code=${encodeURIComponent(orderCode)}`);
+            
+            if (!response.ok) {
+                throw new Error(`Lỗi phản hồi server: ${response.status}`);
+            }
+            
+            let res = await response.json();
             showModal("Kết quả", escapeHtml(res.message || "Đã kiểm tra xong!"));
             loadOrdersFromSupabase();
-            delete window[cb];
-        };
-        let baseUrl = window.location.protocol + '//' + window.location.host;
-        let s = document.createElement('script');
-        s.src = `${baseUrl}/api/order?action=check_one&code=${encodeURIComponent(orderCode)}&callback=${cb}`;
-        document.body.appendChild(s);
+        } catch (error) {
+            showModal("Lỗi", "Không thể kết nối đến máy chủ kiểm tra hoặc phản hồi không hợp lệ.");
+        }
     }
+
+    async function checkAllOrders(btnEl) {
+        if (btnEl) { 
+            btnEl.disabled = true; 
+            btnEl.innerText = "⏳ Đang quét..."; 
+        }
+        showModal("Đang quét", "Hệ thống đang quét hàng loạt qua Google Script...");
+
+        try {
+            let baseUrl = window.location.protocol + '//' + window.location.host;
+            let response = await fetch(`${baseUrl}/api/order?action=check_all`);
+            
+            if (!response.ok) {
+                throw new Error(`Lỗi phản hồi server: ${response.status}`);
+            }
+
+            let res = await response.json().catch(() => ({}));
+
+            showModal("Thành công", escapeHtml(res.message || "Đã quét xong!")); 
+            loadOrdersFromSupabase(); 
+        } catch (error) {
+            showModal("Lỗi", "Không thể kết nối đến máy chủ quét đơn.");
+        } finally {
+            if (btnEl) { 
+                btnEl.disabled = false; 
+                btnEl.innerText = "⚡ Quét Trạng Thái Đơn Báo Cáo"; 
+            }
+        }
+    }
+    // ----------------------------------------
 
     function editOrder(id, code, prod, email) {
         const safeCode = escapeHtml(code);
@@ -1060,22 +1096,6 @@
                 loadOrdersFromSupabase();
             }
         });
-    }
-
-    function checkAllOrders(btnEl) {
-        if(btnEl) { btnEl.disabled = true; btnEl.innerText = "⏳ Đang quét..."; }
-        showModal("Đang quét", "Hệ thống đang quét hàng loạt qua Google Script...");
-        let cb = 'check_all_cb_' + Math.round(Math.random()*1000);
-        window[cb] = function() {
-            if(btnEl) { btnEl.disabled = false; btnEl.innerText = "⚡ Quét Trạng Thái Đơn Báo Cáo"; };
-            showModal("Thành công", "Đã quét xong!"); 
-            loadOrdersFromSupabase(); 
-            delete window[cb];
-        };
-        let baseUrl = window.location.protocol + '//' + window.location.host;
-        let s = document.createElement('script');
-        s.src = `${baseUrl}/api/order?action=check_all&callback=${cb}`;
-        document.body.appendChild(s);
     }
 
     updateAuthUI();
