@@ -445,7 +445,7 @@
     }
 
     function showModal(title, message, isConfirm = false, callback = null, customHtml = null) {
-        document.getElementById("modalTitleinnerText = title;
+        document.getElementById("modalTitle").innerText = title;
         let msgDiv = document.getElementById("modalMessage");
         if (customHtml) msgDiv.innerHTML = customHtml; else msgDiv.innerText = message;
         
