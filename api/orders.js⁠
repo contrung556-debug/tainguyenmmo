@@ -1,24 +1,30 @@
 export default async function handler(req, res) {
-  // Đổi từ GAS_ORDER_REAL sang GAS_ORDER_URL để khớp trực tiếp với Vercel
-  const realGasOrderUrl = process.env.GAS_ORDER_URL; 
+  const rawUrl = process.env.GAS_ORDER_URL;
   const { action, code, callback } = req.query;
 
-  if (!realGasOrderUrl) {
-    return res.status(500).json({ status: 'error', message: 'Chưa cấu hình biến môi trường GAS_ORDER_URL trên Vercel' });
+  if (!rawUrl || !rawUrl.startsWith('http')) {
+    return res.status(500).json({ 
+      status: 'error', 
+      message: 'GAS_ORDER_URL chưa được cấu hình đúng trên Vercel' 
+    });
   }
 
   try {
-    let targetUrl = `${realGasOrderUrl}?action=${encodeURIComponent(action || '')}&code=${encodeURIComponent(code || '')}`;
+    let targetUrl = `${rawUrl.trim()}?action=${encodeURIComponent(action || '')}&code=${encodeURIComponent(code || '')}`;
+    if (callback) {
+      targetUrl += `&callback=${encodeURIComponent(callback)}`;
+    }
+
     const response = await fetch(targetUrl);
     const textData = await response.text();
 
     res.setHeader('Access-Control-Allow-Origin', '*');
 
     if (callback) {
-      res.setHeader('Content-Type', 'application/javascript');
-      return res.status(200).send(`${callback}(${textData});`);
+      res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
+      return res.status(200).send(textData);
     } else {
-      res.setHeader('Content-Type', 'application/json');
+      res.setHeader('Content-Type', 'application/json; charset=utf-8');
       return res.status(200).send(textData);
     }
   } catch (error) {
