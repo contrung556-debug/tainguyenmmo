@@ -184,7 +184,7 @@
         .order-btn-del { flex: 1; background: #e74c3c; color: white; border: none; padding: 8px; border-radius: 8px; font-size: 12px; font-weight: 700; cursor: pointer; transition: opacity 0.2s; }
         .order-btn-check:active, .order-btn-edit:active, .order-btn-del:active { opacity: 0.8; }
 
-        /* Sub Tabs - Đã tối ưu hiển thị trọn vẹn trên điện thoại */
+        /* Sub Tabs */
         .sub-tab-container { 
             display: flex; 
             background: var(--primary-light); 
@@ -507,7 +507,6 @@
         }
     }
 
-    // --- CAPTCHA CHỮ ---
     function generateRandomTextCaptcha(length = 5) {
         const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';
         let result = '';
@@ -786,6 +785,7 @@
         showModal("Thành công", "Đã sao chép tất cả thông tin tài khoản vào bộ nhớ tạm!");
     }
 
+    /* ĐÃ BỎ TRUYỀN GIÁ TỪ CLIENT ĐỂ BẢO MẬT */
     async function buyGroupAccounts(platform, price, maxStock, firstId, btnEl) {
         if (!currentUser) {
             showModal("Thông báo", "Vui lòng đăng nhập để mua tài khoản!");
@@ -807,7 +807,6 @@
 
             const { data, error } = await _supabase.rpc('mua_tai_khoan', {
                 p_platform: platform,
-                p_price: price,
                 p_qty: qty
             });
 
