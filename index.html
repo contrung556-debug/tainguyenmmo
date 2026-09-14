@@ -543,7 +543,6 @@
         });
 
         if (error) {
-            // Việt hóa lỗi đăng nhập sai tài khoản mật khẩu
             if (error.message.includes('Invalid login credentials')) {
                 showModal("Lỗi", "Sai tài khoản hoặc mật khẩu!");
             } else {
@@ -595,6 +594,14 @@
             return;
         }
 
+        let okBtn = document.getElementById("modalBtnOk");
+        let oldBtnText = okBtn ? okBtn.innerText : "Xác Nhận";
+        if (okBtn) {
+            okBtn.disabled = true;
+            okBtn.innerText = "⏳ Đang đăng ký...";
+        }
+
+        // 1. Tiến hành đăng ký tài khoản qua Supabase Auth
         const { data, error } = await _supabase.auth.signUp({
             email: email,
             password: pass,
@@ -602,6 +609,8 @@
                 captchaToken: captchaToken
             }
         });
+
+        if (okBtn) { okBtn.disabled = false; okBtn.innerText = oldBtnText; }
 
         if (error) {
             showModal("Lỗi", error.message);
@@ -614,8 +623,8 @@
                 username: username,
                 balance: 0
             });
+            
             if (memberErr) {
-                // Bẫy lỗi trùng tên đăng nhập
                 if (memberErr.code === '23505' || memberErr.message.includes('members_username_key')) {
                     showModal("Lỗi", "Tên đăng nhập đã tồn tại trên hệ thống!");
                 } else {
@@ -625,8 +634,14 @@
             }
         }
 
-        showModal("Thành công", "Đăng ký thành công! Bạn có thể sử dụng luôn.");
-        await updateAuthUI();
+        // 2. Đăng ký thành công -> Hiện thông báo yêu cầu đăng nhập lại
+        showModal("Thành công", "Bạn đã đăng ký thành công, vui lòng đăng nhập để sử dụng dịch vụ.", false, () => {
+            openLogin();
+            setTimeout(() => {
+                let emailInput = document.getElementById("popEmail");
+                if(emailInput) emailInput.value = email;
+            }, 100);
+        });
     }
 
     async function logout() {
