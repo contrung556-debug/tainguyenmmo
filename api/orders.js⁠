@@ -1,9 +1,10 @@
 export default async function handler(req, res) {
-  const realGasOrderUrl = process.env.GAS_ORDER_REAL; // Biến môi trường chứa link GAS Order
+  // Đổi từ GAS_ORDER_REAL sang GAS_ORDER_URL để khớp trực tiếp với Vercel
+  const realGasOrderUrl = process.env.GAS_ORDER_URL; 
   const { action, code, callback } = req.query;
 
   if (!realGasOrderUrl) {
-    return res.status(500).json({ status: 'error', message: 'Chưa cấu hình biến môi trường GAS_ORDER_REAL trên Vercel' });
+    return res.status(500).json({ status: 'error', message: 'Chưa cấu hình biến môi trường GAS_ORDER_URL trên Vercel' });
   }
 
   try {
@@ -14,7 +15,6 @@ export default async function handler(req, res) {
     res.setHeader('Access-Control-Allow-Origin', '*');
 
     if (callback) {
-      // Bắt buộc phải có đoạn này để các hàm tạo thẻ <script> động chạy được
       res.setHeader('Content-Type', 'application/javascript');
       return res.status(200).send(`${callback}(${textData});`);
     } else {
