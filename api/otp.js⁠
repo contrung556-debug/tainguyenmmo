@@ -1,26 +1,23 @@
 export default async function handler(req, res) {
-  const realGasUrl = process.env.GAS_OTP_REAL; // Biến môi trường chứa link GAS OTP
+  const realGasUrl = process.env.GAS_OTP_REAL;
   const { hide, callback } = req.query;
 
   if (!realGasUrl) {
-    return res.status(500).json({ status: 'error', message: 'Chưa cấu hình biến môi trường GAS_OTP_REAL trên Vercel' });
+    return res.status(500).json({ status: 'error', message: 'Chưa cấu hình GAS_OTP_REAL' });
   }
 
   try {
-    const response = await fetch(`${realGasUrl}?hide=${encodeURIComponent(hide || '')}`);
+    // Gọi thẳng sang Google Apps Script
+    const targetUrl = `${realGasUrl}?hide=${encodeURIComponent(hide || '')}`;
+    const response = await fetch(targetUrl);
     const textData = await response.text();
 
     res.setHeader('Access-Control-Allow-Origin', '*');
 
-    if (callback) {
-      // Hỗ trợ dạng JSONP nếu có yêu cầu callback
-      res.setHeader('Content-Type', 'application/javascript');
-      return res.status(200).send(`${callback}(${textData});`);
-    } else {
-      // Trả về JSON thuần cho lệnh fetch thông thường
-      res.setHeader('Content-Type', 'application/json');
-      return res.status(200).send(textData);
-    }
+    // Trả về kết quả thô nguyên bản dưới dạng JSON để client (HTML) tự parse qua response.json()
+    res.setHeader('Content-Type', 'application/json');
+    return res.status(200).send(textData);
+
   } catch (error) {
     return res.status(500).json({ status: 'error', message: error.message });
   }
