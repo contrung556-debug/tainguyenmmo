@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Shopee MMO Store - Cửa Hàng & Dịch Vụ</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
     <style>
         :root {
             --primary-color: #ee4d2d;
@@ -416,6 +417,7 @@
 
     const SUPABASE_URL = "https://hsdbjzkxbdezysxwwtaw.supabase.co";
     const SUPABASE_ANON_KEY = "sb_publishable_LIeDI4UVn7MEo5vURP05hA_TM4h0vFd";
+    const TURNSTILE_SITE_KEY = "0x4AAAAAAEzlm3TdqjzI-LxQ";
     const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     let currentUser = null;
@@ -507,48 +509,37 @@
         }
     }
 
-    function generateRandomTextCaptcha(length = 5) {
-        const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';
-        let result = '';
-        for (let i = 0; i < length; i++) {
-            result += chars.charAt(Math.floor(Math.random() * chars.length));
-        }
-        return result;
-    }
-
-    let currentLoginCaptchaText = '';
-    let currentRegCaptchaText = '';
-
     function openLogin() {
-        currentLoginCaptchaText = generateRandomTextCaptcha(5);
-
         showModal("ĐĂNG NHẬP", "", true, handleLogin, `
             <input type="email" id="popEmail" placeholder="Email đăng nhập...">
             <input type="password" id="popPass" placeholder="Mật khẩu...">
-            <div style="background: var(--primary-light); padding: 12px; border-radius: 10px; margin-bottom: 12px; border: 1px dashed var(--border-light); text-align: center;">
-                <label style="font-size: 12px; font-weight: 700; display: block; margin-bottom: 6px; color: var(--text-sub);">Nhập lại đoạn mã chữ bên dưới:</label>
-                <div style="background: #2c3e50; color: #fff; font-family: monospace; font-size: 20px; font-weight: 800; letter-spacing: 6px; padding: 10px; border-radius: 8px; margin-bottom: 8px; user-select: none; text-decoration: line-through wavy #ee4d2d;">
-                    ${currentLoginCaptchaText}
-                </div>
-                <input type="text" id="popCaptchaInput" placeholder="Nhập mã chữ..." style="margin-bottom: 0 !important; background: #fff; text-align: center; font-weight: 700; text-transform: uppercase;">
-            </div>
+            <div style="margin-bottom: 12px; display: flex; justify-content: center;" id="turnstile-login-container"></div>
         `);
+
+        if (typeof turnstile !== 'undefined') {
+            turnstile.render('#turnstile-login-container', {
+                sitekey: TURNSTILE_SITE_KEY
+            });
+        }
     }
 
     async function handleLogin(res) {
         if(!res) return;
         let email = document.getElementById("popEmail").value.trim();
         let pass = document.getElementById("popPass").value.trim();
-        let captchaInput = document.getElementById("popCaptchaInput").value.trim();
+        let captchaToken = document.querySelector('[name="cf-turnstile-response"]')?.value;
 
-        if (captchaInput !== currentLoginCaptchaText) {
-            showModal("Lỗi", "Mã xác thực (Captcha chữ) không chính xác!");
+        if (!captchaToken) {
+            showModal("Lỗi", "Vui lòng xác thực Captcha!");
             return;
         }
 
         const { data, error } = await _supabase.auth.signInWithPassword({
             email: email,
-            password: pass
+            password: pass,
+            options: {
+                captchaToken: captchaToken
+            }
         });
 
         if (error) {
@@ -561,21 +552,19 @@
     }
 
     function openRegister() {
-        currentRegCaptchaText = generateRandomTextCaptcha(5);
-
         showModal("ĐĂNG KÝ", "", true, handleReg, `
             <input type="text" id="regUser" placeholder="Tên đăng nhập (Username)...">
             <input type="email" id="regEmail" placeholder="Email của bạn...">
             <input type="password" id="regPass" placeholder="Mật khẩu...">
             <input type="password" id="regPassConfirm" placeholder="Nhập lại mật khẩu...">
-            <div style="background: var(--primary-light); padding: 12px; border-radius: 10px; margin-bottom: 12px; border: 1px dashed var(--border-light); text-align: center;">
-                <label style="font-size: 12px; font-weight: 700; display: block; margin-bottom: 6px; color: var(--text-sub);">Nhập lại đoạn mã chữ bên dưới:</label>
-                <div style="background: #2c3e50; color: #fff; font-family: monospace; font-size: 20px; font-weight: 800; letter-spacing: 6px; padding: 10px; border-radius: 8px; margin-bottom: 8px; user-select: none; text-decoration: line-through wavy #ee4d2d;">
-                    ${currentRegCaptchaText}
-                </div>
-                <input type="text" id="regCaptchaInput" placeholder="Nhập mã chữ..." style="margin-bottom: 0 !important; background: #fff; text-align: center; font-weight: 700; text-transform: uppercase;">
-            </div>
+            <div style="margin-bottom: 12px; display: flex; justify-content: center;" id="turnstile-reg-container"></div>
         `);
+
+        if (typeof turnstile !== 'undefined') {
+            turnstile.render('#turnstile-reg-container', {
+                sitekey: TURNSTILE_SITE_KEY
+            });
+        }
     }
 
     async function handleReg(res) {
@@ -584,15 +573,15 @@
         let email = document.getElementById("regEmail").value.trim();
         let pass = document.getElementById("regPass").value.trim();
         let passConfirm = document.getElementById("regPassConfirm").value.trim();
-        let captchaInput = document.getElementById("regCaptchaInput").value.trim();
+        let captchaToken = document.querySelector('[name="cf-turnstile-response"]')?.value;
 
         if (!username || !email || !pass) {
             showModal("Lỗi", "Vui lòng nhập đầy đủ thông tin!");
             return;
         }
 
-        if (captchaInput !== currentRegCaptchaText) {
-            showModal("Lỗi", "Mã xác thực (Captcha chữ) không chính xác!");
+        if (!captchaToken) {
+            showModal("Lỗi", "Vui lòng xác thực Captcha!");
             return;
         }
 
@@ -603,7 +592,10 @@
 
         const { data, error } = await _supabase.auth.signUp({
             email: email,
-            password: pass
+            password: pass,
+            options: {
+                captchaToken: captchaToken
+            }
         });
 
         if (error) {
@@ -857,7 +849,6 @@
                             var safeEmail = escapeHtml(data.hide_email_tin);
                             var safeOtp = escapeHtml(data.otp || 'Không có');
                             
-                            // Đã kiểm tra bảo mật giao thức http:// hoặc https://
                             var rawLink = data.link_xac_thuc_tai_day || '';
                             var isValidUrl = rawLink.startsWith('http://') || rawLink.startsWith('https://');
                             var safeLink = escapeHtml(rawLink);
