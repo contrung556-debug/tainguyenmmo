@@ -1,3 +1,7 @@
+https://script.google.com/macros/s/AKfycby-OJMbiGIclQY0S9gz4S7gsjQEq0u9zX9ge7xV5OubjEO9Rh456wH-0W4xkXMAdewbHg/exec
+
+
+
 {
   "rewrites": [
     {
@@ -6,7 +10,7 @@
     },
     {
       "source": "/api/order",
-      "destination": "https://script.google.com/macros/s/AKfycbxSO_B7KYFmTvJ9XTUMI4jU8N2Vyz0GwMnqxk3T0PnX-rcKtfGu5b0DTzNgHPovJVVIRw/exec"
+      "destination": "https://script.google.com/macros/s/AKfycby-OJMbiGIclQY0S9gz4S7gsjQEq0u9zX9ge7xV5OubjEO9Rh456wH-0W4xkXMAdewbHg/exec"
     }
   ]
 }
