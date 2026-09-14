@@ -543,7 +543,12 @@
         });
 
         if (error) {
-            showModal("Lỗi", error.message || "Đăng nhập thất bại!");
+            // Việt hóa lỗi đăng nhập sai tài khoản mật khẩu
+            if (error.message.includes('Invalid login credentials')) {
+                showModal("Lỗi", "Sai tài khoản hoặc mật khẩu!");
+            } else {
+                showModal("Lỗi", error.message || "Đăng nhập thất bại!");
+            }
             return;
         }
 
@@ -610,7 +615,12 @@
                 balance: 0
             });
             if (memberErr) {
-                showModal("Lỗi", "Tạo tài khoản members thất bại: " + memberErr.message);
+                // Bẫy lỗi trùng tên đăng nhập
+                if (memberErr.code === '23505' || memberErr.message.includes('members_username_key')) {
+                    showModal("Lỗi", "Tên đăng nhập đã tồn tại trên hệ thống!");
+                } else {
+                    showModal("Lỗi", "Tạo tài khoản members thất bại: " + memberErr.message);
+                }
                 return;
             }
         }
