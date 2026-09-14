@@ -785,7 +785,6 @@
         showModal("Thành công", "Đã sao chép tất cả thông tin tài khoản vào bộ nhớ tạm!");
     }
 
-    /* ĐÃ BỎ TRUYỀN GIÁ TỪ CLIENT ĐỂ BẢO MẬT */
     async function buyGroupAccounts(platform, price, maxStock, firstId, btnEl) {
         if (!currentUser) {
             showModal("Thông báo", "Vui lòng đăng nhập để mua tài khoản!");
@@ -857,12 +856,21 @@
                         if (data.status === "success") {
                             var safeEmail = escapeHtml(data.hide_email_tin);
                             var safeOtp = escapeHtml(data.otp || 'Không có');
-                            var safeLink = escapeHtml(data.link_xac_thuc_tai_day);
+                            
+                            // Đã kiểm tra bảo mật giao thức http:// hoặc https://
+                            var rawLink = data.link_xac_thuc_tai_day || '';
+                            var isValidUrl = rawLink.startsWith('http://') || rawLink.startsWith('https://');
+                            var safeLink = escapeHtml(rawLink);
+
+                            var linkHtml = (isValidUrl && safeLink !== "Không có") 
+                                ? `<a href="${safeLink}" target="_blank" style="display:block; margin-top:8px; background:#3182ce; color:white; padding:9px; text-align:center; border-radius:8px; text-decoration:none; font-weight:700; font-size:12px;">MỞ LINK XÁC THỰC</a>` 
+                                : '';
+
                             resultDiv.innerHTML = `
                                 <div style="background: var(--primary-light); padding: 12px; border-radius: 10px; border: 1px solid var(--primary-color);">
                                     <b>Email:</b> ${safeEmail}<br>
                                     <b>OTP:</b> <span style="color:#d35400; font-size:16px; font-weight:800;">${safeOtp}</span><br>
-                                    ${(safeLink && safeLink !== "Không có") ? `<a href="${safeLink}" target="_blank" style="display:block; margin-top:8px; background:#3182ce; color:white; padding:9px; text-align:center; border-radius:8px; text-decoration:none; font-weight:700; font-size:12px;">MỞ LINK XÁC THỰC</a>` : ''}
+                                    ${linkHtml}
                                 </div>`;
                         } else {
                             resultDiv.innerHTML = `<span style="color: #e74c3c;">⚠️ ${escapeHtml(data.message || 'Không tìm thấy dữ liệu')}</span>`;
