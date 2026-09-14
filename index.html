@@ -184,7 +184,7 @@
         .order-btn-del { flex: 1; background: #e74c3c; color: white; border: none; padding: 8px; border-radius: 8px; font-size: 12px; font-weight: 700; cursor: pointer; transition: opacity 0.2s; }
         .order-btn-check:active, .order-btn-edit:active, .order-btn-del:active { opacity: 0.8; }
 
-        /* Sub Tabs */
+        /* Sub Tabs - Đã tối ưu hiển thị trọn vẹn trên điện thoại */
         .sub-tab-container { 
             display: flex; 
             background: var(--primary-light); 
@@ -193,18 +193,20 @@
             margin-bottom: 14px; 
             border: 1px solid var(--border-light); 
             overflow-x: auto; 
-            gap: 6px; 
+            gap: 4px; 
             align-items: center; 
             scrollbar-width: none;
+            -webkit-overflow-scrolling: touch;
         }
         .sub-tab-container::-webkit-scrollbar { display: none; }
         .sub-tab-btn { 
-            flex: 0 0 auto; 
-            padding: 8px 12px; 
+            flex: 1 1 auto; 
+            min-width: max-content;
+            padding: 8px 8px; 
             border: none; 
             background: transparent; 
             font-weight: 700; 
-            font-size: 12px; 
+            font-size: 11.5px; 
             color: var(--primary-color); 
             cursor: pointer; 
             border-radius: 8px; 
@@ -993,7 +995,6 @@
         renderOrders(filtered);
     }
 
-    // --- CẬP NHẬT DÙNG FETCH (AN TOÀN HƠN) ---
     async function checkSingleOrder(orderCode) {
         let safeCode = escapeHtml(orderCode);
         showModal("Đang kiểm tra", `Đang check đơn #${safeCode}...`);
@@ -1042,7 +1043,6 @@
             }
         }
     }
-    // ----------------------------------------
 
     function editOrder(id, code, prod, email) {
         const safeCode = escapeHtml(code);
