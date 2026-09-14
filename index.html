@@ -178,7 +178,6 @@
     const SUPABASE_ANON_KEY = "sb_publishable_LIeDI4UVn7MEo5vURP05hA_TM4h0vFd";
     const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-    // Gọi qua Vercel Serverless Proxy (Bảo mật tuyệt đối link GAS)
     const GAS_OTP_URL = "/api/otp";
     const GAS_ORDER_URL = "/api/order";
 
@@ -566,7 +565,10 @@
         resultDiv.innerHTML = `<span style="color: #e67e22;">⏳ Đang kết nối...</span>`;
 
         try {
-            let response = await fetch(`${GAS_OTP_URL}?hide=${encodeURIComponent(val)}`);
+            // SỬ DỤNG ĐƯỜNG DẪN TUYỆT ĐỐI ĐỂ KHÔNG BỊ LỖI PATTERN TRÊN ĐIỆN THOẠI
+            let targetUrl = window.location.origin + GAS_OTP_URL + `?hide=` + encodeURIComponent(val);
+            
+            let response = await fetch(targetUrl);
             let data = await response.json();
 
             if(btnEl) { btnEl.disabled = false; btnEl.innerText = "Lấy Link Xác Thực / OTP"; }
@@ -709,7 +711,7 @@
             delete window[cb];
         };
         let s = document.createElement('script');
-        s.src = `${GAS_ORDER_URL}?action=check_one&code=${encodeURIComponent(orderCode)}&callback=${cb}`;
+        s.src = window.location.origin + GAS_ORDER_URL + `?action=check_one&code=${encodeURIComponent(orderCode)}&callback=${cb}`;
         document.body.appendChild(s);
     }
 
@@ -778,7 +780,7 @@
             delete window[cb];
         };
         let s = document.createElement('script');
-        s.src = `${GAS_ORDER_URL}?action=check_all&callback=${cb}`;
+        s.src = window.location.origin + GAS_ORDER_URL + `?action=check_all&callback=${cb}`;
         document.body.appendChild(s);
     }
 
