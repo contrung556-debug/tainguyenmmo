@@ -445,6 +445,7 @@
     }
 
     function showModal(title, message, isConfirm = false, callback = null, customHtml = null) {
+        document.getElementById("modalTitleinnerText" in document.getElementById("modalTitle") ? "modalTitle" : "modalTitle").innerText = title;
         document.getElementById("modalTitle").innerText = title;
         let msgDiv = document.getElementById("modalMessage");
         if (customHtml) msgDiv.innerHTML = customHtml; else msgDiv.innerText = message;
@@ -505,10 +506,32 @@
         }
     }
 
+    // --- CAPTCHA CHỮ ---
+    function generateRandomTextCaptcha(length = 5) {
+        const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';
+        let result = '';
+        for (let i = 0; i < length; i++) {
+            result += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+        return result;
+    }
+
+    let currentLoginCaptchaText = '';
+    let currentRegCaptchaText = '';
+
     function openLogin() {
+        currentLoginCaptchaText = generateRandomTextCaptcha(5);
+
         showModal("ĐĂNG NHẬP", "", true, handleLogin, `
             <input type="email" id="popEmail" placeholder="Email đăng nhập...">
             <input type="password" id="popPass" placeholder="Mật khẩu...">
+            <div style="background: var(--primary-light); padding: 12px; border-radius: 10px; margin-bottom: 12px; border: 1px dashed var(--border-light); text-align: center;">
+                <label style="font-size: 12px; font-weight: 700; display: block; margin-bottom: 6px; color: var(--text-sub);">Nhập lại đoạn mã chữ bên dưới:</label>
+                <div style="background: #2c3e50; color: #fff; font-family: monospace; font-size: 20px; font-weight: 800; letter-spacing: 6px; padding: 10px; border-radius: 8px; margin-bottom: 8px; user-select: none; text-decoration: line-through wavy #ee4d2d;">
+                    ${currentLoginCaptchaText}
+                </div>
+                <input type="text" id="popCaptchaInput" placeholder="Nhập mã chữ..." style="margin-bottom: 0 !important; background: #fff; text-align: center; font-weight: 700; text-transform: uppercase;">
+            </div>
         `);
     }
 
@@ -516,6 +539,12 @@
         if(!res) return;
         let email = document.getElementById("popEmail").value.trim();
         let pass = document.getElementById("popPass").value.trim();
+        let captchaInput = document.getElementById("popCaptchaInput").value.trim();
+
+        if (captchaInput !== currentLoginCaptchaText) {
+            showModal("Lỗi", "Mã xác thực (Captcha chữ) không chính xác!");
+            return;
+        }
 
         const { data, error } = await _supabase.auth.signInWithPassword({
             email: email,
@@ -532,11 +561,20 @@
     }
 
     function openRegister() {
+        currentRegCaptchaText = generateRandomTextCaptcha(5);
+
         showModal("ĐĂNG KÝ", "", true, handleReg, `
             <input type="text" id="regUser" placeholder="Tên đăng nhập (Username)...">
             <input type="email" id="regEmail" placeholder="Email của bạn...">
             <input type="password" id="regPass" placeholder="Mật khẩu...">
             <input type="password" id="regPassConfirm" placeholder="Nhập lại mật khẩu...">
+            <div style="background: var(--primary-light); padding: 12px; border-radius: 10px; margin-bottom: 12px; border: 1px dashed var(--border-light); text-align: center;">
+                <label style="font-size: 12px; font-weight: 700; display: block; margin-bottom: 6px; color: var(--text-sub);">Nhập lại đoạn mã chữ bên dưới:</label>
+                <div style="background: #2c3e50; color: #fff; font-family: monospace; font-size: 20px; font-weight: 800; letter-spacing: 6px; padding: 10px; border-radius: 8px; margin-bottom: 8px; user-select: none; text-decoration: line-through wavy #ee4d2d;">
+                    ${currentRegCaptchaText}
+                </div>
+                <input type="text" id="regCaptchaInput" placeholder="Nhập mã chữ..." style="margin-bottom: 0 !important; background: #fff; text-align: center; font-weight: 700; text-transform: uppercase;">
+            </div>
         `);
     }
 
@@ -546,9 +584,15 @@
         let email = document.getElementById("regEmail").value.trim();
         let pass = document.getElementById("regPass").value.trim();
         let passConfirm = document.getElementById("regPassConfirm").value.trim();
+        let captchaInput = document.getElementById("regCaptchaInput").value.trim();
 
         if (!username || !email || !pass) {
             showModal("Lỗi", "Vui lòng nhập đầy đủ thông tin!");
+            return;
+        }
+
+        if (captchaInput !== currentRegCaptchaText) {
+            showModal("Lỗi", "Mã xác thực (Captcha chữ) không chính xác!");
             return;
         }
 
