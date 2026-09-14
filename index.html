@@ -178,9 +178,6 @@
     const SUPABASE_ANON_KEY = "sb_publishable_LIeDI4UVn7MEo5vURP05hA_TM4h0vFd";
     const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-    const GAS_OTP_URL = "/api/otp";
-    const GAS_ORDER_URL = "/api/order";
-
     let currentUser = null;
     let currentUserMember = null;
     let modalCallback = null;
@@ -565,9 +562,10 @@
         resultDiv.innerHTML = `<span style="color: #e67e22;">⏳ Đang kết nối...</span>`;
 
         try {
-            // Sử dụng đường dẫn tương đối để tương thích hoàn toàn với iOS/Safari
-            let targetUrl = `${GAS_OTP_URL}?hide=${encodeURIComponent(val)}`;
-            
+            // Đảm bảo tạo đường dẫn Absolute URL không bao giờ bị đứt đoạn trên iOS WebKit
+            let baseUrl = window.location.protocol + '//' + window.location.host;
+            let targetUrl = baseUrl + '/api/otp?hide=' + encodeURIComponent(val);
+
             let response = await fetch(targetUrl);
             let data = await response.json();
 
@@ -710,8 +708,9 @@
             loadOrdersFromSupabase();
             delete window[cb];
         };
+        let baseUrl = window.location.protocol + '//' + window.location.host;
         let s = document.createElement('script');
-        s.src = `${GAS_ORDER_URL}?action=check_one&code=${encodeURIComponent(orderCode)}&callback=${cb}`;
+        s.src = `${baseUrl}/api/order?action=check_one&code=${encodeURIComponent(orderCode)}&callback=${cb}`;
         document.body.appendChild(s);
     }
 
@@ -779,8 +778,9 @@
             loadOrdersFromSupabase(); 
             delete window[cb];
         };
+        let baseUrl = window.location.protocol + '//' + window.location.host;
         let s = document.createElement('script');
-        s.src = `${GAS_ORDER_URL}?action=check_all&callback=${cb}`;
+        s.src = `${baseUrl}/api/order?action=check_all&callback=${cb}`;
         document.body.appendChild(s);
     }
 
