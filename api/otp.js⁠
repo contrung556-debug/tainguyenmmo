@@ -1,24 +1,11 @@
 export default async function handler(req, res) {
-  const rawUrl = process.env.GAS_OTP_URL;
-  const { hide } = req.query;
-
-  if (!rawUrl || !rawUrl.startsWith('http')) {
-    return res.status(500).json({ 
-      status: 'error', 
-      message: 'GAS_OTP_URL chưa được cấu hình đúng trên Vercel' 
-    });
-  }
-
+  const targetUrl = `${process.env.GAS_OTP_URL}?${new URLSearchParams(req.query).toString()}`;
   try {
-    const targetUrl = `${rawUrl.trim()}?hide=${encodeURIComponent(hide || '')}`;
     const response = await fetch(targetUrl);
-    const textData = await response.text();
-
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Content-Type', 'application/json; charset=utf-8');
-    return res.status(200).send(textData);
-
+    const data = await response.text();
+    res.setHeader('Content-Type', 'application/json');
+    res.status(200).send(data);
   } catch (error) {
-    return res.status(500).json({ status: 'error', message: error.message });
+    res.status(500).json({ status: "error", message: "Server error" });
   }
 }
