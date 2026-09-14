@@ -1,22 +1,21 @@
 export default async function handler(req, res) {
-  // Đổi từ GAS_OTP_REAL sang GAS_OTP_URL để khớp với Vercel
-  const realGasUrl = process.env.GAS_OTP_URL;
-  const { hide, callback } = req.query;
+  const rawUrl = process.env.GAS_OTP_URL;
+  const { hide } = req.query;
 
-  if (!realGasUrl) {
-    return res.status(500).json({ status: 'error', message: 'Chưa cấu hình GAS_OTP_URL' });
+  if (!rawUrl || !rawUrl.startsWith('http')) {
+    return res.status(500).json({ 
+      status: 'error', 
+      message: 'GAS_OTP_URL chưa được cấu hình đúng trên Vercel' 
+    });
   }
 
   try {
-    // Gọi thẳng sang Google Apps Script
-    const targetUrl = `${realGasUrl}?hide=${encodeURIComponent(hide || '')}`;
+    const targetUrl = `${rawUrl.trim()}?hide=${encodeURIComponent(hide || '')}`;
     const response = await fetch(targetUrl);
     const textData = await response.text();
 
     res.setHeader('Access-Control-Allow-Origin', '*');
-
-    // Trả về kết quả thô nguyên bản dưới dạng JSON để client (HTML) tự parse qua response.json()
-    res.setHeader('Content-Type', 'application/json');
+    res.setHeader('Content-Type', 'application/json; charset=utf-8');
     return res.status(200).send(textData);
 
   } catch (error) {
