@@ -1,9 +1,10 @@
 export default async function handler(req, res) {
-  const realGasUrl = process.env.GAS_OTP_REAL;
+  // Đổi từ GAS_OTP_REAL sang GAS_OTP_URL để khớp với Vercel
+  const realGasUrl = process.env.GAS_OTP_URL;
   const { hide, callback } = req.query;
 
   if (!realGasUrl) {
-    return res.status(500).json({ status: 'error', message: 'Chưa cấu hình GAS_OTP_REAL' });
+    return res.status(500).json({ status: 'error', message: 'Chưa cấu hình GAS_OTP_URL' });
   }
 
   try {
