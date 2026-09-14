@@ -553,7 +553,8 @@
         });
     }
 
-    async function fetchOtpLink(btnEl) {
+    // Hàm lấy OTP sử dụng XMLHttpRequest tương thích 100% với iOS Safari & Chrome WebKit
+    function fetchOtpLink(btnEl) {
         let val = document.getElementById("fetchInputEmail").value.trim();
         let resultDiv = document.getElementById("fetchResult");
         if (!val) { showModal("Thông Báo", "Vui lòng nhập tên hoặc email!"); return; }
@@ -561,33 +562,45 @@
         if(btnEl) { btnEl.disabled = true; btnEl.innerText = "⏳ Đang kết nối..."; }
         resultDiv.innerHTML = `<span style="color: #e67e22;">⏳ Đang kết nối...</span>`;
 
-        try {
-            // Đảm bảo tạo đường dẫn Absolute URL không bao giờ bị đứt đoạn trên iOS WebKit
-            let baseUrl = window.location.protocol + '//' + window.location.host;
-            let targetUrl = baseUrl + '/api/otp?hide=' + encodeURIComponent(val);
+        var xhr = new XMLHttpRequest();
+        var targetUrl = '/api/otp?hide=' + encodeURIComponent(val);
 
-            let response = await fetch(targetUrl);
-            let data = await response.json();
-
-            if(btnEl) { btnEl.disabled = false; btnEl.innerText = "Lấy Link Xác Thực / OTP"; }
-
-            if (data.status === "success") {
-                const safeEmail = escapeHtml(data.hide_email_tin);
-                const safeOtp = escapeHtml(data.otp || 'Không có');
-                const safeLink = escapeHtml(data.link_xac_thuc_tai_day);
-                resultDiv.innerHTML = `
-                    <div style="background: #fff8f5; padding: 10px; border-radius: 8px; border: 1px solid #ee4d2d;">
-                        <b>Email:</b> ${safeEmail}<br>
-                        <b>OTP:</b> <span style="color:#d35400; font-size:15px; font-weight:bold;">${safeOtp}</span><br>
-                        ${(safeLink && safeLink !== "Không có") ? `<a href="${safeLink}" target="_blank" style="display:block; margin-top:6px; background:#3498db; color:white; padding:7px; text-align:center; border-radius:6px; text-decoration:none; font-weight:bold; font-size:12px;">MỞ LINK XÁC THỰC</a>` : ''}
-                    </div>`;
-            } else {
-                resultDiv.innerHTML = `<span style="color: #c0392b;">⚠️ ${escapeHtml(data.message || 'Không tìm thấy dữ liệu')}</span>`;
+        xhr.open('GET', targetUrl, true);
+        xhr.onreadystatechange = function() {
+            if (xhr.readyState === 4) {
+                if(btnEl) { btnEl.disabled = false; btnEl.innerText = "Lấy Link Xác Thực / OTP"; }
+                
+                if (xhr.status === 200) {
+                    try {
+                        var data = JSON.parse(xhr.responseText);
+                        if (data.status === "success") {
+                            var safeEmail = escapeHtml(data.hide_email_tin);
+                            var safeOtp = escapeHtml(data.otp || 'Không có');
+                            var safeLink = escapeHtml(data.link_xac_thuc_tai_day);
+                            resultDiv.innerHTML = `
+                                <div style="background: #fff8f5; padding: 10px; border-radius: 8px; border: 1px solid #ee4d2d;">
+                                    <b>Email:</b> ${safeEmail}<br>
+                                    <b>OTP:</b> <span style="color:#d35400; font-size:15px; font-weight:bold;">${safeOtp}</span><br>
+                                    ${(safeLink && safeLink !== "Không có") ? `<a href="${safeLink}" target="_blank" style="display:block; margin-top:6px; background:#3498db; color:white; padding:7px; text-align:center; border-radius:6px; text-decoration:none; font-weight:bold; font-size:12px;">MỞ LINK XÁC THỰC</a>` : ''}
+                                </div>`;
+                        } else {
+                            resultDiv.innerHTML = `<span style="color: #c0392b;">⚠️ ${escapeHtml(data.message || 'Không tìm thấy dữ liệu')}</span>`;
+                        }
+                    } catch(e) {
+                        resultDiv.innerHTML = `<span style="color: #c0392b;">⚠️ Phản hồi từ server không đúng định dạng.</span>`;
+                    }
+                } else {
+                    resultDiv.innerHTML = `<span style="color: #c0392b;">⚠️ Lỗi phản hồi server (Mã: ${xhr.status}).</span>`;
+                }
             }
-        } catch (err) {
+        };
+        
+        xhr.onerror = function() {
             if(btnEl) { btnEl.disabled = false; btnEl.innerText = "Lấy Link Xác Thực / OTP"; }
-            resultDiv.innerHTML = `<span style="color: #c0392b;">⚠️ Lỗi kết nối đến server: ${escapeHtml(err.message)}</span>`;
-        }
+            resultDiv.innerHTML = `<span style="color: #c0392b;">⚠️ Không thể kết nối server. Vui lòng kiểm tra lại mạng.</span>`;
+        };
+
+        xhr.send();
     }
 
     function switchDepositTab(type) {
