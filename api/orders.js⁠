@@ -1,13 +1,27 @@
 export default async function handler(req, res) {
-    const { action, code = '' } = req.query;
+  const realGasOrderUrl = process.env.GAS_ORDER_REAL; // Biến môi trường chứa link GAS Order
+  const { action, code, callback } = req.query;
 
-    try {
-        const response = await fetch(`${process.env.GAS_ORDER_URL}?action=${action}&code=${encodeURIComponent(code)}&callback=vercel_cb`);
-        const text = await response.text();
-        const jsonString = text.replace(/^vercel_cb\((.*)\)$/s, "$1");
-        
-        return res.status(200).json(JSON.parse(jsonString));
-    } catch (error) {
-        return res.status(500).json({ success: false, message: "Lỗi kết nối App Script" });
+  if (!realGasOrderUrl) {
+    return res.status(500).json({ status: 'error', message: 'Chưa cấu hình biến môi trường GAS_ORDER_REAL trên Vercel' });
+  }
+
+  try {
+    let targetUrl = `${realGasOrderUrl}?action=${encodeURIComponent(action || '')}&code=${encodeURIComponent(code || '')}`;
+    const response = await fetch(targetUrl);
+    const textData = await response.text();
+
+    res.setHeader('Access-Control-Allow-Origin', '*');
+
+    if (callback) {
+      // Bắt buộc phải có đoạn này để các hàm tạo thẻ <script> động chạy được
+      res.setHeader('Content-Type', 'application/javascript');
+      return res.status(200).send(`${callback}(${textData});`);
+    } else {
+      res.setHeader('Content-Type', 'application/json');
+      return res.status(200).send(textData);
     }
+  } catch (error) {
+    return res.status(500).json({ status: 'error', message: error.message });
+  }
 }
