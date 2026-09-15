@@ -404,7 +404,7 @@
         </div>
 
         <div id="depositSingleForm">
-            <input type="text" id="inputOrderCode" placeholder="Mã đơn hàng Shopee">
+            <input type="text" id="inputOrderCode" placeholder="Mã đơn hàng Shopee (Ví dụ: 260909J3YPFEUP)">
             <input type="text" id="inputProductName" placeholder="Tên sản phẩm">
             <input type="number" id="inputAmount" placeholder="Số tiền thanh toán (VNĐ) - Ví dụ: 50000">
             <input type="text" id="inputEmail" placeholder="Email hòm thư iCloud">
@@ -447,6 +447,12 @@
             .replace(/'/g, "&#039;");
     }
 
+    // Hàm làm sạch mã đơn (Cắt bỏ dấu # và khoảng trắng thừa)
+    function cleanOrderCode(code) {
+        if (!code) return '';
+        return code.toString().replace(/^#/, '').trim();
+    }
+
     const SUPABASE_URL = "https://hsdbjzkxbdezysxwwtaw.supabase.co";
     const SUPABASE_ANON_KEY = "sb_publishable_LIeDI4UVn7MEo5vURP05hA_TM4h0vFd";
     const TURNSTILE_SITE_KEY = "0x4AAAAAAEzlm3TdqjzI-LxQ";
@@ -459,9 +465,6 @@
     let currentCategory = 'Shopee';
     let realtimeChannel = null;
 
-    /**
-     * Hàm lấy Supabase Access Token hiện tại
-     */
     async function getSupabaseAccessToken() {
         const { data: { session }, error } = await _supabase.auth.getSession();
         if (error || !session) {
@@ -604,9 +607,7 @@
         const { data, error } = await _supabase.auth.signInWithPassword({
             email: email,
             password: pass,
-            options: {
-                captchaToken: captchaToken
-            }
+            options: { captchaToken: captchaToken }
         });
 
         if (error) {
@@ -671,9 +672,7 @@
         const { data, error } = await _supabase.auth.signUp({
             email: email,
             password: pass,
-            options: {
-                captchaToken: captchaToken
-            }
+            options: { captchaToken: captchaToken }
         });
 
         if (okBtn) { okBtn.disabled = false; okBtn.innerText = oldBtnText; }
@@ -982,7 +981,9 @@
 
     async function addNewOrder(btnEl) {
         if(!currentUser) { showModal("Lỗi", "Vui lòng đăng nhập!"); return; }
-        let c = document.getElementById("inputOrderCode").value.trim();
+        
+        let rawCode = document.getElementById("inputOrderCode").value;
+        let c = cleanOrderCode(rawCode); // Chuẩn hóa mã đơn cắt bỏ #
         let e = document.getElementById("inputEmail").value.trim();
         let n = document.getElementById("inputProductName").value.trim() || 'Đơn Shopee';
         let a = parseInt(document.getElementById("inputAmount").value) || 0;
@@ -1016,7 +1017,7 @@
             }
         }
 
-        showModal("Thành công", "Đã nạp đơn!");
+        showModal("Thành công", "Đã nạp đơn vào hệ thống!");
         document.getElementById("inputOrderCode").value = "";
         document.getElementById("inputProductName").value = "";
         document.getElementById("inputAmount").value = "";
@@ -1030,7 +1031,7 @@
         let insertData = lines.map(line => {
             let p = line.split('|').map(x=>x.trim());
             return p[0] ? { 
-                order_code: p[0], 
+                order_code: cleanOrderCode(p[0]), // Chuẩn hóa mã đơn
                 email: p[1] || 'none@icloud.com', 
                 product_name: p[2] || 'Đơn Shopee', 
                 amount: p[3] ? (parseInt(p[3].replace(/\D/g, '')) || 0) : 0,
@@ -1075,7 +1076,9 @@
             orders.forEach(o => {
                 let isSuccess = o.status === 'Đã giao' || o.status === 'Đã giao thành công' || (o.status && o.status.includes('Đã giao'));
                 let timeStr = o.created_at ? new Date(o.created_at).toLocaleString('vi-VN') : '';
-                const safeCode = escapeHtml(o.order_code);
+                
+                const cleanCode = cleanOrderCode(o.order_code);
+                const safeCode = escapeHtml(cleanCode);
                 const safeStatus = escapeHtml(o.status || 'Đang chờ giao');
                 const safeProd = escapeHtml(o.product_name || 'Đơn Shopee');
                 const safeEmail = escapeHtml(o.email);
@@ -1097,7 +1100,7 @@
 
                     <div class="order-actions">
                         <button class="order-btn-check" onclick="checkSingleOrder('${safeCode}')">🔍 Check</button>
-                        <button class="order-btn-edit" onclick="editOrder(${o.id}, '${safeCode}', '${safeProd}', '${safeEmail}', ${o.amount || 0})">✏️ Sửa</button>
+                        <button class="order-btn-edit" onclick="editOrder(${o.id}, '${safeCode}', '${encodeURIComponent(o.product_name || '')}', '${encodeURIComponent(o.email || '')}', ${o.amount || 0})">✏️ Sửa</button>
                         <button class="order-btn-del" onclick="deleteOrder(${o.id})">🗑️ Xóa</button>
                     </div>
                 </div>`;
@@ -1115,9 +1118,6 @@
         renderOrders(filtered);
     }
 
-    /**
-     * KIỂM TRA 1 ĐƠN HÀNG (Đã tích hợp Token Supabase)
-     */
     async function checkSingleOrder(orderCode) {
         if (!currentUser) { 
             showModal("Thông báo", "Vui lòng đăng nhập để thực hiện!"); 
@@ -1127,12 +1127,13 @@
         const token = await getSupabaseAccessToken();
         if (!token) return;
 
-        let safeCode = escapeHtml(orderCode);
+        let cleanCode = cleanOrderCode(orderCode);
+        let safeCode = escapeHtml(cleanCode);
         showModal("Đang kiểm tra", `Đang quét Gmail cho đơn #${safeCode}...`);
         
         try {
             let baseUrl = window.location.protocol + '//' + window.location.host;
-            let response = await fetch(`${baseUrl}/api/order?action=check_one&code=${encodeURIComponent(orderCode)}&token=${encodeURIComponent(token)}`);
+            let response = await fetch(`${baseUrl}/api/order?action=check_one&code=${encodeURIComponent(cleanCode)}&token=${encodeURIComponent(token)}`);
             
             if (!response.ok) {
                 throw new Error(`Lỗi phản hồi server: ${response.status}`);
@@ -1146,9 +1147,6 @@
         }
     }
 
-    /**
-     * QUÉT TOÀN BỘ ĐƠN HÀNG (Đã tích hợp Token Supabase)
-     */
     async function checkAllOrders(btnEl) {
         if (!currentUser) { 
             showModal("Thông báo", "Vui lòng đăng nhập để thực hiện!"); 
@@ -1186,15 +1184,15 @@
         }
     }
 
-    function editOrder(id, code, prod, email, amount) {
-        const safeCode = escapeHtml(code);
-        const safeProd = escapeHtml(prod);
-        const safeEmail = escapeHtml(email);
+    function editOrder(id, code, encodedProd, encodedEmail, amount) {
+        const safeCode = escapeHtml(cleanOrderCode(code));
+        const safeProd = escapeHtml(decodeURIComponent(encodedProd));
+        const safeEmail = escapeHtml(decodeURIComponent(encodedEmail));
         const currentAmount = parseInt(amount) || 0;
 
         showModal("Sửa Đơn Hàng", "", true, async (res) => {
             if(res) {
-                let newCode = document.getElementById("editCode").value.trim();
+                let newCode = cleanOrderCode(document.getElementById("editCode").value);
                 let newProd = document.getElementById("editProd").value.trim();
                 let newAmount = parseInt(document.getElementById("editAmount").value) || 0;
                 let newEmail = document.getElementById("editEmail").value.trim();
