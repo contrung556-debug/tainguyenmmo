@@ -417,9 +417,20 @@
         </div>
         
         <div style="margin-top: 12px;">
+            <!-- THANH BỘ LỌC TRẠNG THÁI (TABS) CHO ĐƠN HÀNG -->
+            <div class="sub-tab-container" style="margin-bottom: 10px;">
+                <button class="sub-tab-btn active" id="orderTab-all" onclick="switchOrderTab('all')">Tất cả</button>
+                <button class="sub-tab-btn" id="orderTab-completed" onclick="switchOrderTab('completed')">Đã giao</button>
+                <button class="sub-tab-btn" id="orderTab-pending" onclick="switchOrderTab('pending')">Đang chờ</button>
+            </div>
+
             <input type="text" id="searchOrderInput" placeholder="🔍 Tìm kiếm nhanh mã đơn hoặc tên sản phẩm..." oninput="filterOrders()">
             <button id="btnCheckAllOrders" class="btn-main" style="background-color: #27ae60;" onclick="checkAllOrders(this)">⚡ Quét Trạng Thái Đơn Báo Cáo</button>
+            
             <div id="orderListContainer" style="margin-top: 10px;"></div>
+            
+            <!-- THANH PHÂN TRANG (PAGINATION) -->
+            <div id="orderPagination" style="display: flex; justify-content: center; gap: 6px; margin-top: 16px; align-items: center;"></div>
         </div>
     </div>
 
@@ -458,6 +469,11 @@
     let cachedOrders = [];
     let currentCategory = 'Shopee';
     let realtimeChannel = null;
+
+    // Biến trạng thái cho Tab và Phân trang Đơn hàng
+    let currentOrderTab = 'all';
+    let currentOrderPage = 1;
+    const ordersPerPage = 5; // Số lượng đơn hiển thị trên 1 trang
 
     function subscribeOrderRealtime() {
         if (!currentUser) return;
@@ -943,7 +959,6 @@
         if(btnEl) { btnEl.disabled = false; btnEl.innerText = "Nạp Đơn Vào Hệ Thống"; }
 
         if (error) {
-            // Xử lý lỗi trùng mã đơn hàng
             if (error.code === '23505' || error.message.includes('unique_user_order_code')) {
                 showModal("Lỗi trùng lặp", `Mã đơn hàng #${escapeHtml(c)} đã tồn tại trong hệ thống của bạn! Không thể nạp trùng.`);
             } else {
@@ -976,7 +991,7 @@
                 if (existingCodes.has(code)) {
                     duplicateCodesFound.push(code);
                 } else {
-                    existingCodes.add(code); // Thêm vào set tạm để chặn trùng lặp ngay trong danh sách nạp hàng loạt
+                    existingCodes.add(code);
                     return { 
                         order_code: code, 
                         email: p[1] || 'none@icloud.com', 
@@ -1037,58 +1052,115 @@
             .order('created_at', { ascending: false });
 
         cachedOrders = directData || [];
-        renderOrders(cachedOrders);
+        filterOrders(); // Tự động lọc và render phân trang
     }
 
-    function renderOrders(orders) {
-        let html = '';
-        if(orders && orders.length > 0) {
-            orders.forEach(o => {
-                let isSuccess = o.status === 'Đã giao' || o.status === 'Đã giao thành công' || (o.status && o.status.includes('Đã giao'));
-                let timeStr = o.created_at ? new Date(o.created_at).toLocaleString('vi-VN') : '';
-                let deliveredTimeStr = o.delivered_at ? new Date(o.delivered_at).toLocaleString('vi-VN') : '';
+    // --- CÁC HÀM XỬ LÝ TAB TRẠNG THÁI VÀ PHÂN TRANG ---
+    function switchOrderTab(tab) {
+        currentOrderTab = tab;
+        currentOrderPage = 1; // Reset về trang 1 khi đổi tab
 
-                const safeCode = escapeHtml(o.order_code);
-                const safeStatus = escapeHtml(o.status || 'Đang chờ giao');
-                const safeProd = escapeHtml(o.product_name || 'Đơn Shopee');
-                const safeEmail = escapeHtml(o.email);
-                
-                const valNum = Number(o.amount !== undefined && o.amount !== null && o.amount !== 0 ? o.amount : (o.price || 0));
-                const amountVal = valNum.toLocaleString('vi-VN') + ' VNĐ';
+        // Đổi active button tab
+        ['all', 'completed', 'pending'].forEach(t => {
+            let btn = document.getElementById(`orderTab-${t}`);
+            if(btn) btn.classList.toggle('active', t === tab);
+        });
 
-                html += `
-                <div class="order-card" style="border-left: 4px solid ${isSuccess ? '#27ae60' : '#e67e22'}">
-                    <div class="order-header">
-                        <span class="order-code">#${safeCode}</span>
-                        <span class="order-status ${isSuccess ? 'status-success' : 'status-pending'}">${safeStatus}</span>
-                    </div>
-                    ${timeStr ? `<div class="order-time">⏱️ Nạp lúc: ${timeStr}</div>` : ''}
-                    ${deliveredTimeStr ? `<div class="order-time" style="color:#27ae60; font-weight:700;">🚚 Giao lúc: ${deliveredTimeStr}</div>` : ''}
-                    
-                    <div class="order-details-grid">
-                        <div class="order-item-row">📦 <b>Sản phẩm:</b> ${safeProd}</div>
-                        <div class="order-item-row">💰 <b>Thanh toán:</b> <span class="amount-badge">${amountVal}</span></div>
-                        <div class="order-item-row">📧 <b>Email:</b> ${safeEmail}</div>
-                    </div>
-
-                    <div class="order-actions">
-                        <button class="order-btn-check" onclick="checkSingleOrder('${safeCode}')">🔍 Check</button>
-                        <button class="order-btn-edit" onclick="editOrder(${o.id}, '${safeCode}', '${safeProd}', '${safeEmail}', ${valNum})">✏️ Sửa</button>
-                        <button class="order-btn-del" onclick="deleteOrder(${o.id})">🗑️ Xóa</button>
-                    </div>
-                </div>`;
-            });
-        }
-        document.getElementById("orderListContainer").innerHTML = html || "<div style='text-align:center; font-size:12px; color:#777; padding:15px;'>Chưa có đơn hàng nào</div>";
+        filterOrders();
     }
 
     function filterOrders() {
         let keyword = document.getElementById("searchOrderInput").value.toLowerCase().trim();
-        let filtered = cachedOrders.filter(o => 
-            (o.order_code && o.order_code.toLowerCase().includes(keyword)) ||
-            (o.product_name && o.product_name.toLowerCase().includes(keyword))
-        );
+        
+        let filtered = cachedOrders.filter(o => {
+            let matchesSearch = (o.order_code && o.order_code.toLowerCase().includes(keyword)) ||
+                                (o.product_name && o.product_name.toLowerCase().includes(keyword));
+            
+            let isSuccess = o.status === 'Đã giao' || o.status === 'Đã giao thành công' || (o.status && o.status.includes('Đã giao'));
+            
+            let matchesTab = true;
+            if (currentOrderTab === 'completed') {
+                matchesTab = isSuccess;
+            } else if (currentOrderTab === 'pending') {
+                matchesTab = !isSuccess;
+            }
+
+            return matchesSearch && matchesTab;
+        });
+
         renderOrders(filtered);
+    }
+
+    function renderOrders(ordersToRender) {
+        let container = document.getElementById("orderListContainer");
+        let paginationContainer = document.getElementById("orderPagination");
+
+        if (!ordersToRender || ordersToRender.length === 0) {
+            container.innerHTML = "<div style='text-align:center; font-size:12px; color:#777; padding:15px;'>Không có đơn hàng nào</div>";
+            paginationContainer.innerHTML = "";
+            return;
+        }
+
+        // Tính toán phân trang
+        let totalPages = Math.ceil(ordersToRender.length / ordersPerPage);
+        if (currentOrderPage > totalPages) currentOrderPage = totalPages;
+        if (currentOrderPage < 1) currentOrderPage = 1;
+
+        let startIdx = (currentOrderPage - 1) * ordersPerPage;
+        let paginatedItems = ordersToRender.slice(startIdx, startIdx + ordersPerPage);
+
+        let html = '';
+        paginatedItems.forEach(o => {
+            let isSuccess = o.status === 'Đã giao' || o.status === 'Đã giao thành công' || (o.status && o.status.includes('Đã giao'));
+            let timeStr = o.created_at ? new Date(o.created_at).toLocaleString('vi-VN') : '';
+            let deliveredTimeStr = o.delivered_at ? new Date(o.delivered_at).toLocaleString('vi-VN') : '';
+
+            const safeCode = escapeHtml(o.order_code);
+            const safeStatus = escapeHtml(o.status || 'Đang chờ giao');
+            const safeProd = escapeHtml(o.product_name || 'Đơn Shopee');
+            const safeEmail = escapeHtml(o.email);
+            
+            const valNum = Number(o.amount !== undefined && o.amount !== null && o.amount !== 0 ? o.amount : (o.price || 0));
+            const amountVal = valNum.toLocaleString('vi-VN') + ' VNĐ';
+
+            html += `
+            <div class="order-card" style="border-left: 4px solid ${isSuccess ? '#27ae60' : '#e67e22'}">
+                <div class="order-header">
+                    <span class="order-code">#${safeCode}</span>
+                    <span class="order-status ${isSuccess ? 'status-success' : 'status-pending'}">${safeStatus}</span>
+                </div>
+                ${timeStr ? `<div class="order-time">⏱️ Nạp lúc: ${timeStr}</div>` : ''}
+                ${deliveredTimeStr ? `<div class="order-time" style="color:#27ae60; font-weight:700;">🚚 Giao lúc: ${deliveredTimeStr}</div>` : ''}
+                
+                <div class="order-details-grid">
+                    <div class="order-item-row">📦 <b>Sản phẩm:</b> ${safeProd}</div>
+                    <div class="order-item-row">💰 <b>Thanh toán:</b> <span class="amount-badge">${amountVal}</span></div>
+                    <div class="order-item-row">📧 <b>Email:</b> ${safeEmail}</div>
+                </div>
+
+                <div class="order-actions">
+                    <button class="order-btn-check" onclick="checkSingleOrder('${safeCode}')">🔍 Check</button>
+                    <button class="order-btn-edit" onclick="editOrder(${o.id}, '${safeCode}', '${safeProd}', '${safeEmail}', ${valNum})">✏️ Sửa</button>
+                    <button class="order-btn-del" onclick="deleteOrder(${o.id})">🗑️ Xóa</button>
+                </div>
+            </div>`;
+        });
+        container.innerHTML = html;
+
+        // Render nút chuyển trang phân trang
+        if (totalPages > 1) {
+            let pagHtml = `<button class="top-btn" style="background:#ddd; color:#333; border:none;" onclick="changeOrderPage(${currentOrderPage - 1})" ${currentOrderPage === 1 ? 'disabled style="opacity:0.5; cursor:not-allowed;"' : ''}>Trang trước</button>`;
+            pagHtml += `<span style="font-size:12px; font-weight:700;">Trang ${currentOrderPage} / ${totalPages}</span>`;
+            pagHtml += `<button class="top-btn" style="background:#ddd; color:#333; border:none;" onclick="changeOrderPage(${currentOrderPage + 1})" ${currentOrderPage === totalPages ? 'disabled style="opacity:0.5; cursor:not-allowed;"' : ''}>Trang sau</button>`;
+            paginationContainer.innerHTML = pagHtml;
+        } else {
+            paginationContainer.innerHTML = "";
+        }
+    }
+
+    function changeOrderPage(targetPage) {
+        currentOrderPage = targetPage;
+        filterOrders();
     }
 
     async function checkSingleOrder(orderCode) {
