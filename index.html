@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Shop MMO Store - Cửa Hàng & Dịch Vụ</title>
+    <title>Shopee MMO Store - Cửa Hàng & Dịch Vụ</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
     <style>
@@ -572,9 +572,15 @@
         `);
 
         if (typeof turnstile !== 'undefined') {
-            turnstile.render('#turnstile-login-container', {
-                sitekey: TURNSTILE_SITE_KEY
-            });
+            setTimeout(() => {
+                const container = document.getElementById('turnstile-login-container');
+                if (container) {
+                    container.innerHTML = '';
+                    turnstile.render('#turnstile-login-container', {
+                        sitekey: TURNSTILE_SITE_KEY
+                    });
+                }
+            }, 100);
         }
     }
 
@@ -614,9 +620,15 @@
         `);
 
         if (typeof turnstile !== 'undefined') {
-            turnstile.render('#turnstile-reg-container', {
-                sitekey: TURNSTILE_SITE_KEY
-            });
+            setTimeout(() => {
+                const container = document.getElementById('turnstile-reg-container');
+                if (container) {
+                    container.innerHTML = '';
+                    turnstile.render('#turnstile-reg-container', {
+                        sitekey: TURNSTILE_SITE_KEY
+                    });
+                }
+            }, 100);
         }
     }
 
@@ -846,6 +858,7 @@
 
             const { data, error } = await _supabase.rpc('mua_tai_khoan', {
                 p_platform: platform,
+                p_price: price,
                 p_qty: qty
             });
 
@@ -884,7 +897,8 @@
                 var safeEmail = escapeHtml(data.hide_email_tin);
                 var safeOtp = escapeHtml(data.otp || 'Không có');
                 var rawLink = data.link_xac_thuc_tai_day || '';
-                var isValidUrl = rawLink.startsWith('http://') || rawLink.startsWith('https://');
+                var lowerLink = rawLink.toLowerCase();
+                var isValidUrl = lowerLink.startsWith('http://') || lowerLink.startsWith('https://');
                 var safeLink = escapeHtml(rawLink);
 
                 var linkHtml = (isValidUrl && safeLink !== "Không có") 
@@ -969,14 +983,29 @@
 
         if(insertData.length > 0) {
             if(btnEl) { btnEl.disabled = true; btnEl.innerText = "⏳ Đang nạp hàng loạt..."; }
-            const { error } = await _supabase.from('shopee_orders').insert(insertData);
+            
+            const BATCH_SIZE = 50;
+            let hasError = false;
+            let insertedCount = 0;
+
+            for (let i = 0; i < insertData.length; i += BATCH_SIZE) {
+                const batch = insertData.slice(i, i + BATCH_SIZE);
+                const { error } = await _supabase.from('shopee_orders').insert(batch);
+                if (error) {
+                    hasError = true;
+                    showModal("Lỗi", `Lỗi tại nhóm đơn từ ${i + 1}: ${error.message}`);
+                    break;
+                }
+                insertedCount += batch.length;
+            }
+
             if(btnEl) { btnEl.disabled = false; btnEl.innerText = "Nạp Hàng Loạt"; }
 
-            if(error) { showModal("Lỗi", "Không thể nạp danh sách: " + error.message); return; }
-
-            showModal("Thành công", `Đã nạp ${insertData.length} đơn!`);
-            document.getElementById("inputMultipleLines").value = "";
-            loadOrdersFromSupabase();
+            if (!hasError) {
+                showModal("Thành công", `Đã nạp ${insertedCount} đơn!`);
+                document.getElementById("inputMultipleLines").value = "";
+                loadOrdersFromSupabase();
+            }
         }
     }
 
@@ -1102,7 +1131,8 @@
                         price: newAmount,
                         email: newEmail
                     })
-                    .eq('id', id);
+                    .eq('id', id)
+                    .eq('user_id', currentUser.id);
 
                 if (error) {
                     showModal("Lỗi", "Không thể cập nhật đơn hàng: " + error.message);
@@ -1127,7 +1157,11 @@
     function deleteOrder(id) {
         showModal("Xác nhận xóa", "Bạn có chắc muốn xóa đơn này khỏi hệ thống?", true, async (res) => {
             if(res) {
-                const { error } = await _supabase.from('shopee_orders').delete().eq('id', id);
+                const { error } = await _supabase
+                    .from('shopee_orders')
+                    .delete()
+                    .eq('id', id)
+                    .eq('user_id', currentUser.id);
 
                 if (error) {
                     showModal("Lỗi", "Không thể xóa đơn: " + error.message);
