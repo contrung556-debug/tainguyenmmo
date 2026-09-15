@@ -425,6 +425,24 @@
     let modalCallback = null;
     let cachedOrders = [];
     let currentCategory = 'Shopee';
+    let realtimeChannel = null;
+
+    function subscribeOrderRealtime() {
+        if (!currentUser) return;
+        if (realtimeChannel) _supabase.removeChannel(realtimeChannel);
+
+        realtimeChannel = _supabase
+            .channel('realtime_shopee_orders')
+            .on('postgres_changes', { 
+                event: '*', 
+                schema: 'public', 
+                table: 'shopee_orders',
+                filter: `user_id=eq.${currentUser.id}` 
+            }, () => {
+                loadOrdersFromSupabase();
+            })
+            .subscribe();
+    }
 
     function switchMainTab(tabName) {
         document.getElementById("navBtnMarket").classList.remove("active");
@@ -498,7 +516,12 @@
             `;
             loadStoreData();
             loadOrdersFromSupabase();
+            subscribeOrderRealtime();
         } else {
+            if (realtimeChannel) {
+                _supabase.removeChannel(realtimeChannel);
+                realtimeChannel = null;
+            }
             currentUserMember = null;
             userActions.innerHTML = `
                 <button class="top-btn" onclick="openLogin()">Đăng Nhập</button>
@@ -527,7 +550,7 @@
         if(!res) return;
         let email = document.getElementById("popEmail").value.trim();
         let pass = document.getElementById("popPass").value.trim();
-        let captchaToken = document.querySelector('[name="cf-turnstile-response"]')?.value;
+        let captchaToken = document.querySelector('#turnstile-login-container [name="cf-turnstile-response"]')?.value;
 
         if (!captchaToken) {
             showModal("Lỗi", "Vui lòng xác thực Captcha!");
@@ -577,7 +600,7 @@
         let email = document.getElementById("regEmail").value.trim();
         let pass = document.getElementById("regPass").value.trim();
         let passConfirm = document.getElementById("regPassConfirm").value.trim();
-        let captchaToken = document.querySelector('[name="cf-turnstile-response"]')?.value;
+        let captchaToken = document.querySelector('#turnstile-reg-container [name="cf-turnstile-response"]')?.value;
 
         if (!username || !email || !pass) {
             showModal("Lỗi", "Vui lòng nhập đầy đủ thông tin!");
@@ -601,7 +624,6 @@
             okBtn.innerText = "⏳ Đang đăng ký...";
         }
 
-        // 1. Tiến hành đăng ký tài khoản qua Supabase Auth
         const { data, error } = await _supabase.auth.signUp({
             email: email,
             password: pass,
@@ -634,7 +656,6 @@
             }
         }
 
-        // 2. Đăng ký thành công -> Hiện thông báo yêu cầu đăng nhập lại
         showModal("Thành công", "Bạn đã đăng ký thành công, vui lòng đăng nhập để sử dụng dịch vụ.", false, () => {
             openLogin();
             setTimeout(() => {
@@ -973,7 +994,7 @@
         if (!currentUser) return;
         await _supabase.rpc('cleanup_old_shopee_orders');
 
-        const { data, error } = await _supabase.rpc('get_shopee_orders');
+        const { data } = await _supabase.rpc('get_shopee_orders');
         cachedOrders = (data && data.success) ? data.orders : [];
         renderOrders(cachedOrders);
     }
@@ -982,7 +1003,7 @@
         let html = '';
         if(orders && orders.length > 0) {
             orders.forEach(o => {
-                let isSuccess = o.status === 'Đã giao thành công';
+                let isSuccess = o.status === 'Đã giao' || o.status === 'Đã giao thành công' || (o.status && o.status.includes('Đã giao'));
                 let timeStr = o.created_at ? new Date(o.created_at).toLocaleString('vi-VN') : '';
                 const safeCode = escapeHtml(o.order_code);
                 const safeStatus = escapeHtml(o.status || 'Đang chờ giao');
