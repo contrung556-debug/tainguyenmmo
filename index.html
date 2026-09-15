@@ -178,7 +178,7 @@
         .status-pending { background: #e67e22; }
         .status-success { background: #27ae60; }
         
-        .order-time { font-size: 11px; color: #888; margin-bottom: 10px; display: flex; align-items: center; gap: 4px; }
+        .order-time { font-size: 11px; color: #888; margin-bottom: 6px; display: flex; align-items: center; gap: 4px; }
         
         .order-details-grid {
             background: #f8fafc;
@@ -989,12 +989,12 @@
         if(btnEl) { btnEl.disabled = false; btnEl.innerText = "Nạp Đơn Vào Hệ Thống"; }
 
         if (error || (data && !data.success)) {
-            // Trường hợp RPC chưa hỗ trợ p_amount, fallback insert trực tiếp
             const { error: directErr } = await _supabase.from('shopee_orders').insert({
                 order_code: c,
                 product_name: n,
                 email: e,
                 amount: a,
+                price: a,
                 user_id: currentUser.id,
                 status: 'Đang chờ giao'
             });
@@ -1018,11 +1018,13 @@
         let lines = document.getElementById("inputMultipleLines").value.trim().split('\n');
         let insertData = lines.map(line => {
             let p = line.split('|').map(x=>x.trim());
+            let parsedAmount = p[3] ? (parseInt(p[3].replace(/\D/g, '')) || 0) : 0;
             return p[0] ? { 
                 order_code: p[0], 
                 email: p[1] || 'none@icloud.com', 
                 product_name: p[2] || 'Đơn Shopee', 
-                amount: p[3] ? (parseInt(p[3].replace(/\D/g, '')) || 0) : 0,
+                amount: parsedAmount,
+                price: parsedAmount,
                 user_id: currentUser.id, 
                 status: 'Đang chờ giao' 
             } : null;
@@ -1041,21 +1043,18 @@
 
     async function loadOrdersFromSupabase() {
         if (!currentUser) return;
-        await _supabase.rpc('cleanup_old_shopee_orders');
-
-        const { data } = await _supabase.rpc('get_shopee_orders');
-        cachedOrders = (data && data.success) ? data.orders : [];
         
-        // Fallback lấy trực tiếp nếu RPC cũ không trả ra field amount
-        if (!cachedOrders || cachedOrders.length === 0) {
-            const { data: directData } = await _supabase
-                .from('shopee_orders')
-                .select('*')
-                .eq('user_id', currentUser.id)
-                .order('created_at', { ascending: false });
-            cachedOrders = directData || [];
-        }
+        try {
+            await _supabase.rpc('cleanup_old_shopee_orders');
+        } catch(e) {}
 
+        const { data: directData } = await _supabase
+            .from('shopee_orders')
+            .select('*')
+            .eq('user_id', currentUser.id)
+            .order('created_at', { ascending: false });
+
+        cachedOrders = directData || [];
         renderOrders(cachedOrders);
     }
 
@@ -1065,11 +1064,15 @@
             orders.forEach(o => {
                 let isSuccess = o.status === 'Đã giao' || o.status === 'Đã giao thành công' || (o.status && o.status.includes('Đã giao'));
                 let timeStr = o.created_at ? new Date(o.created_at).toLocaleString('vi-VN') : '';
+                let deliveredTimeStr = o.delivered_at ? new Date(o.delivered_at).toLocaleString('vi-VN') : '';
+
                 const safeCode = escapeHtml(o.order_code);
                 const safeStatus = escapeHtml(o.status || 'Đang chờ giao');
                 const safeProd = escapeHtml(o.product_name || 'Đơn Shopee');
                 const safeEmail = escapeHtml(o.email);
-                const amountVal = Number(o.amount || o.price || 0).toLocaleString('vi-VN') + ' VNĐ';
+                
+                const valNum = Number(o.amount !== undefined && o.amount !== null && o.amount !== 0 ? o.amount : (o.price || 0));
+                const amountVal = valNum.toLocaleString('vi-VN') + ' VNĐ';
 
                 html += `
                 <div class="order-card" style="border-left: 4px solid ${isSuccess ? '#27ae60' : '#e67e22'}">
@@ -1078,6 +1081,7 @@
                         <span class="order-status ${isSuccess ? 'status-success' : 'status-pending'}">${safeStatus}</span>
                     </div>
                     ${timeStr ? `<div class="order-time">⏱️ Nạp lúc: ${timeStr}</div>` : ''}
+                    ${deliveredTimeStr ? `<div class="order-time" style="color:#27ae60; font-weight:700;">🚚 Giao lúc: ${deliveredTimeStr}</div>` : ''}
                     
                     <div class="order-details-grid">
                         <div class="order-item-row">📦 <b>Sản phẩm:</b> ${safeProd}</div>
@@ -1087,7 +1091,7 @@
 
                     <div class="order-actions">
                         <button class="order-btn-check" onclick="checkSingleOrder('${safeCode}')">🔍 Check</button>
-                        <button class="order-btn-edit" onclick="editOrder(${o.id}, '${safeCode}', '${safeProd}', '${safeEmail}', ${o.amount || 0})">✏️ Sửa</button>
+                        <button class="order-btn-edit" onclick="editOrder(${o.id}, '${safeCode}', '${safeProd}', '${safeEmail}', ${valNum})">✏️ Sửa</button>
                         <button class="order-btn-del" onclick="deleteOrder(${o.id})">🗑️ Xóa</button>
                     </div>
                 </div>`;
@@ -1173,6 +1177,7 @@
                         order_code: newCode,
                         product_name: newProd,
                         amount: newAmount,
+                        price: newAmount,
                         email: newEmail
                     })
                     .eq('id', id);
