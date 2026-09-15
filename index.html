@@ -310,6 +310,29 @@
         .store-buy-btn.out-of-stock { background: #bdc3c7; cursor: not-allowed; box-shadow: none; }
         .store-buy-btn:disabled { background-color: #bdc3c7 !important; cursor: not-allowed; box-shadow: none; }
 
+        /* Lịch sử mua hàng có thanh cuộn riêng biệt */
+        .my-acc-scroll-box {
+            max-height: 520px;
+            overflow-y: auto;
+            padding-right: 4px;
+            scrollbar-width: thin;
+            scrollbar-color: #cbd5e1 #f1f5f9;
+        }
+        .my-acc-scroll-box::-webkit-scrollbar {
+            width: 6px;
+        }
+        .my-acc-scroll-box::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 10px;
+        }
+        .my-acc-scroll-box::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+        .my-acc-scroll-box::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
         /* Modal */
         #customModalOverlay { 
             display: none; 
@@ -417,7 +440,6 @@
         </div>
         
         <div style="margin-top: 12px;">
-            <!-- THANH BỘ LỌC TRẠNG THÁI (TABS) CHO ĐƠN HÀNG -->
             <div class="sub-tab-container" style="margin-bottom: 10px;">
                 <button class="sub-tab-btn active" id="orderTab-all" onclick="switchOrderTab('all')">Tất cả</button>
                 <button class="sub-tab-btn" id="orderTab-completed" onclick="switchOrderTab('completed')">Đã giao</button>
@@ -429,7 +451,6 @@
             
             <div id="orderListContainer" style="margin-top: 10px;"></div>
             
-            <!-- THANH PHÂN TRANG (PAGINATION) -->
             <div id="orderPagination" style="display: flex; justify-content: center; gap: 6px; margin-top: 16px; align-items: center;"></div>
         </div>
     </div>
@@ -470,10 +491,9 @@
     let currentCategory = 'Shopee';
     let realtimeChannel = null;
 
-    // Biến trạng thái cho Tab và Phân trang Đơn hàng
     let currentOrderTab = 'all';
     let currentOrderPage = 1;
-    const ordersPerPage = 5; // Số lượng đơn hiển thị trên 1 trang
+    const ordersPerPage = 5;
 
     function subscribeOrderRealtime() {
         if (!currentUser) return;
@@ -784,7 +804,7 @@
         const { data: resMyData } = await _supabase.rpc('get_user_orders');
         const myData = (resMyData && resMyData.success) ? resMyData.orders : [];
 
-        let myHtml = '';
+        let myInnerHtml = '';
         if(myData && myData.length > 0) {
             let groupedMy = {};
             myData.forEach(item => {
@@ -811,7 +831,7 @@
                 let firstId = group.items[0].id;
                 let totalCost = group.price * count;
 
-                myHtml += `
+                myInnerHtml += `
                     <div class="order-card" style="border-left: 4px solid #27ae60;">
                         <div class="order-header">
                             <span class="order-code">Đơn mua #${firstId}</span>
@@ -828,13 +848,19 @@
                     </div>`;
             });
         } else { 
-            myHtml = `
+            myInnerHtml = `
                 <div style="text-align: center; padding: 30px 10px; color: #888; font-size: 13px; background: #fff; border-radius: 12px; border: 1px solid #eef2f5;">
                     <div style="font-size: 28px; margin-bottom: 6px;">📦</div>
                     Bạn chưa mua tài khoản nào.
                 </div>`; 
         }
-        document.getElementById("myAccList").innerHTML = myHtml;
+
+        // Bọc vào khung có class cuộn trang `my-acc-scroll-box`
+        document.getElementById("myAccList").innerHTML = `
+            <div class="my-acc-scroll-box">
+                ${myInnerHtml}
+            </div>
+        `;
     }
 
     function copyAccText(elementId) {
@@ -1052,15 +1078,13 @@
             .order('created_at', { ascending: false });
 
         cachedOrders = directData || [];
-        filterOrders(); // Tự động lọc và render phân trang
+        filterOrders();
     }
 
-    // --- CÁC HÀM XỬ LÝ TAB TRẠNG THÁI VÀ PHÂN TRANG ---
     function switchOrderTab(tab) {
         currentOrderTab = tab;
-        currentOrderPage = 1; // Reset về trang 1 khi đổi tab
+        currentOrderPage = 1;
 
-        // Đổi active button tab
         ['all', 'completed', 'pending'].forEach(t => {
             let btn = document.getElementById(`orderTab-${t}`);
             if(btn) btn.classList.toggle('active', t === tab);
@@ -1101,7 +1125,6 @@
             return;
         }
 
-        // Tính toán phân trang
         let totalPages = Math.ceil(ordersToRender.length / ordersPerPage);
         if (currentOrderPage > totalPages) currentOrderPage = totalPages;
         if (currentOrderPage < 1) currentOrderPage = 1;
@@ -1147,7 +1170,6 @@
         });
         container.innerHTML = html;
 
-        // Render nút chuyển trang phân trang
         if (totalPages > 1) {
             let pagHtml = `<button class="top-btn" style="background:#ddd; color:#333; border:none;" onclick="changeOrderPage(${currentOrderPage - 1})" ${currentOrderPage === 1 ? 'disabled style="opacity:0.5; cursor:not-allowed;"' : ''}>Trang trước</button>`;
             pagHtml += `<span style="font-size:12px; font-weight:700;">Trang ${currentOrderPage} / ${totalPages}</span>`;
