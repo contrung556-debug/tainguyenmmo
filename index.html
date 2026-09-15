@@ -647,28 +647,21 @@
         let okBtn = document.getElementById("modalBtnOk");
         if (okBtn) { okBtn.disabled = true; okBtn.innerText = "⏳ Đang đăng ký..."; }
 
+        // TRUYỀN USERNAME VÀO METADATA ĐỂ TRIGGER DATABASE TỰ ĐỘNG TẠO USER TRONG MEMBERS
         const { data, error } = await _supabase.auth.signUp({
             email: email,
             password: pass,
-            options: { captchaToken: captchaToken }
+            options: {
+                captchaToken: captchaToken,
+                data: {
+                    username: username
+                }
+            }
         });
 
         if (okBtn) { okBtn.disabled = false; okBtn.innerText = "Xác Nhận"; }
 
         if (error) { showModal("Lỗi", error.message); return; }
-
-        if (data.user) {
-            const { error: memberErr } = await _supabase.from('members').insert({
-                id: data.user.id,
-                username: username,
-                balance: 0
-            });
-            
-            if (memberErr) {
-                showModal("Lỗi", memberErr.code === '23505' ? "Tên đăng nhập đã tồn tại trên hệ thống!" : "Tạo tài khoản members thất bại: " + memberErr.message);
-                return;
-            }
-        }
 
         showModal("Thành công", "Bạn đã đăng ký thành công, vui lòng đăng nhập để sử dụng dịch vụ.", false, () => {
             openLogin();
@@ -856,9 +849,9 @@
 
             if(btnEl) { btnEl.disabled = true; btnEl.innerText = "⏳ Đang xử lý..."; }
 
+            // ĐÃ BỎ 'p_price' ĐỂ TRÁNH CAN THIỆP GIÁ TỪ CLIENT
             const { data, error } = await _supabase.rpc('mua_tai_khoan', {
                 p_platform: platform,
-                p_price: price,
                 p_qty: qty
             });
 
