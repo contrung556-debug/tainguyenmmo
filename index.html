@@ -592,17 +592,11 @@
         const { data, error } = await _supabase.auth.signInWithPassword({
             email: email,
             password: pass,
-            options: {
-                captchaToken: captchaToken
-            }
+            options: { captchaToken: captchaToken }
         });
 
         if (error) {
-            if (error.message.includes('Invalid login credentials')) {
-                showModal("Lỗi", "Sai tài khoản hoặc mật khẩu!");
-            } else {
-                showModal("Lỗi", error.message || "Đăng nhập thất bại!");
-            }
+            showModal("Lỗi", error.message.includes('Invalid login credentials') ? "Sai tài khoản hoặc mật khẩu!" : (error.message || "Đăng nhập thất bại!"));
             return;
         }
 
@@ -634,42 +628,22 @@
         let passConfirm = document.getElementById("regPassConfirm").value.trim();
         let captchaToken = document.querySelector('#turnstile-reg-container [name="cf-turnstile-response"]')?.value;
 
-        if (!username || !email || !pass) {
-            showModal("Lỗi", "Vui lòng nhập đầy đủ thông tin!");
-            return;
-        }
-
-        if (!captchaToken) {
-            showModal("Lỗi", "Vui lòng xác thực Captcha!");
-            return;
-        }
-
-        if (pass !== passConfirm) {
-            showModal("Lỗi", "Mật khẩu xác nhận không khớp!");
-            return;
-        }
+        if (!username || !email || !pass) { showModal("Lỗi", "Vui lòng nhập đầy đủ thông tin!"); return; }
+        if (!captchaToken) { showModal("Lỗi", "Vui lòng xác thực Captcha!"); return; }
+        if (pass !== passConfirm) { showModal("Lỗi", "Mật khẩu xác nhận không khớp!"); return; }
 
         let okBtn = document.getElementById("modalBtnOk");
-        let oldBtnText = okBtn ? okBtn.innerText : "Xác Nhận";
-        if (okBtn) {
-            okBtn.disabled = true;
-            okBtn.innerText = "⏳ Đang đăng ký...";
-        }
+        if (okBtn) { okBtn.disabled = true; okBtn.innerText = "⏳ Đang đăng ký..."; }
 
         const { data, error } = await _supabase.auth.signUp({
             email: email,
             password: pass,
-            options: {
-                captchaToken: captchaToken
-            }
+            options: { captchaToken: captchaToken }
         });
 
-        if (okBtn) { okBtn.disabled = false; okBtn.innerText = oldBtnText; }
+        if (okBtn) { okBtn.disabled = false; okBtn.innerText = "Xác Nhận"; }
 
-        if (error) {
-            showModal("Lỗi", error.message);
-            return;
-        }
+        if (error) { showModal("Lỗi", error.message); return; }
 
         if (data.user) {
             const { error: memberErr } = await _supabase.from('members').insert({
@@ -679,11 +653,7 @@
             });
             
             if (memberErr) {
-                if (memberErr.code === '23505' || memberErr.message.includes('members_username_key')) {
-                    showModal("Lỗi", "Tên đăng nhập đã tồn tại trên hệ thống!");
-                } else {
-                    showModal("Lỗi", "Tạo tài khoản members thất bại: " + memberErr.message);
-                }
+                showModal("Lỗi", memberErr.code === '23505' ? "Tên đăng nhập đã tồn tại trên hệ thống!" : "Tạo tài khoản members thất bại: " + memberErr.message);
                 return;
             }
         }
@@ -881,15 +851,8 @@
 
             if(btnEl) { btnEl.disabled = false; btnEl.innerText = "🛒 Mua Ngay"; }
 
-            if (error) {
-                showModal("Lỗi hệ thống", error.message);
-                return;
-            }
-
-            if (!data.success) {
-                showModal("Không thể mua", data.message);
-                return;
-            }
+            if (error) { showModal("Lỗi hệ thống", error.message); return; }
+            if (!data.success) { showModal("Không thể mua", data.message); return; }
 
             updateAuthUI();
             loadStoreData();
@@ -904,7 +867,7 @@
         });
     }
 
-    function fetchOtpLink(btnEl) {
+    async function fetchOtpLink(btnEl) {
         let val = document.getElementById("fetchInputEmail").value.trim();
         let resultDiv = document.getElementById("fetchResult");
         if (!val) { showModal("Thông Báo", "Vui lòng nhập tên hoặc email!"); return; }
@@ -912,53 +875,36 @@
         if(btnEl) { btnEl.disabled = true; btnEl.innerText = "⏳ Đang kết nối..."; }
         resultDiv.innerHTML = `<span style="color: #e67e22; font-weight: 700;">⏳ Đang kết nối...</span>`;
 
-        var xhr = new XMLHttpRequest();
-        var targetUrl = '/api/otp?hide=' + encodeURIComponent(val);
+        try {
+            let response = await fetch('/api/otp?hide=' + encodeURIComponent(val));
+            if (!response.ok) throw new Error(`Lỗi server: ${response.status}`);
+            let data = await response.json();
 
-        xhr.open('GET', targetUrl, true);
-        xhr.onreadystatechange = function() {
-            if (xhr.readyState === 4) {
-                if(btnEl) { btnEl.disabled = false; btnEl.innerText = "Lấy Link Xác Thực / OTP"; }
-                
-                if (xhr.status === 200) {
-                    try {
-                        var data = JSON.parse(xhr.responseText);
-                        if (data.status === "success") {
-                            var safeEmail = escapeHtml(data.hide_email_tin);
-                            var safeOtp = escapeHtml(data.otp || 'Không có');
-                            
-                            var rawLink = data.link_xac_thuc_tai_day || '';
-                            var isValidUrl = rawLink.startsWith('http://') || rawLink.startsWith('https://');
-                            var safeLink = escapeHtml(rawLink);
+            if (data.status === "success") {
+                var safeEmail = escapeHtml(data.hide_email_tin);
+                var safeOtp = escapeHtml(data.otp || 'Không có');
+                var rawLink = data.link_xac_thuc_tai_day || '';
+                var isValidUrl = rawLink.startsWith('http://') || rawLink.startsWith('https://');
+                var safeLink = escapeHtml(rawLink);
 
-                            var linkHtml = (isValidUrl && safeLink !== "Không có") 
-                                ? `<a href="${safeLink}" target="_blank" style="display:block; margin-top:8px; background:#3182ce; color:white; padding:9px; text-align:center; border-radius:8px; text-decoration:none; font-weight:700; font-size:12px;">MỞ LINK XÁC THỰC</a>` 
-                                : '';
+                var linkHtml = (isValidUrl && safeLink !== "Không có") 
+                    ? `<a href="${safeLink}" target="_blank" style="display:block; margin-top:8px; background:#3182ce; color:white; padding:9px; text-align:center; border-radius:8px; text-decoration:none; font-weight:700; font-size:12px;">MỞ LINK XÁC THỰC</a>` 
+                    : '';
 
-                            resultDiv.innerHTML = `
-                                <div style="background: var(--primary-light); padding: 12px; border-radius: 10px; border: 1px solid var(--primary-color);">
-                                    <b>Email:</b> ${safeEmail}<br>
-                                    <b>OTP:</b> <span style="color:#d35400; font-size:16px; font-weight:800;">${safeOtp}</span><br>
-                                    ${linkHtml}
-                                </div>`;
-                        } else {
-                            resultDiv.innerHTML = `<span style="color: #e74c3c;">⚠️ ${escapeHtml(data.message || 'Không tìm thấy dữ liệu')}</span>`;
-                        }
-                    } catch(e) {
-                        resultDiv.innerHTML = `<span style="color: #e74c3c;">⚠️ Phản hồi từ server không đúng định dạng.</span>`;
-                    }
-                } else {
-                    resultDiv.innerHTML = `<span style="color: #e74c3c;">⚠️ Lỗi phản hồi server (Mã: ${xhr.status}).</span>`;
-                }
+                resultDiv.innerHTML = `
+                    <div style="background: var(--primary-light); padding: 12px; border-radius: 10px; border: 1px solid var(--primary-color);">
+                        <b>Email:</b> ${safeEmail}<br>
+                        <b>OTP:</b> <span style="color:#d35400; font-size:16px; font-weight:800;">${safeOtp}</span><br>
+                        ${linkHtml}
+                    </div>`;
+            } else {
+                resultDiv.innerHTML = `<span style="color: #e74c3c;">⚠️ ${escapeHtml(data.message || 'Không tìm thấy dữ liệu')}</span>`;
             }
-        };
-        
-        xhr.onerror = function() {
+        } catch (e) {
+            resultDiv.innerHTML = `<span style="color: #e74c3c;">⚠️ Không thể kết nối server hoặc dữ liệu không hợp lệ.</span>`;
+        } finally {
             if(btnEl) { btnEl.disabled = false; btnEl.innerText = "Lấy Link Xác Thực / OTP"; }
-            resultDiv.innerHTML = `<span style="color: #e74c3c;">⚠️ Không thể kết nối server. Vui lòng kiểm tra lại mạng.</span>`;
-        };
-
-        xhr.send();
+        }
     }
 
     function switchDepositTab(type) {
@@ -979,33 +925,24 @@
 
         if(btnEl) { btnEl.disabled = true; btnEl.innerText = "⏳ Đang nạp..."; }
 
-        const { data, error } = await _supabase.rpc('add_shopee_order', {
-            p_order_code: c,
-            p_product_name: n,
-            p_email: e,
-            p_amount: a
+        const { error } = await _supabase.from('shopee_orders').insert({
+            order_code: c,
+            product_name: n,
+            email: e,
+            amount: a,
+            price: a,
+            user_id: currentUser.id,
+            status: 'Đang chờ giao'
         });
 
         if(btnEl) { btnEl.disabled = false; btnEl.innerText = "Nạp Đơn Vào Hệ Thống"; }
 
-        if (error || (data && !data.success)) {
-            const { error: directErr } = await _supabase.from('shopee_orders').insert({
-                order_code: c,
-                product_name: n,
-                email: e,
-                amount: a,
-                price: a,
-                user_id: currentUser.id,
-                status: 'Đang chờ giao'
-            });
-
-            if(directErr) {
-                showModal("Lỗi", directErr.message || "Không thể nạp đơn!");
-                return;
-            }
+        if (error) {
+            showModal("Lỗi", "Không thể nạp đơn: " + error.message);
+            return;
         }
 
-        showModal("Thành công", "Đã nạp đơn!");
+        showModal("Thành công", "Đã nạp đơn thành công!");
         document.getElementById("inputOrderCode").value = "";
         document.getElementById("inputProductName").value = "";
         document.getElementById("inputAmount").value = "";
@@ -1032,8 +969,10 @@
 
         if(insertData.length > 0) {
             if(btnEl) { btnEl.disabled = true; btnEl.innerText = "⏳ Đang nạp hàng loạt..."; }
-            await _supabase.from('shopee_orders').insert(insertData);
+            const { error } = await _supabase.from('shopee_orders').insert(insertData);
             if(btnEl) { btnEl.disabled = false; btnEl.innerText = "Nạp Hàng Loạt"; }
+
+            if(error) { showModal("Lỗi", "Không thể nạp danh sách: " + error.message); return; }
 
             showModal("Thành công", `Đã nạp ${insertData.length} đơn!`);
             document.getElementById("inputMultipleLines").value = "";
@@ -1043,10 +982,6 @@
 
     async function loadOrdersFromSupabase() {
         if (!currentUser) return;
-        
-        try {
-            await _supabase.rpc('cleanup_old_shopee_orders');
-        } catch(e) {}
 
         const { data: directData } = await _supabase
             .from('shopee_orders')
@@ -1116,10 +1051,7 @@
         try {
             let baseUrl = window.location.protocol + '//' + window.location.host;
             let response = await fetch(`${baseUrl}/api/order?action=check_one&code=${encodeURIComponent(orderCode)}`);
-            
-            if (!response.ok) {
-                throw new Error(`Lỗi phản hồi server: ${response.status}`);
-            }
+            if (!response.ok) throw new Error(`Lỗi phản hồi server: ${response.status}`);
             
             let res = await response.json();
             showModal("Kết quả", escapeHtml(res.message || "Đã kiểm tra xong!"));
@@ -1130,31 +1062,21 @@
     }
 
     async function checkAllOrders(btnEl) {
-        if (btnEl) { 
-            btnEl.disabled = true; 
-            btnEl.innerText = "⏳ Đang quét..."; 
-        }
+        if (btnEl) { btnEl.disabled = true; btnEl.innerText = "⏳ Đang quét..."; }
         showModal("Đang quét", "Hệ thống đang quét hàng loạt qua Google Script...");
 
         try {
             let baseUrl = window.location.protocol + '//' + window.location.host;
             let response = await fetch(`${baseUrl}/api/order?action=check_all`);
-            
-            if (!response.ok) {
-                throw new Error(`Lỗi phản hồi server: ${response.status}`);
-            }
+            if (!response.ok) throw new Error(`Lỗi phản hồi server: ${response.status}`);
 
             let res = await response.json().catch(() => ({}));
-
             showModal("Thành công", escapeHtml(res.message || "Đã quét xong!")); 
             loadOrdersFromSupabase(); 
         } catch (error) {
             showModal("Lỗi", "Không thể kết nối đến máy chủ quét đơn.");
         } finally {
-            if (btnEl) { 
-                btnEl.disabled = false; 
-                btnEl.innerText = "⚡ Quét Trạng Thái Đơn Báo Cáo"; 
-            }
+            if (btnEl) { btnEl.disabled = false; btnEl.innerText = "⚡ Quét Trạng Thái Đơn Báo Cáo"; }
         }
     }
 
@@ -1171,7 +1093,7 @@
                 let newAmount = parseInt(document.getElementById("editAmount").value) || 0;
                 let newEmail = document.getElementById("editEmail").value.trim();
                 
-                const { error: directErr } = await _supabase
+                const { error } = await _supabase
                     .from('shopee_orders')
                     .update({
                         order_code: newCode,
@@ -1182,8 +1104,8 @@
                     })
                     .eq('id', id);
 
-                if (directErr) {
-                    showModal("Lỗi", "Không thể cập nhật đơn hàng!");
+                if (error) {
+                    showModal("Lỗi", "Không thể cập nhật đơn hàng: " + error.message);
                     return;
                 }
 
@@ -1205,12 +1127,11 @@
     function deleteOrder(id) {
         showModal("Xác nhận xóa", "Bạn có chắc muốn xóa đơn này khỏi hệ thống?", true, async (res) => {
             if(res) {
-                const { data, error } = await _supabase.rpc('delete_shopee_order', {
-                    p_id: id
-                });
+                const { error } = await _supabase.from('shopee_orders').delete().eq('id', id);
 
-                if (error || (data && !data.success)) {
-                    await _supabase.from('shopee_orders').delete().eq('id', id);
+                if (error) {
+                    showModal("Lỗi", "Không thể xóa đơn: " + error.message);
+                    return;
                 }
 
                 showModal("Thành công", "Đã xóa đơn hàng!");
