@@ -459,6 +459,18 @@
     let currentCategory = 'Shopee';
     let realtimeChannel = null;
 
+    /**
+     * Hàm lấy Supabase Access Token hiện tại
+     */
+    async function getSupabaseAccessToken() {
+        const { data: { session }, error } = await _supabase.auth.getSession();
+        if (error || !session) {
+            showModal("Thông Báo", "Phiên đăng nhập hết hạn hoặc chưa đăng nhập. Vui lòng đăng nhập lại!");
+            return null;
+        }
+        return session.access_token;
+    }
+
     function subscribeOrderRealtime() {
         if (!currentUser) return;
         if (realtimeChannel) _supabase.removeChannel(realtimeChannel);
@@ -989,7 +1001,6 @@
         if(btnEl) { btnEl.disabled = false; btnEl.innerText = "Nạp Đơn Vào Hệ Thống"; }
 
         if (error || (data && !data.success)) {
-            // Trường hợp RPC chưa hỗ trợ p_amount, fallback insert trực tiếp
             const { error: directErr } = await _supabase.from('shopee_orders').insert({
                 order_code: c,
                 product_name: n,
@@ -1046,7 +1057,6 @@
         const { data } = await _supabase.rpc('get_shopee_orders');
         cachedOrders = (data && data.success) ? data.orders : [];
         
-        // Fallback lấy trực tiếp nếu RPC cũ không trả ra field amount
         if (!cachedOrders || cachedOrders.length === 0) {
             const { data: directData } = await _supabase
                 .from('shopee_orders')
@@ -1105,13 +1115,24 @@
         renderOrders(filtered);
     }
 
+    /**
+     * KIỂM TRA 1 ĐƠN HÀNG (Đã tích hợp Token Supabase)
+     */
     async function checkSingleOrder(orderCode) {
+        if (!currentUser) { 
+            showModal("Thông báo", "Vui lòng đăng nhập để thực hiện!"); 
+            return; 
+        }
+
+        const token = await getSupabaseAccessToken();
+        if (!token) return;
+
         let safeCode = escapeHtml(orderCode);
-        showModal("Đang kiểm tra", `Đang check đơn #${safeCode}...`);
+        showModal("Đang kiểm tra", `Đang quét Gmail cho đơn #${safeCode}...`);
         
         try {
             let baseUrl = window.location.protocol + '//' + window.location.host;
-            let response = await fetch(`${baseUrl}/api/order?action=check_one&code=${encodeURIComponent(orderCode)}`);
+            let response = await fetch(`${baseUrl}/api/order?action=check_one&code=${encodeURIComponent(orderCode)}&token=${encodeURIComponent(token)}`);
             
             if (!response.ok) {
                 throw new Error(`Lỗi phản hồi server: ${response.status}`);
@@ -1125,16 +1146,27 @@
         }
     }
 
+    /**
+     * QUÉT TOÀN BỘ ĐƠN HÀNG (Đã tích hợp Token Supabase)
+     */
     async function checkAllOrders(btnEl) {
+        if (!currentUser) { 
+            showModal("Thông báo", "Vui lòng đăng nhập để thực hiện!"); 
+            return; 
+        }
+
+        const token = await getSupabaseAccessToken();
+        if (!token) return;
+
         if (btnEl) { 
             btnEl.disabled = true; 
             btnEl.innerText = "⏳ Đang quét..."; 
         }
-        showModal("Đang quét", "Hệ thống đang quét hàng loạt qua Google Script...");
+        showModal("Đang quét", "Hệ thống đang quét hàng loạt đơn hàng từ Gmail...");
 
         try {
             let baseUrl = window.location.protocol + '//' + window.location.host;
-            let response = await fetch(`${baseUrl}/api/order?action=check_all`);
+            let response = await fetch(`${baseUrl}/api/order?action=check_all&token=${encodeURIComponent(token)}`);
             
             if (!response.ok) {
                 throw new Error(`Lỗi phản hồi server: ${response.status}`);
