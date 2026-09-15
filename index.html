@@ -647,7 +647,6 @@
         let okBtn = document.getElementById("modalBtnOk");
         if (okBtn) { okBtn.disabled = true; okBtn.innerText = "⏳ Đang đăng ký..."; }
 
-        // TRUYỀN USERNAME VÀO METADATA ĐỂ TRIGGER DATABASE TỰ ĐỘNG TẠO USER TRONG MEMBERS
         const { data, error } = await _supabase.auth.signUp({
             email: email,
             password: pass,
@@ -849,7 +848,6 @@
 
             if(btnEl) { btnEl.disabled = true; btnEl.innerText = "⏳ Đang xử lý..."; }
 
-            // ĐÃ BỎ 'p_price' ĐỂ TRÁNH CAN THIỆP GIÁ TỪ CLIENT
             const { data, error } = await _supabase.rpc('mua_tai_khoan', {
                 p_platform: platform,
                 p_qty: qty
@@ -945,7 +943,12 @@
         if(btnEl) { btnEl.disabled = false; btnEl.innerText = "Nạp Đơn Vào Hệ Thống"; }
 
         if (error) {
-            showModal("Lỗi", "Không thể nạp đơn: " + error.message);
+            // Xử lý lỗi trùng mã đơn hàng
+            if (error.code === '23505' || error.message.includes('unique_user_order_code')) {
+                showModal("Lỗi trùng lặp", `Mã đơn hàng #${escapeHtml(c)} đã tồn tại trong hệ thống của bạn! Không thể nạp trùng.`);
+            } else {
+                showModal("Lỗi", "Không thể nạp đơn: " + error.message);
+            }
             return;
         }
 
@@ -960,19 +963,37 @@
     async function addMultipleOrders(btnEl) {
         if(!currentUser) return;
         let lines = document.getElementById("inputMultipleLines").value.trim().split('\n');
+        
+        let existingCodes = new Set(cachedOrders.map(o => o.order_code));
+        let duplicateCodesFound = [];
+
         let insertData = lines.map(line => {
             let p = line.split('|').map(x=>x.trim());
+            let code = p[0];
             let parsedAmount = p[3] ? (parseInt(p[3].replace(/\D/g, '')) || 0) : 0;
-            return p[0] ? { 
-                order_code: p[0], 
-                email: p[1] || 'none@icloud.com', 
-                product_name: p[2] || 'Đơn Shopee', 
-                amount: parsedAmount,
-                price: parsedAmount,
-                user_id: currentUser.id, 
-                status: 'Đang chờ giao' 
-            } : null;
+            
+            if (code) {
+                if (existingCodes.has(code)) {
+                    duplicateCodesFound.push(code);
+                } else {
+                    existingCodes.add(code); // Thêm vào set tạm để chặn trùng lặp ngay trong danh sách nạp hàng loạt
+                    return { 
+                        order_code: code, 
+                        email: p[1] || 'none@icloud.com', 
+                        product_name: p[2] || 'Đơn Shopee', 
+                        amount: parsedAmount,
+                        price: parsedAmount,
+                        user_id: currentUser.id, 
+                        status: 'Đang chờ giao' 
+                    };
+                }
+            }
+            return null;
         }).filter(Boolean);
+
+        if (duplicateCodesFound.length > 0) {
+            showModal("Cảnh báo trùng lặp", `Các mã đơn sau đã tồn tại trong hệ thống hoặc bị lặp lại và đã được lọc bỏ: <br><b>${escapeHtml(duplicateCodesFound.join(', '))}</b>`);
+        }
 
         if(insertData.length > 0) {
             if(btnEl) { btnEl.disabled = true; btnEl.innerText = "⏳ Đang nạp hàng loạt..."; }
@@ -995,10 +1016,14 @@
             if(btnEl) { btnEl.disabled = false; btnEl.innerText = "Nạp Hàng Loạt"; }
 
             if (!hasError) {
-                showModal("Thành công", `Đã nạp ${insertedCount} đơn!`);
-                document.getElementById("inputMultipleLines").value = "";
-                loadOrdersFromSupabase();
+                if (insertedCount > 0) {
+                    showModal("Thành công", `Đã nạp thành công ${insertedCount} đơn hàng mới!`);
+                    document.getElementById("inputMultipleLines").value = "";
+                    loadOrdersFromSupabase();
+                }
             }
+        } else if (duplicateCodesFound.length === 0) {
+            showModal("Thông báo", "Không có dữ liệu hợp lệ để nạp.");
         }
     }
 
@@ -1128,7 +1153,11 @@
                     .eq('user_id', currentUser.id);
 
                 if (error) {
-                    showModal("Lỗi", "Không thể cập nhật đơn hàng: " + error.message);
+                    if (error.code === '23505' || error.message.includes('unique_user_order_code')) {
+                        showModal("Lỗi trùng lặp", "Mã đơn hàng này đã tồn tại ở một đơn khác của bạn!");
+                    } else {
+                        showModal("Lỗi", "Không thể cập nhật đơn hàng: " + error.message);
+                    }
                     return;
                 }
 
