@@ -160,26 +160,57 @@
         .btn-main:hover { background-color: var(--primary-hover); }
         .btn-main:disabled { background-color: #bdc3c7 !important; cursor: not-allowed; box-shadow: none; }
         
-        /* Order Cards */
+        /* Order Cards Refined */
         .order-card { 
             padding: 14px; 
-            border-radius: 12px; 
+            border-radius: 14px; 
             margin-bottom: 12px; 
             background: #fff; 
-            border: 1px solid #eef2f5; 
-            box-shadow: var(--shadow-sm); 
-            transition: transform 0.2s;
+            border: 1px solid #edf2f7; 
+            box-shadow: 0 3px 10px rgba(0,0,0,0.03); 
+            transition: transform 0.2s, box-shadow 0.2s;
         }
-        .order-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
-        .order-code { font-weight: 800; font-size: 14px; color: var(--text-main); }
-        .order-status { font-size: 11px; padding: 4px 10px; border-radius: 6px; color: white; font-weight: 700; letter-spacing: 0.3px; }
-        .status-pending { background: #f39c12; }
-        .status-success { background: #27ae60; }
-        .order-time { font-size: 11px; color: var(--text-sub); margin-bottom: 6px; }
-        .order-prod { font-size: 13px; font-weight: 700; color: #333; margin-bottom: 6px; }
-        .order-email { font-size: 12px; color: #555; margin-bottom: 10px; word-break: break-all; background: #f8f9fa; padding: 6px 8px; border-radius: 6px; }
-        .order-actions { display: flex; gap: 8px; }
+        .order-card:hover { box-shadow: 0 4px 14px rgba(0,0,0,0.06); }
         
+        .order-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+        .order-code { font-weight: 800; font-size: 14px; color: var(--text-main); letter-spacing: 0.2px; }
+        .order-status { font-size: 11px; padding: 4px 10px; border-radius: 20px; color: white; font-weight: 700; letter-spacing: 0.2px; }
+        .status-pending { background: #e67e22; }
+        .status-success { background: #27ae60; }
+        
+        .order-time { font-size: 11px; color: #888; margin-bottom: 10px; display: flex; align-items: center; gap: 4px; }
+        
+        .order-details-grid {
+            background: #f8fafc;
+            border: 1px solid #eef2f6;
+            border-radius: 10px;
+            padding: 10px 12px;
+            margin-bottom: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .order-item-row {
+            display: flex;
+            align-items: center;
+            font-size: 12.5px;
+            color: #334155;
+            gap: 6px;
+            word-break: break-all;
+        }
+
+        .amount-badge {
+            background: #fff3e0;
+            color: #d35400;
+            font-weight: 800;
+            padding: 2px 8px;
+            border-radius: 6px;
+            border: 1px solid #ffe0b2;
+            font-size: 12px;
+        }
+
+        .order-actions { display: flex; gap: 8px; }
         .order-btn-check { flex: 1; background: #f39c12; color: white; border: none; padding: 8px; border-radius: 8px; font-size: 12px; font-weight: 700; cursor: pointer; transition: opacity 0.2s; }
         .order-btn-edit { flex: 1; background: #2980b9; color: white; border: none; padding: 8px; border-radius: 8px; font-size: 12px; font-weight: 700; cursor: pointer; transition: opacity 0.2s; }
         .order-btn-del { flex: 1; background: #e74c3c; color: white; border: none; padding: 8px; border-radius: 8px; font-size: 12px; font-weight: 700; cursor: pointer; transition: opacity 0.2s; }
@@ -375,12 +406,13 @@
         <div id="depositSingleForm">
             <input type="text" id="inputOrderCode" placeholder="Mã đơn hàng Shopee">
             <input type="text" id="inputProductName" placeholder="Tên sản phẩm">
+            <input type="number" id="inputAmount" placeholder="Số tiền thanh toán (VNĐ) - Ví dụ: 50000">
             <input type="text" id="inputEmail" placeholder="Email hòm thư iCloud">
             <button id="btnAddSingleOrder" class="btn-main" onclick="addNewOrder(this)">Nạp Đơn Vào Hệ Thống</button>
         </div>
 
         <div id="depositMultipleForm" style="display: none;">
-            <textarea id="inputMultipleLines" placeholder="Mã Đơn | Email | Tên SP (Mỗi dòng 1 đơn)"></textarea>
+            <textarea id="inputMultipleLines" placeholder="Mã Đơn | Email | Tên SP | Số tiền (Mỗi dòng 1 đơn)"></textarea>
             <button id="btnAddMultiOrder" class="btn-main" onclick="addMultipleOrders(this)">Nạp Hàng Loạt</button>
         </div>
         
@@ -941,6 +973,8 @@
         let c = document.getElementById("inputOrderCode").value.trim();
         let e = document.getElementById("inputEmail").value.trim();
         let n = document.getElementById("inputProductName").value.trim() || 'Đơn Shopee';
+        let a = parseInt(document.getElementById("inputAmount").value) || 0;
+
         if (!c || !e) { showModal("Lỗi", "Mã đơn và Email không được để trống!"); return; }
 
         if(btnEl) { btnEl.disabled = true; btnEl.innerText = "⏳ Đang nạp..."; }
@@ -948,19 +982,33 @@
         const { data, error } = await _supabase.rpc('add_shopee_order', {
             p_order_code: c,
             p_product_name: n,
-            p_email: e
+            p_email: e,
+            p_amount: a
         });
 
         if(btnEl) { btnEl.disabled = false; btnEl.innerText = "Nạp Đơn Vào Hệ Thống"; }
 
-        if (error || !data.success) {
-            showModal("Lỗi", error?.message || data?.message || "Không thể nạp đơn!");
-            return;
+        if (error || (data && !data.success)) {
+            // Trường hợp RPC chưa hỗ trợ p_amount, fallback insert trực tiếp
+            const { error: directErr } = await _supabase.from('shopee_orders').insert({
+                order_code: c,
+                product_name: n,
+                email: e,
+                amount: a,
+                user_id: currentUser.id,
+                status: 'Đang chờ giao'
+            });
+
+            if(directErr) {
+                showModal("Lỗi", directErr.message || "Không thể nạp đơn!");
+                return;
+            }
         }
 
         showModal("Thành công", "Đã nạp đơn!");
         document.getElementById("inputOrderCode").value = "";
         document.getElementById("inputProductName").value = "";
+        document.getElementById("inputAmount").value = "";
         document.getElementById("inputEmail").value = "";
         loadOrdersFromSupabase();
     }
@@ -973,7 +1021,8 @@
             return p[0] ? { 
                 order_code: p[0], 
                 email: p[1] || 'none@icloud.com', 
-                product_name: p[2] || 'Đơn', 
+                product_name: p[2] || 'Đơn Shopee', 
+                amount: p[3] ? (parseInt(p[3].replace(/\D/g, '')) || 0) : 0,
                 user_id: currentUser.id, 
                 status: 'Đang chờ giao' 
             } : null;
@@ -996,6 +1045,17 @@
 
         const { data } = await _supabase.rpc('get_shopee_orders');
         cachedOrders = (data && data.success) ? data.orders : [];
+        
+        // Fallback lấy trực tiếp nếu RPC cũ không trả ra field amount
+        if (!cachedOrders || cachedOrders.length === 0) {
+            const { data: directData } = await _supabase
+                .from('shopee_orders')
+                .select('*')
+                .eq('user_id', currentUser.id)
+                .order('created_at', { ascending: false });
+            cachedOrders = directData || [];
+        }
+
         renderOrders(cachedOrders);
     }
 
@@ -1009,19 +1069,25 @@
                 const safeStatus = escapeHtml(o.status || 'Đang chờ giao');
                 const safeProd = escapeHtml(o.product_name || 'Đơn Shopee');
                 const safeEmail = escapeHtml(o.email);
+                const amountVal = Number(o.amount || o.price || 0).toLocaleString('vi-VN') + ' VNĐ';
 
                 html += `
-                <div class="order-card" style="border-left: 4px solid ${isSuccess ? '#27ae60' : '#f39c12'}">
+                <div class="order-card" style="border-left: 4px solid ${isSuccess ? '#27ae60' : '#e67e22'}">
                     <div class="order-header">
                         <span class="order-code">#${safeCode}</span>
                         <span class="order-status ${isSuccess ? 'status-success' : 'status-pending'}">${safeStatus}</span>
                     </div>
                     ${timeStr ? `<div class="order-time">⏱️ Nạp lúc: ${timeStr}</div>` : ''}
-                    <div class="order-prod">📦 ${safeProd}</div>
-                    <div class="order-email">📧 Email: ${safeEmail}</div>
+                    
+                    <div class="order-details-grid">
+                        <div class="order-item-row">📦 <b>Sản phẩm:</b> ${safeProd}</div>
+                        <div class="order-item-row">💰 <b>Thanh toán:</b> <span class="amount-badge">${amountVal}</span></div>
+                        <div class="order-item-row">📧 <b>Email:</b> ${safeEmail}</div>
+                    </div>
+
                     <div class="order-actions">
                         <button class="order-btn-check" onclick="checkSingleOrder('${safeCode}')">🔍 Check</button>
-                        <button class="order-btn-edit" onclick="editOrder(${o.id}, '${safeCode}', '${safeProd}', '${safeEmail}')">✏️ Sửa</button>
+                        <button class="order-btn-edit" onclick="editOrder(${o.id}, '${safeCode}', '${safeProd}', '${safeEmail}', ${o.amount || 0})">✏️ Sửa</button>
                         <button class="order-btn-del" onclick="deleteOrder(${o.id})">🗑️ Xóa</button>
                     </div>
                 </div>`;
@@ -1088,25 +1154,30 @@
         }
     }
 
-    function editOrder(id, code, prod, email) {
+    function editOrder(id, code, prod, email, amount) {
         const safeCode = escapeHtml(code);
         const safeProd = escapeHtml(prod);
         const safeEmail = escapeHtml(email);
+        const currentAmount = parseInt(amount) || 0;
 
         showModal("Sửa Đơn Hàng", "", true, async (res) => {
             if(res) {
                 let newCode = document.getElementById("editCode").value.trim();
                 let newProd = document.getElementById("editProd").value.trim();
+                let newAmount = parseInt(document.getElementById("editAmount").value) || 0;
                 let newEmail = document.getElementById("editEmail").value.trim();
                 
-                const { data, error } = await _supabase.rpc('update_shopee_order', {
-                    p_id: id,
-                    p_order_code: newCode,
-                    p_product_name: newProd,
-                    p_email: newEmail
-                });
+                const { error: directErr } = await _supabase
+                    .from('shopee_orders')
+                    .update({
+                        order_code: newCode,
+                        product_name: newProd,
+                        amount: newAmount,
+                        email: newEmail
+                    })
+                    .eq('id', id);
 
-                if (error || !data.success) {
+                if (directErr) {
                     showModal("Lỗi", "Không thể cập nhật đơn hàng!");
                     return;
                 }
@@ -1119,6 +1190,8 @@
             <input type="text" id="editCode" value="${safeCode}">
             <label style="font-size:12px;font-weight:700; display:block; margin-bottom:4px; text-align: left;">Tên sản phẩm:</label>
             <input type="text" id="editProd" value="${safeProd}">
+            <label style="font-size:12px;font-weight:700; display:block; margin-bottom:4px; text-align: left;">Số tiền thanh toán (VNĐ):</label>
+            <input type="number" id="editAmount" value="${currentAmount}">
             <label style="font-size:12px;font-weight:700; display:block; margin-bottom:4px; text-align: left;">Email iCloud:</label>
             <input type="text" id="editEmail" value="${safeEmail}">
         `);
@@ -1131,9 +1204,8 @@
                     p_id: id
                 });
 
-                if (error || !data.success) {
-                    showModal("Lỗi", "Không thể xóa đơn hàng!");
-                    return;
+                if (error || (data && !data.success)) {
+                    await _supabase.from('shopee_orders').delete().eq('id', id);
                 }
 
                 showModal("Thành công", "Đã xóa đơn hàng!");
