@@ -6,7 +6,7 @@
     },
     {
       "source": "/api/order",
-      "destination": "https://script.google.com/macros/s/AKfycbwEt4LOvYPs2IhhFtL1sHZXiqWBiRV2WwBnktzT2CP7oP3UlqZNvTH2p2bHg6thnECTyQ/exec"
+      "destination": "https://script.google.com/macros/s/AKfycbzJIaqG3SxymARg-O9VP6fVsGbdJ8fGpLQ5qUSWCkXsSFOs9VFv5ix4dIp-T8Fljo0S3A/exec"
     }
   ]
 }
