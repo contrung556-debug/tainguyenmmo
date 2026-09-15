@@ -216,7 +216,7 @@
         .order-btn-del { flex: 1; background: #e74c3c; color: white; border: none; padding: 8px; border-radius: 8px; font-size: 12px; font-weight: 700; cursor: pointer; transition: opacity 0.2s; }
         .order-btn-check:active, .order-btn-edit:active, .order-btn-del:active { opacity: 0.8; }
 
-        /* Sub Tabs - Đã tinh chỉnh chống tràn/che viền trên mobile */
+        /* Sub Tabs */
         .sub-tab-container { 
             display: flex; 
             background: var(--primary-light); 
@@ -232,8 +232,9 @@
         }
         .sub-tab-container::-webkit-scrollbar { display: none; }
         .sub-tab-btn { 
-            flex: 0 0 auto; 
-            padding: 8px 10px; 
+            flex: 1 1 auto; 
+            min-width: max-content;
+            padding: 8px 8px; 
             border: none; 
             background: transparent; 
             font-weight: 700; 
@@ -242,7 +243,6 @@
             cursor: pointer; 
             border-radius: 8px; 
             text-align: center; 
-            white-space: nowrap; 
             transition: all 0.2s; 
         }
         .sub-tab-btn.active { 
@@ -855,6 +855,7 @@
                 </div>`; 
         }
 
+        // Bọc vào khung có class cuộn trang `my-acc-scroll-box`
         document.getElementById("myAccList").innerHTML = `
             <div class="my-acc-scroll-box">
                 ${myInnerHtml}
