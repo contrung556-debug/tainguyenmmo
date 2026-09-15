@@ -447,7 +447,7 @@
             .replace(/'/g, "&#039;");
     }
 
-    // Hàm làm sạch mã đơn (Cắt bỏ dấu # và khoảng trắng thừa)
+    // Hàm làm sạch mã đơn (Cắt bỏ hoàn toàn dấu # và khoảng trắng thừa)
     function cleanOrderCode(code) {
         if (!code) return '';
         return code.toString().replace(/^#/, '').trim();
@@ -983,7 +983,7 @@
         if(!currentUser) { showModal("Lỗi", "Vui lòng đăng nhập!"); return; }
         
         let rawCode = document.getElementById("inputOrderCode").value;
-        let c = cleanOrderCode(rawCode); // Chuẩn hóa mã đơn cắt bỏ #
+        let c = cleanOrderCode(rawCode);
         let e = document.getElementById("inputEmail").value.trim();
         let n = document.getElementById("inputProductName").value.trim() || 'Đơn Shopee';
         let a = parseInt(document.getElementById("inputAmount").value) || 0;
@@ -1031,7 +1031,7 @@
         let insertData = lines.map(line => {
             let p = line.split('|').map(x=>x.trim());
             return p[0] ? { 
-                order_code: cleanOrderCode(p[0]), // Chuẩn hóa mã đơn
+                order_code: cleanOrderCode(p[0]),
                 email: p[1] || 'none@icloud.com', 
                 product_name: p[2] || 'Đơn Shopee', 
                 amount: p[3] ? (parseInt(p[3].replace(/\D/g, '')) || 0) : 0,
@@ -1087,7 +1087,7 @@
                 html += `
                 <div class="order-card" style="border-left: 4px solid ${isSuccess ? '#27ae60' : '#e67e22'}">
                     <div class="order-header">
-                        <span class="order-code">#${safeCode}</span>
+                        <span class="order-code">${safeCode}</span>
                         <span class="order-status ${isSuccess ? 'status-success' : 'status-pending'}">${safeStatus}</span>
                     </div>
                     ${timeStr ? `<div class="order-time">⏱️ Nạp lúc: ${timeStr}</div>` : ''}
@@ -1129,7 +1129,7 @@
 
         let cleanCode = cleanOrderCode(orderCode);
         let safeCode = escapeHtml(cleanCode);
-        showModal("Đang kiểm tra", `Đang quét Gmail cho đơn #${safeCode}...`);
+        showModal("Đang kiểm tra", `Đang quét Gmail cho đơn ${safeCode}...`);
         
         try {
             let baseUrl = window.location.protocol + '//' + window.location.host;
