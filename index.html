@@ -824,7 +824,7 @@
             Object.keys(groupedMy).forEach(key => {
                 let group = groupedMy[key];
                 let count = group.items.length;
-                let dateStr = group.updated_at ? new Date(group.updated_at).toLocaleString('vi-VN') : 'Gần đây';
+                let dateStr = group.updated_at ? new Date(group.updated_at).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' }) : 'Gần đây';
                 let titleText = escapeHtml(group.items[0].title || `Tài khoản ${group.platform}`);
                 let descText = escapeHtml(group.items[0].description || '');
                 let combinedDetails = escapeHtml(group.items.map(i => i.account_details).join('\n'));
@@ -855,7 +855,6 @@
                 </div>`; 
         }
 
-        // Bọc vào khung có class cuộn trang `my-acc-scroll-box`
         document.getElementById("myAccList").innerHTML = `
             <div class="my-acc-scroll-box">
                 ${myInnerHtml}
@@ -1135,8 +1134,27 @@
         let html = '';
         paginatedItems.forEach(o => {
             let isSuccess = o.status === 'Đã giao' || o.status === 'Đã giao thành công' || (o.status && o.status.includes('Đã giao'));
-            let timeStr = o.created_at ? new Date(o.created_at).toLocaleString('vi-VN') : '';
-            let deliveredTimeStr = o.delivered_at ? new Date(o.delivered_at).toLocaleString('vi-VN') : '';
+            
+            // XỬ LÝ CHUẨN HÓA MÚI GIỜ VIỆT NAM (ASIA/HO_CHI_MINH)
+            let timeStr = '';
+            if (o.created_at) {
+                let dateObj = new Date(o.created_at);
+                timeStr = dateObj.toLocaleString('vi-VN', { 
+                    timeZone: 'Asia/Ho_Chi_Minh',
+                    hour: '2-digit', minute: '2-digit', second: '2-digit',
+                    day: '2-digit', month: '2-digit', year: 'numeric'
+                });
+            }
+
+            let deliveredTimeStr = '';
+            if (o.delivered_at) {
+                let dateObj = new Date(o.delivered_at);
+                deliveredTimeStr = dateObj.toLocaleString('vi-VN', { 
+                    timeZone: 'Asia/Ho_Chi_Minh',
+                    hour: '2-digit', minute: '2-digit', second: '2-digit',
+                    day: '2-digit', month: '2-digit', year: 'numeric'
+                });
+            }
 
             const safeCode = escapeHtml(o.order_code);
             const safeStatus = escapeHtml(o.status || 'Đang chờ giao');
