@@ -29,7 +29,6 @@
             -webkit-tap-highlight-color: transparent;
         }
         
-        /* Header */
         .store-header { 
             background: linear-gradient(135deg, #f53d2d, #ff6633); 
             color: white; 
@@ -65,7 +64,6 @@
             backdrop-filter: blur(5px);
         }
 
-        /* Navigation Bar */
         .main-nav-bar { 
             display: flex; 
             background: #fff; 
@@ -97,7 +95,6 @@
             box-shadow: 0 3px 8px rgba(238,77,45,0.3); 
         }
 
-        /* Container & Sections */
         .container { max-width: 600px; margin: 0 auto; padding: 14px; }
         
         .section-box { 
@@ -123,7 +120,6 @@
             gap: 8px; 
         }
 
-        /* Inputs & Buttons */
         input, textarea, select { 
             width: 100%; 
             padding: 11px 13px; 
@@ -160,7 +156,6 @@
         .btn-main:hover { background-color: var(--primary-hover); }
         .btn-main:disabled { background-color: #bdc3c7 !important; cursor: not-allowed; box-shadow: none; }
         
-        /* Order Cards Refined */
         .order-card { 
             padding: 14px; 
             border-radius: 14px; 
@@ -214,9 +209,7 @@
         .order-btn-check { flex: 1; background: #f39c12; color: white; border: none; padding: 8px; border-radius: 8px; font-size: 12px; font-weight: 700; cursor: pointer; transition: opacity 0.2s; }
         .order-btn-edit { flex: 1; background: #2980b9; color: white; border: none; padding: 8px; border-radius: 8px; font-size: 12px; font-weight: 700; cursor: pointer; transition: opacity 0.2s; }
         .order-btn-del { flex: 1; background: #e74c3c; color: white; border: none; padding: 8px; border-radius: 8px; font-size: 12px; font-weight: 700; cursor: pointer; transition: opacity 0.2s; }
-        .order-btn-check:active, .order-btn-edit:active, .order-btn-del:active { opacity: 0.8; }
 
-        /* Sub Tabs */
         .sub-tab-container { 
             display: flex; 
             background: var(--primary-light); 
@@ -251,7 +244,6 @@
             box-shadow: 0 2px 6px rgba(238,77,45,0.3); 
         }
         
-        /* Store Product Card */
         .store-product-card { 
             background: #fff; 
             border: 1px solid var(--border-light); 
@@ -261,7 +253,6 @@
             box-shadow: var(--shadow-sm); 
             transition: box-shadow 0.2s;
         }
-        .store-product-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.06); }
         .store-product-header { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 10px; }
         .store-product-badge { 
             background: var(--primary-color); 
@@ -310,7 +301,6 @@
         .store-buy-btn.out-of-stock { background: #bdc3c7; cursor: not-allowed; box-shadow: none; }
         .store-buy-btn:disabled { background-color: #bdc3c7 !important; cursor: not-allowed; box-shadow: none; }
 
-        /* Lịch sử mua hàng có thanh cuộn riêng biệt */
         .my-acc-scroll-box {
             max-height: 520px;
             overflow-y: auto;
@@ -318,22 +308,7 @@
             scrollbar-width: thin;
             scrollbar-color: #cbd5e1 #f1f5f9;
         }
-        .my-acc-scroll-box::-webkit-scrollbar {
-            width: 6px;
-        }
-        .my-acc-scroll-box::-webkit-scrollbar-track {
-            background: #f1f5f9;
-            border-radius: 10px;
-        }
-        .my-acc-scroll-box::-webkit-scrollbar-thumb {
-            background: #cbd5e1;
-            border-radius: 10px;
-        }
-        .my-acc-scroll-box::-webkit-scrollbar-thumb:hover {
-            background: #94a3b8;
-        }
 
-        /* Modal */
         #customModalOverlay { 
             display: none; 
             position: fixed; 
@@ -367,8 +342,6 @@
         #modalMessage { font-size: 13px; color: #444; margin-bottom: 20px; line-height: 1.5; text-align: center; word-break: break-word; overflow-wrap: break-word; }
         .modal-buttons { display: flex; gap: 10px; }
         .modal-btn { flex: 1; padding: 11px; border: none; border-radius: 10px; font-weight: 700; font-size: 13px; cursor: pointer; transition: opacity 0.2s; }
-        .modal-btn:active { opacity: 0.8; }
-        .modal-btn:disabled { opacity: 0.6; cursor: not-allowed; }
         #modalBtnCancel { background: #edf2f7; color: #4a5568; }
         #modalBtnOk { background: var(--primary-color); color: #fff; box-shadow: 0 3px 8px rgba(238,77,45,0.3); }
     </style>
@@ -392,10 +365,8 @@
 </div>
 
 <div class="container">
-
     <div class="section-box active-section" id="sectionMarket">
         <div class="section-title">🛒 Chợ Tài Khoản MMO</div>
-        
         <div class="sub-tab-container">
             <button class="sub-tab-btn active" id="tabShopee" onclick="switchCategory('Shopee')">Shopee</button>
             <button class="sub-tab-btn" id="tabFacebook" onclick="switchCategory('Facebook')">Facebook</button>
@@ -408,7 +379,6 @@
         <div id="marketList">
             <div style="text-align: center; color: #888; padding: 20px; font-size: 13px;">Đang tải danh sách...</div>
         </div>
-        
         <div id="myAccList" style="display: none;"></div>
     </div>
 
@@ -448,13 +418,10 @@
 
             <input type="text" id="searchOrderInput" placeholder="🔍 Tìm kiếm nhanh mã đơn hoặc tên sản phẩm..." oninput="filterOrders()">
             <button id="btnCheckAllOrders" class="btn-main" style="background-color: #27ae60;" onclick="checkAllOrders(this)">⚡ Quét Trạng Thái Đơn Báo Cáo</button>
-            
             <div id="orderListContainer" style="margin-top: 10px;"></div>
-            
             <div id="orderPagination" style="display: flex; justify-content: center; gap: 6px; margin-top: 16px; align-items: center;"></div>
         </div>
     </div>
-
 </div>
 
 <div id="customModalOverlay">
@@ -688,9 +655,7 @@
             password: pass,
             options: {
                 captchaToken: captchaToken,
-                data: {
-                    username: username
-                }
+                data: { username: username }
             }
         });
 
@@ -772,12 +737,10 @@
                                     <div class="store-product-meta">Giá: <b style="color: var(--primary-color);">${group.price.toLocaleString('vi-VN')}đ</b> | Kho: <b style="color: ${stockCount > 0 ? '#27ae60' : '#e74c3c'};">${stockCount} sẵn có</b></div>
                                 </div>
                             </div>
-                            <div class="store-product-desc">
-                                ${group.description}
-                            </div>
+                            <div class="store-product-desc">${group.description}</div>
                             <div class="store-product-action">
                                 <input type="number" id="qty_${firstId}" class="store-qty-input" value="1" min="1" max="${stockCount}">
-                                <button id="btnBuy_${firstId}" class="store-buy-btn ${stockCount === 0 ? 'out-of-stock' : ''}" ${stockCount === 0 ? 'disabled' : ''} onclick="buyGroupAccounts('${escapeHtml(group.platform)}', ${group.price}, ${stockCount}, ${firstId}, this)">
+                                <button id="btnBuy_${firstId}" class="store-buy-btn ${stockCount === 0 ? 'out-of-stock' : ''}" ${stockCount === 0 ? 'disabled' : ''} onclick="buyGroupAccounts('${group.platform}', ${group.price}, ${stockCount}, ${firstId}, this)">
                                     🛒 Mua Ngay
                                 </button>
                             </div>
@@ -840,7 +803,7 @@
                         <div class="order-time">${dateStr} | Loại: ${titleText} | Tổng trừ: <b style="color:var(--primary-color);">${totalCost.toLocaleString('vi-VN')}đ</b>.</div>
                         <div style="font-size: 11px; color: #666; margin-bottom: 6px;">Cần hỗ trợ? Vui lòng liên hệ admin.</div>
                         ${descText ? `<div style="background: var(--primary-light); border: 1px dashed var(--border-light); padding: 8px; border-radius: 8px; font-size: 11px; color: #555; margin-bottom: 8px;">${descText}</div>` : ''}
-                        <textarea readonly style="width: 100%; background: #fafafa; font-family: monospace; font-weight: 700; color: #c0392b; font-size: 12px; padding: 10px; border: 1px solid #e1e8ed; border-radius: 8px; resize: none; height: ${Math.min(140, Math.max(45, count * 22 + 16))}px; margin-bottom: 8px;" id="acc_text_batch_${firstId}">${combinedDetails}</textarea>
+                        <textarea readonly style="width: 100%; background: #fafafa; font-family: monospace; font-weight: 700; color: #c0392b; font-size: 12px; padding: 10px; border: 1px solid #e1e8ed; border-radius: 8px; resize: none; word-break: break-all; height: ${Math.min(140, Math.max(45, count * 22 + 16))}px; margin-bottom: 8px;" id="acc_text_batch_${firstId}">${combinedDetails}</textarea>
                         <div style="display: flex; gap: 8px;">
                             <button class="order-btn-check" style="background: #718096; color: white;" onclick="copyAccText('acc_text_batch_${firstId}')">📋 Copy tất cả (${count} acc)</button>
                             <button class="order-btn-check" style="background: #3182ce;" onclick="showModal('ADD Mail', 'Tính năng add mail tự động hoặc hướng dẫn add mail cho tài khoản này.')">ADD Mail</button>
@@ -855,15 +818,12 @@
                 </div>`; 
         }
 
-        document.getElementById("myAccList").innerHTML = `
-            <div class="my-acc-scroll-box">
-                ${myInnerHtml}
-            </div>
-        `;
+        document.getElementById("myAccList").innerHTML = `<div class="my-acc-scroll-box">${myInnerHtml}</div>`;
     }
 
     function copyAccText(elementId) {
         let textarea = document.getElementById(elementId);
+        if(!textarea) return;
         textarea.select();
         textarea.setSelectionRange(0, 99999);
         navigator.clipboard.writeText(textarea.value);
@@ -906,7 +866,7 @@
             let uniqueModalId = 'modal_acc_list_' + Date.now();
             showModal(`Mua thành công ${qty} tài khoản!`, "", false, null, `
                 <div style="font-size: 12px; color: #555; margin-bottom: 6px; text-align: center;">Danh sách tài khoản của bạn:</div>
-                <textarea readonly id="${uniqueModalId}" style="width: 100%; height: 100px; background: #fafafa; font-family: monospace; font-weight: 700; color: #c0392b; font-size: 12px; padding: 10px; border: 1px solid #e1e8ed; border-radius: 8px; resize: none; margin-bottom: 10px;">${combinedDetails}</textarea>
+                <textarea readonly id="${uniqueModalId}" style="width: 100%; height: 100px; background: #fafafa; font-family: monospace; font-weight: 700; color: #c0392b; font-size: 12px; padding: 10px; border: 1px solid #e1e8ed; border-radius: 8px; resize: none; word-break: break-all; margin-bottom: 10px;">${combinedDetails}</textarea>
                 <button class="order-btn-check" style="width: 100%; background: #27ae60; padding: 11px; font-size: 13px;" onclick="copyAccText('${uniqueModalId}')">📋 Copy Danh Sách Acc</button>
             `);
         });
@@ -1135,7 +1095,6 @@
         paginatedItems.forEach(o => {
             let isSuccess = o.status === 'Đã giao' || o.status === 'Đã giao thành công' || (o.status && o.status.includes('Đã giao'));
             
-            // XỬ LÝ CHUẨN HÓA MÚI GIỜ VIỆT NAM (ASIA/HO_CHI_MINH)
             let timeStr = '';
             if (o.created_at) {
                 let dateObj = new Date(o.created_at);
