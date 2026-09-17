@@ -416,7 +416,7 @@
                 <button class="sub-tab-btn" id="orderTab-pending" onclick="switchOrderTab('pending')">Đang chờ</button>
             </div>
 
-            <input type="text" id="searchOrderInput" placeholder="🔍 Tìm kiếm nhanh mã đơn hoặc tên sản phẩm..." oninput="filterOrders()">
+            <input type="text" id="searchOrderInput" placeholder="🔍 Tìm kiếm nhanh mã đơn hoặc tên sản phẩm..." oninput="handleSearchInput()">
             <button id="btnCheckAllOrders" class="btn-main" style="background-color: #27ae60;" onclick="checkAllOrders(this)">⚡ Quét Trạng Thái Đơn Báo Cáo</button>
             <div id="orderListContainer" style="margin-top: 10px;"></div>
             <div id="orderPagination" style="display: flex; justify-content: center; gap: 6px; margin-top: 16px; align-items: center;"></div>
@@ -446,6 +446,19 @@
             .replace(/'/g, "&#039;");
     }
 
+    function formatCurrency(amount) {
+        const val = Number(amount) || 0;
+        return val.toLocaleString('vi-VN') + 'đ';
+    }
+
+    function debounce(func, timeout = 300) {
+        let timer;
+        return (...args) => {
+            clearTimeout(timer);
+            timer = setTimeout(() => { func.apply(this, args); }, timeout);
+        };
+    }
+
     const SUPABASE_URL = "https://hsdbjzkxbdezysxwwtaw.supabase.co";
     const SUPABASE_ANON_KEY = "sb_publishable_LIeDI4UVn7MEo5vURP05hA_TM4h0vFd";
     const TURNSTILE_SITE_KEY = "0x4AAAAAAEzlm3TdqjzI-LxQ";
@@ -464,6 +477,8 @@
 
     let loginWidgetId = null;
     let regWidgetId = null;
+
+    const handleSearchInput = debounce(() => filterOrders(true));
 
     async function subscribeOrderRealtime() {
         if (!currentUser) return;
@@ -552,7 +567,7 @@
                 <button class="top-btn" onclick="logout()">Thoát</button>
             `;
             walletBox.innerHTML = `
-                <div>💵 Số dư Ví: <b style="color: #fff3e0; font-size: 13px;">${balance.toLocaleString('vi-VN')}đ</b></div>
+                <div>💵 Số dư Ví: <b style="color: #fff3e0; font-size: 13px;">${formatCurrency(balance)}</b></div>
                 <button class="top-btn" style="background:#27ae60; border:none;" onclick="showModal('Nạp Tiền', 'Bank: Techcombank / Momo\\nTên: Admin MMO\\nNội dung CK: napvi ${displayName}\\nAdmin sẽ cộng tiền vào ví cho bạn sau khi nhận.')">➕ Nạp Ví</button>
             `;
             loadStoreData();
@@ -573,6 +588,27 @@
         }
     }
 
+    function renderTurnstileWidget(containerId, callback) {
+        const container = document.getElementById(containerId);
+        if (!container) return;
+        container.innerHTML = '';
+        
+        let attempts = 0;
+        const checkAndRender = setInterval(() => {
+            attempts++;
+            if (typeof turnstile !== 'undefined') {
+                clearInterval(checkAndRender);
+                const widgetId = turnstile.render('#' + containerId, {
+                    sitekey: TURNSTILE_SITE_KEY
+                });
+                callback(widgetId);
+            } else if (attempts > 30) { 
+                clearInterval(checkAndRender);
+                container.innerHTML = '<span style="color:red; font-size:11px;">Không thể tải Captcha. Vui lòng thử lại!</span>';
+            }
+        }, 100);
+    }
+
     function openLogin() {
         loginWidgetId = null;
         showModal("ĐĂNG NHẬP", "", true, handleLogin, `
@@ -581,17 +617,7 @@
             <div style="margin-bottom: 12px; display: flex; justify-content: center;" id="turnstile-login-container"></div>
         `);
 
-        if (typeof turnstile !== 'undefined') {
-            setTimeout(() => {
-                const container = document.getElementById('turnstile-login-container');
-                if (container) {
-                    container.innerHTML = '';
-                    loginWidgetId = turnstile.render('#turnstile-login-container', {
-                        sitekey: TURNSTILE_SITE_KEY
-                    });
-                }
-            }, 100);
-        }
+        renderTurnstileWidget('turnstile-login-container', (wId) => { loginWidgetId = wId; });
     }
 
     async function handleLogin(res) {
@@ -631,17 +657,7 @@
             <div style="margin-bottom: 12px; display: flex; justify-content: center;" id="turnstile-reg-container"></div>
         `);
 
-        if (typeof turnstile !== 'undefined') {
-            setTimeout(() => {
-                const container = document.getElementById('turnstile-reg-container');
-                if (container) {
-                    container.innerHTML = '';
-                    regWidgetId = turnstile.render('#turnstile-reg-container', {
-                        sitekey: TURNSTILE_SITE_KEY
-                    });
-                }
-            }, 100);
-        }
+        renderTurnstileWidget('turnstile-reg-container', (wId) => { regWidgetId = wId; });
     }
 
     async function handleReg(res) {
@@ -748,6 +764,7 @@
                     let group = grouped[key];
                     let stockCount = group.items.length;
                     let firstId = group.items[0].id;
+                    let uniqueBuyId = `buy_${group.platform}_${group.price}_${firstId}`;
 
                     marketHtml += `
                         <div class="store-product-card">
@@ -755,13 +772,13 @@
                                 <div class="store-product-badge">${index++}</div>
                                 <div class="store-product-info">
                                     <div class="store-product-name">${group.title}</div>
-                                    <div class="store-product-meta">Giá: <b style="color: var(--primary-color);">${group.price.toLocaleString('vi-VN')}đ</b> | Kho: <b style="color: ${stockCount > 0 ? '#27ae60' : '#e74c3c'};">${stockCount} sẵn có</b></div>
+                                    <div class="store-product-meta">Giá: <b style="color: var(--primary-color);">${formatCurrency(group.price)}</b> | Kho: <b style="color: ${stockCount > 0 ? '#27ae60' : '#e74c3c'};">${stockCount} sẵn có</b></div>
                                 </div>
                             </div>
                             <div class="store-product-desc">${group.description}</div>
                             <div class="store-product-action">
-                                <input type="number" id="qty_${firstId}" class="store-qty-input" value="1" min="1" max="${stockCount}">
-                                <button id="btnBuy_${firstId}" class="store-buy-btn ${stockCount === 0 ? 'out-of-stock' : ''}" ${stockCount === 0 ? 'disabled' : ''} onclick="buyGroupAccounts('${group.platform}', ${group.price}, ${stockCount}, ${firstId}, this)">
+                                <input type="number" id="qty_${uniqueBuyId}" class="store-qty-input" value="1" min="1" max="${stockCount}">
+                                <button id="btn_${uniqueBuyId}" class="store-buy-btn ${stockCount === 0 ? 'out-of-stock' : ''}" ${stockCount === 0 ? 'disabled' : ''} onclick="buyGroupAccounts('${group.platform}', ${group.price}, ${stockCount}, '${uniqueBuyId}', this)">
                                     🛒 Mua Ngay
                                 </button>
                             </div>
@@ -821,7 +838,7 @@
                             <span class="order-code">Đơn mua #${firstId}</span>
                             <span class="order-status status-success">${count} acc</span>
                         </div>
-                        <div class="order-time">${dateStr} | Loại: ${titleText} | Tổng trừ: <b style="color:var(--primary-color);">${totalCost.toLocaleString('vi-VN')}đ</b>.</div>
+                        <div class="order-time">${dateStr} | Loại: ${titleText} | Tổng trừ: <b style="color:var(--primary-color);">${formatCurrency(totalCost)}</b>.</div>
                         <div style="font-size: 11px; color: #666; margin-bottom: 6px;">Cần hỗ trợ? Vui lòng liên hệ admin.</div>
                         ${descText ? `<div style="background: var(--primary-light); border: 1px dashed var(--border-light); padding: 8px; border-radius: 8px; font-size: 11px; color: #555; margin-bottom: 8px;">${descText}</div>` : ''}
                         <textarea readonly style="width: 100%; background: #fafafa; font-family: monospace; font-weight: 700; color: #c0392b; font-size: 12px; padding: 10px; border: 1px solid #e1e8ed; border-radius: 8px; resize: none; word-break: break-all; height: ${Math.min(140, Math.max(45, count * 22 + 16))}px; margin-bottom: 8px;" id="acc_text_batch_${firstId}">${combinedDetails}</textarea>
@@ -851,13 +868,13 @@
         showModal("Thành công", "Đã sao chép tất cả thông tin tài khoản vào bộ nhớ tạm!");
     }
 
-    async function buyGroupAccounts(platform, price, maxStock, firstId, btnEl) {
+    async function buyGroupAccounts(platform, price, maxStock, uniqueId, btnEl) {
         if (!currentUser) {
             showModal("Thông báo", "Vui lòng đăng nhập để mua tài khoản!");
             return;
         }
 
-        let qtyInput = document.getElementById(`qty_${firstId}`);
+        let qtyInput = document.getElementById(`qty_${uniqueId}`);
         let qty = parseInt(qtyInput ? qtyInput.value : 1, 10) || 1;
 
         if (isNaN(qty) || qty < 1) { showModal("Lỗi", "Số lượng mua không hợp lệ!"); return; }
@@ -865,7 +882,7 @@
 
         let totalPrice = price * qty;
 
-        showModal("Xác nhận Mua", `Thanh toán ${totalPrice.toLocaleString('vi-VN')}đ cho ${qty} tài khoản này?`, true, async (res) => {
+        showModal("Xác nhận Mua", `Thanh toán ${formatCurrency(totalPrice)} cho ${qty} tài khoản này?`, true, async (res) => {
             if (!res) return;
 
             if(btnEl) { btnEl.disabled = true; btnEl.innerText = "⏳ Đang xử lý..."; }
@@ -1048,17 +1065,17 @@
 
     function switchOrderTab(tab) {
         currentOrderTab = tab;
-        currentOrderPage = 1;
-
         ['all', 'completed', 'pending'].forEach(t => {
             let btn = document.getElementById(`orderTab-${t}`);
             if(btn) btn.classList.toggle('active', t === tab);
         });
 
-        filterOrders();
+        filterOrders(true);
     }
 
-    function filterOrders() {
+    function filterOrders(resetPage = false) {
+        if (resetPage) currentOrderPage = 1;
+        
         let keyword = document.getElementById("searchOrderInput").value.toLowerCase().trim();
         
         let filtered = cachedOrders.filter(o => {
@@ -1127,7 +1144,7 @@
             const safeEmail = escapeHtml(o.email);
             
             const valNum = Number(o.amount !== undefined && o.amount !== null && o.amount !== 0 ? o.amount : (o.price || 0));
-            const amountVal = valNum.toLocaleString('vi-VN') + ' VNĐ';
+            const amountVal = formatCurrency(valNum);
 
             html += `
             <div class="order-card" style="border-left: 4px solid ${isSuccess ? '#27ae60' : '#e67e22'}">
@@ -1165,7 +1182,7 @@
 
     function changeOrderPage(targetPage) {
         currentOrderPage = targetPage;
-        filterOrders();
+        filterOrders(false);
     }
 
     async function checkSingleOrder(orderCode) {
