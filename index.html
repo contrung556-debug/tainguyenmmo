@@ -462,9 +462,15 @@
     let currentOrderPage = 1;
     const ordersPerPage = 5;
 
-    function subscribeOrderRealtime() {
+    let loginWidgetId = null;
+    let regWidgetId = null;
+
+    async function subscribeOrderRealtime() {
         if (!currentUser) return;
-        if (realtimeChannel) _supabase.removeChannel(realtimeChannel);
+        if (realtimeChannel) {
+            await _supabase.removeChannel(realtimeChannel);
+            realtimeChannel = null;
+        }
 
         realtimeChannel = _supabase
             .channel('realtime_shopee_orders')
@@ -554,7 +560,7 @@
             subscribeOrderRealtime();
         } else {
             if (realtimeChannel) {
-                _supabase.removeChannel(realtimeChannel);
+                await _supabase.removeChannel(realtimeChannel);
                 realtimeChannel = null;
             }
             currentUserMember = null;
@@ -568,6 +574,7 @@
     }
 
     function openLogin() {
+        loginWidgetId = null;
         showModal("ĐĂNG NHẬP", "", true, handleLogin, `
             <input type="email" id="popEmail" placeholder="Nhập Email đăng nhập...">
             <input type="password" id="popPass" placeholder="Mật khẩu...">
@@ -579,7 +586,7 @@
                 const container = document.getElementById('turnstile-login-container');
                 if (container) {
                     container.innerHTML = '';
-                    turnstile.render('#turnstile-login-container', {
+                    loginWidgetId = turnstile.render('#turnstile-login-container', {
                         sitekey: TURNSTILE_SITE_KEY
                     });
                 }
@@ -591,7 +598,7 @@
         if(!res) return;
         let email = document.getElementById("popEmail").value.trim();
         let pass = document.getElementById("popPass").value.trim();
-        let captchaToken = document.querySelector('#turnstile-login-container [name="cf-turnstile-response"]')?.value;
+        let captchaToken = (loginWidgetId !== null && typeof turnstile !== 'undefined') ? turnstile.getResponse(loginWidgetId) : null;
 
         if (!captchaToken) {
             showModal("Lỗi", "Vui lòng xác thực Captcha!");
@@ -614,6 +621,7 @@
     }
 
     function openRegister() {
+        regWidgetId = null;
         showModal("ĐĂNG KÝ", "", true, handleReg, `
             <input type="text" id="regUser" placeholder="Tên đăng nhập (Username)...">
             <input type="email" id="regEmail" placeholder="Email của bạn...">
@@ -627,7 +635,7 @@
                 const container = document.getElementById('turnstile-reg-container');
                 if (container) {
                     container.innerHTML = '';
-                    turnstile.render('#turnstile-reg-container', {
+                    regWidgetId = turnstile.render('#turnstile-reg-container', {
                         sitekey: TURNSTILE_SITE_KEY
                     });
                 }
@@ -641,7 +649,7 @@
         let email = document.getElementById("regEmail").value.trim();
         let pass = document.getElementById("regPass").value.trim();
         let passConfirm = document.getElementById("regPassConfirm").value.trim();
-        let captchaToken = document.querySelector('#turnstile-reg-container [name="cf-turnstile-response"]')?.value;
+        let captchaToken = (regWidgetId !== null && typeof turnstile !== 'undefined') ? turnstile.getResponse(regWidgetId) : null;
 
         if (!username || !email || !pass) { showModal("Lỗi", "Vui lòng nhập đầy đủ thông tin!"); return; }
         if (!captchaToken) { showModal("Lỗi", "Vui lòng xác thực Captcha!"); return; }
@@ -664,16 +672,20 @@
         if (error) { showModal("Lỗi", error.message); return; }
 
         showModal("Thành công", "Bạn đã đăng ký thành công, vui lòng đăng nhập để sử dụng dịch vụ.", false, () => {
-            openLogin();
             setTimeout(() => {
-                let emailInput = document.getElementById("popEmail");
-                if(emailInput) emailInput.value = email;
-            }, 100);
+                openLogin();
+                setTimeout(() => {
+                    let emailInput = document.getElementById("popEmail");
+                    if(emailInput) emailInput.value = escapeHtml(email);
+                }, 100);
+            }, 200);
         });
     }
 
     async function logout() {
         await _supabase.auth.signOut();
+        cachedOrders = [];
+        document.getElementById("orderListContainer").innerHTML = "";
         await updateAuthUI();
     }
 
@@ -837,7 +849,7 @@
         }
 
         let qtyInput = document.getElementById(`qty_${firstId}`);
-        let qty = parseInt(qtyInput ? qtyInput.value : 1);
+        let qty = parseInt(qtyInput ? qtyInput.value : 1, 10) || 1;
 
         if (isNaN(qty) || qty < 1) { showModal("Lỗi", "Số lượng mua không hợp lệ!"); return; }
         if (qty > maxStock) { showModal("Lỗi", `Kho chỉ còn lại ${maxStock} tài khoản!`); return; }
@@ -925,7 +937,7 @@
         let c = document.getElementById("inputOrderCode").value.trim();
         let e = document.getElementById("inputEmail").value.trim();
         let n = document.getElementById("inputProductName").value.trim() || 'Đơn Shopee';
-        let a = parseInt(document.getElementById("inputAmount").value) || 0;
+        let a = parseInt(document.getElementById("inputAmount").value, 10) || 0;
 
         if (!c || !e) { showModal("Lỗi", "Mã đơn và Email không được để trống!"); return; }
 
@@ -969,8 +981,10 @@
 
         let insertData = lines.map(line => {
             let p = line.split('|').map(x=>x.trim());
+            if (p.length < 2 || !p[0]) return null;
+            
             let code = p[0];
-            let parsedAmount = p[3] ? (parseInt(p[3].replace(/\D/g, '')) || 0) : 0;
+            let parsedAmount = p[3] ? (parseInt(p[3].replace(/\D/g, ''), 10) || 0) : 0;
             
             if (code) {
                 if (existingCodes.has(code)) {
@@ -1202,13 +1216,13 @@
         const safeCode = escapeHtml(code);
         const safeProd = escapeHtml(prod);
         const safeEmail = escapeHtml(email);
-        const currentAmount = parseInt(amount) || 0;
+        const currentAmount = parseInt(amount, 10) || 0;
 
         showModal("Sửa Đơn Hàng", "", true, async (res) => {
             if(res) {
                 let newCode = document.getElementById("editCode").value.trim();
                 let newProd = document.getElementById("editProd").value.trim();
-                let newAmount = parseInt(document.getElementById("editAmount").value) || 0;
+                let newAmount = parseInt(document.getElementById("editAmount").value, 10) || 0;
                 let newEmail = document.getElementById("editEmail").value.trim();
                 
                 const { error } = await _supabase
