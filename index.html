@@ -568,7 +568,10 @@
             `;
             walletBox.innerHTML = `
                 <div>💵 Số dư Ví: <b style="color: #fff3e0; font-size: 13px;">${formatCurrency(balance)}</b></div>
-                <button class="top-btn" style="background:#27ae60; border:none;" onclick="showModal('Nạp Tiền', 'Bank: MB Bank\\nSTK: 0972950246\\nTên: Admin MMO\\nNội dung CK: napvi ${displayName}\\nAdmin sẽ cộng tiền vào ví cho bạn sau khi nhận.')">➕ Nạp Ví</button>
+                <div style="display: flex; gap: 4px;">
+                    <button class="top-btn" style="background:#2980b9; border:none;" onclick="loadDepositHistory()">📜 Lịch sử</button>
+                    <button class="top-btn" style="background:#27ae60; border:none;" onclick="showModal('Nạp Tiền', 'Bank: MB Bank\\nSTK: 0972950246\\nTên: Admin MMO\\nNội dung CK: napvi ${displayName}\\nAdmin sẽ cộng tiền vào ví cho bạn sau khi nhận.')">➕ Nạp Ví</button>
+                </div>
             `;
             loadStoreData();
             loadOrdersFromSupabase();
@@ -586,6 +589,48 @@
             walletBox.innerHTML = `<div>Chưa đăng nhập tài khoản.</div>`;
             loadStoreData();
         }
+    }
+
+    async function loadDepositHistory() {
+        if (!currentUser) return;
+        showModal("Lịch Sử Cộng Tiền", "Đang tải lịch sử giao dịch...");
+
+        const { data: historyData, error } = await _supabase
+            .from('deposit_history')
+            .select('*')
+            .eq('user_id', currentUser.id)
+            .order('created_at', { ascending: false });
+
+        if (error) {
+            showModal("Lịch Sử Cộng Tiền", "Chưa có dữ liệu lịch sử hoặc bảng giao dịch chưa được khởi tạo trên CSDL.");
+            return;
+        }
+
+        if (!historyData || historyData.length === 0) {
+            showModal("Lịch Sử Cộng Tiền", "Bạn chưa có giao dịch cộng tiền hoặc nạp tiền nào.");
+            return;
+        }
+
+        let historyHtml = `<div style="max-height: 350px; overflow-y: auto; text-align: left; display: flex; flex-direction: column; gap: 8px;">`;
+        historyData.forEach(item => {
+            let timeStr = item.created_at ? new Date(item.created_at).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' }) : '';
+            let amountVal = formatCurrency(item.amount || 0);
+            let noteStr = escapeHtml(item.note || item.description || 'Cộng tiền vào ví');
+            let typeStr = item.type === 'cong_thu_cong' ? 'Cộng thủ công' : 'Nạp tiền ví';
+
+            historyHtml += `
+                <div style="background: #f8fafc; border: 1px solid #e2e8f0; padding: 10px; border-radius: 8px; font-size: 12px;">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                        <b style="color: #27ae60;">+ ${amountVal}</b>
+                        <span style="color: #718096; font-size: 11px;">${timeStr}</span>
+                    </div>
+                    <div style="color: #4a5568; margin-bottom: 2px;"><b>Loại:</b> ${typeStr}</div>
+                    <div style="color: #4a5568;"><b>Nội dung:</b> ${noteStr}</div>
+                </div>`;
+        });
+        historyHtml += `</div>`;
+
+        showModal("Lịch Sử Cộng Tiền", "", false, null, historyHtml);
     }
 
     function renderTurnstileWidget(containerId, callback) {
