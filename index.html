@@ -6262,4 +6262,137 @@ function deleteOrder(id) {
                 <b>${label}</b> ${escapeHtml(String(value))}
             </div>` : '';
 
-        let html = `<div style="text-align:l
+        let html = `<div style="text-align:left;font-size:12px;line-height:1.55;">`;
+        html += row('📦 Mã đơn:', o.order_code);
+        html += row('🛍️ Sản phẩm:', o.product_name);
+        html += row('📧 Email:', o.email);
+        html += row('💰 Số tiền:', o.amount ? Number(o.amount).toLocaleString('vi-VN') + 'đ' : '');
+        html += row('🚚 Mã SPX:', t.tracking_code);
+        html += row('📍 Trạng thái:', t.tracking_status);
+        html += row('🏢 Vị trí hiện tại:', t.current_location);
+        html += row('➡️ Điểm tiếp:', t.next_location);
+        const finalState = nkIsCancelled(o)
+            ? { bg:'#fef2f2', text:'❌ ĐƠN BỊ HỦY' }
+            : nkIsDelivered(o)
+                ? { bg:'#ecfdf5', text:'✅ ĐÃ GIAO' }
+                : { bg:'#f8fafc', text:'🚚 ĐANG VẬN CHUYỂN' };
+
+        html += `<div style="margin-top:9px;padding:8px;border-radius:8px;background:${finalState.bg};font-weight:800;">
+            ${finalState.text}
+        </div></div>`;
+
+        showModal('📦 Chi tiết đơn hàng', '', false, null, html);
+    };
+
+    /* Móc vào loadOrders để số liệu quản lý giao hàng luôn cập nhật
+       sau Check All, auto-check 5 phút và realtime. */
+    const nkLoadOrdersForManager = window.loadOrdersFromSupabase;
+    window.loadOrdersFromSupabase = async function (...args) {
+        const result = await nkLoadOrdersForManager.apply(this, args);
+        window.updateNkDeliveryManager();
+        return result;
+    };
+
+    /* ===== AUTO CHECK ALL MỖI 5 PHÚT =====
+       - Chạy khi trang đang mở và người dùng đã đăng nhập.
+       - Check Mail trước, sau đó check toàn bộ SPX chưa giao.
+       - SPX chạy tuần tự, cách nhau 1 giây để tránh dồn request.
+       - Chạy nền, không bật popup sau mỗi lần tự động.
+    */
+    let nkAutoCheckRunning = false;
+
+    window.autoCheckAllOrdersSilent = async function () {
+        if (!currentUser || nkAutoCheckRunning) return;
+        nkAutoCheckRunning = true;
+
+        const baseUrl = window.location.protocol + '//' + window.location.host;
+        try {
+            try {
+                await fetch(`${baseUrl}/api/order?action=check_all`, { cache:'no-store' });
+            } catch (e) {
+                console.warn('AUTO CHECK MAIL:', e);
+            }
+
+            await window.loadOrdersFromSupabase();
+
+            const targets = cachedOrders.filter(
+                o => o.tracking?.tracking_code && !o.tracking?.delivered
+            );
+
+            for (let i = 0; i < targets.length; i++) {
+                const o = targets[i];
+                try {
+                    await window.checkSpxForOrder(
+                        o.id,
+                        o.tracking.tracking_code,
+                        false
+                    );
+                } catch (e) {
+                    console.warn('AUTO CHECK SPX:', o.order_code, e);
+                }
+
+                if (i < targets.length - 1) {
+                    await new Promise(resolve => setTimeout(resolve, 1000));
+                }
+            }
+
+            await window.loadOrdersFromSupabase();
+            console.log(
+                `[AUTO CHECK] ${new Date().toLocaleString('vi-VN')} - Mail + ${targets.length} SPX`
+            );
+        } finally {
+            nkAutoCheckRunning = false;
+        }
+    };
+
+    window.startNkAutoCheck = function () {
+        if (window.nkAutoCheckTimer) {
+            clearInterval(window.nkAutoCheckTimer);
+            window.nkAutoCheckTimer = null;
+        }
+
+        if (!currentUser) return;
+
+        /* Đăng nhập xong: check ngay một lần. */
+        setTimeout(() => {
+            if (currentUser) window.autoCheckAllOrdersSilent();
+        }, 800);
+
+        /* Sau đó tự check lại mỗi 5 phút khi còn đăng nhập và trang còn mở. */
+        window.nkAutoCheckTimer = setInterval(() => {
+            if (currentUser) {
+                window.autoCheckAllOrdersSilent();
+            } else {
+                window.stopNkAutoCheck();
+            }
+        }, 5 * 60 * 1000);
+    };
+
+    window.stopNkAutoCheck = function () {
+        if (window.nkAutoCheckTimer) {
+            clearInterval(window.nkAutoCheckTimer);
+            window.nkAutoCheckTimer = null;
+        }
+    };
+
+    /* Theo dõi trạng thái đăng nhập:
+       SIGNED_IN / INITIAL_SESSION -> check ngay + bật chu kỳ 5 phút.
+       SIGNED_OUT -> dừng chu kỳ.
+    */
+    _supabase.auth.onAuthStateChange((event, session) => {
+        if (session?.user) {
+            setTimeout(() => window.startNkAutoCheck(), 500);
+        } else if (event === 'SIGNED_OUT') {
+            window.stopNkAutoCheck();
+        }
+    });
+})();
+
+</script>
+
+<script>
+    updateAuthUI();
+</script>
+
+</body>
+</html>
