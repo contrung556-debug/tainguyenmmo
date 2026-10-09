@@ -271,6 +271,11 @@
         .order-actions {
             display:flex;
             gap:8px;
+            flex-wrap:wrap;
+        }
+
+        .order-actions > button {
+            min-width:calc(50% - 4px);
         }
 
         .order-btn-check,
@@ -614,6 +619,10 @@
             <input type="text" id="inputEmail"
                    placeholder="Email hòm thư iCloud (có thể để trống)">
 
+            <input type="text" id="inputTrackingCode"
+                   placeholder="Mã vận đơn SPX (có thể để trống)"
+                   autocapitalize="characters">
+
             <button id="btnAddSingleOrder"
                     class="btn-main"
                     onclick="addNewOrder(this)">
@@ -634,7 +643,7 @@
 
                 <div class="ocr-desc">
                     Chọn một hoặc nhiều ảnh. Hệ thống sẽ đọc Mã đơn hàng,
-                    Tên sản phẩm và Thành tiền. Email không có trong ảnh sẽ để trống.
+                    Tên sản phẩm, Thành tiền và mã vận đơn SPXVN nếu có. Email không có trong ảnh sẽ để trống.
                     Bạn có thể sửa kết quả trước khi nạp.
                 </div>
 
@@ -664,7 +673,7 @@
             <textarea
                 id="inputMultipleLines"
                 style="min-height:160px;"
-                placeholder="Mã Đơn | Email | Tên SP | Số tiền (Mỗi dòng 1 đơn)"
+                placeholder="Mã Đơn | Email | Tên SP | Số tiền | Mã SPX (nếu có)"
             ></textarea>
 
             <button
@@ -5426,7 +5435,601 @@ function deleteOrder(id) {
 
 </script>
 
-<script src="/nk_mmo_spx_ocr_addon.js"></script>
+<script>
+/* NK MMO Store - SPX + OCR addon
+   Load this AFTER the main app script, or paste before updateAuthUI().
+   Requires public.shopee_tracking and /api/spx already configured.
+*/
+(function () {
+    'use strict';
+
+    function normalizeSpxCode(value) {
+        return String(value || '').trim().toUpperCase().replace(/\s+/g, '');
+    }
+    function isValidSpxCode(value) {
+        return /^SPXVN[A-Z0-9]+$/.test(normalizeSpxCode(value));
+    }
+    function extractSpxTrackingCode(text) {
+        const s = String(text || '').toUpperCase()
+            .replace(/SPX\s*VN\s*/g, 'SPXVN')
+            .replace(/SPXVN\s+/g, 'SPXVN');
+        const m = s.match(/\bSPXVN[A-Z0-9]{8,25}\b/);
+        return m ? m[0] : '';
+    }
+
+    window.normalizeSpxCode = normalizeSpxCode;
+    window.isValidSpxCode = isValidSpxCode;
+    window.extractSpxTrackingCode = extractSpxTrackingCode;
+
+    window.fetchSpxTracking = async function (trackingCode) {
+        const code = normalizeSpxCode(trackingCode);
+        if (!isValidSpxCode(code)) throw new Error('Mã SPX không hợp lệ');
+
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 15000);
+        try {
+            const baseUrl = window.location.protocol + '//' + window.location.host;
+            const response = await fetch(
+                `${baseUrl}/api/spx?code=${encodeURIComponent(code)}`,
+                { method: 'GET', signal: controller.signal, cache: 'no-store' }
+            );
+            const data = await response.json().catch(() => null);
+            if (!response.ok || !data || data.success !== true) {
+                throw new Error(data?.message || `SPX HTTP ${response.status}`);
+            }
+            return data;
+        } catch (error) {
+            if (error?.name === 'AbortError') throw new Error('SPX phản hồi quá lâu.');
+            throw error;
+        } finally {
+            clearTimeout(timer);
+        }
+    };
+
+    window.saveSpxResult = async function (orderId, trackingCode, data) {
+        if (!currentUser) return;
+        const unixTime = Number(data.time) || 0;
+        const eventTime = unixTime > 0 ? new Date(unixTime * 1000).toISOString() : null;
+        const now = new Date().toISOString();
+
+        const { error } = await _supabase.from('shopee_tracking').upsert({
+            order_id: Number(orderId),
+            user_id: currentUser.id,
+            tracking_code: normalizeSpxCode(trackingCode),
+            tracking_status: data.status || '',
+            tracking_status_code: data.tracking_status_code || '',
+            milestone: data.milestone || '',
+            current_location: data.current_location || '',
+            next_location: data.next_location || '',
+            delivered: data.delivered === true,
+            last_event_at: eventTime,
+            last_checked_at: now,
+            updated_at: now
+        }, { onConflict: 'order_id' });
+
+        if (error) throw error;
+
+        if (data.delivered === true) {
+            const { error: orderError } = await _supabase.from('shopee_orders').update({
+                status: 'Đã giao',
+                delivered_at: eventTime || now
+            }).eq('id', Number(orderId)).eq('user_id', currentUser.id);
+            if (orderError) console.error('UPDATE DELIVERED:', orderError);
+        }
+    };
+
+    window.checkSpxForOrder = async function (orderId, trackingCode, showResult = true) {
+        const code = normalizeSpxCode(trackingCode);
+        if (!code) {
+            if (showResult) showModal('Chưa có mã SPX', 'Đơn này chưa được gắn mã vận đơn SPX.');
+            return null;
+        }
+        try {
+            const data = await window.fetchSpxTracking(code);
+            await window.saveSpxResult(orderId, code, data);
+            if (showResult) {
+                let html = `<div style="text-align:left;font-size:12px;line-height:1.7">
+                    <div><b>🚚 Mã SPX:</b> ${escapeHtml(code)}</div>
+                    <div><b>📦 Trạng thái:</b> ${escapeHtml(data.status || 'Chưa có trạng thái')}</div>`;
+                if (data.milestone) html += `<div><b>📌 Tiến trình:</b> ${escapeHtml(data.milestone)}</div>`;
+                if (data.current_location) html += `<div><b>📍 Hiện tại:</b> ${escapeHtml(data.current_location)}</div>`;
+                if (data.next_location) html += `<div><b>➡️ Điểm tiếp:</b> ${escapeHtml(data.next_location)}</div>`;
+                if (data.time) html += `<div><b>🕒 Cập nhật:</b> ${new Date(Number(data.time) * 1000).toLocaleString('vi-VN', {timeZone:'Asia/Ho_Chi_Minh'})}</div>`;
+                html += `<div style="margin-top:8px;padding:8px;border-radius:8px;background:${data.delivered ? '#ecfdf5' : '#fff7ed'};color:${data.delivered ? '#15803d' : '#c2410c'};font-weight:800">${data.delivered ? '✅ ĐÃ GIAO' : '🚚 CHƯA GIAO'}</div></div>`;
+                showModal(data.delivered ? '✅ SPX đã giao' : '🚚 Trạng thái SPX', '', false, null, html);
+            }
+            return data;
+        } catch (error) {
+            if (showResult) showModal('Lỗi SPX', error.message || 'Không tra được vận đơn SPX.');
+            throw error;
+        }
+    };
+
+    window.openSpxTracking = function (orderId, currentCode = '') {
+        showModal(currentCode ? '🚚 Mã vận đơn SPX' : '➕ Thêm mã SPX', '', true, async ok => {
+            if (!ok) return;
+            const input = document.getElementById('inputSpxTrackingCode');
+            const code = normalizeSpxCode(input ? input.value : '');
+            if (!isValidSpxCode(code)) {
+                showModal('Lỗi', 'Mã vận đơn phải có dạng SPXVN...');
+                return;
+            }
+            const { error } = await _supabase.from('shopee_tracking').upsert({
+                order_id: Number(orderId),
+                user_id: currentUser.id,
+                tracking_code: code,
+                updated_at: new Date().toISOString()
+            }, { onConflict: 'order_id' });
+            if (error) {
+                showModal('Lỗi', 'Không lưu được mã SPX: ' + error.message);
+                return;
+            }
+            try {
+                await window.checkSpxForOrder(orderId, code, true);
+            } finally {
+                await window.loadOrdersFromSupabase();
+            }
+        }, `<div style="text-align:left;font-size:12px;color:#64748b;margin-bottom:8px">Nhập mã vận đơn SPX của đơn này.</div>
+            <input type="text" id="inputSpxTrackingCode" value="${escapeHtml(currentCode)}" placeholder="Ví dụ: SPXVN06110423690A" autocapitalize="characters">`);
+    };
+
+    window.loadOrdersFromSupabase = async function () {
+        if (!currentUser) return;
+        const { data: orders, error: orderError } = await _supabase.from('shopee_orders')
+            .select('*').eq('user_id', currentUser.id).order('created_at', { ascending:false });
+        if (orderError) { console.error('LOAD ORDERS:', orderError); return; }
+
+        const { data: tracks, error: trackingError } = await _supabase.from('shopee_tracking')
+            .select('*').eq('user_id', currentUser.id);
+        if (trackingError) console.error('LOAD TRACKING:', trackingError);
+
+        const map = new Map((tracks || []).map(t => [String(t.order_id), t]));
+        cachedOrders = (orders || []).map(o => ({ ...o, tracking: map.get(String(o.id)) || null }));
+        window.filterOrders();
+    };
+
+    window.extractShopeeProductName = function (lines) {
+        if (!Array.isArray(lines) || !lines.length) return '';
+        const hardIgnore = [
+            /th[oô]ng tin [đd]ơn h[aà]ng/i,/th[oờ]i gian/i,/m[aã]\s*[đd]ơn\s*h[aà]ng/i,
+            /th[aà]nh\s*ti[eề]n/i,/tổng\s*tiền/i,/thanh\s*toán/i,/phương\s*thức/i,
+            /phí\s*vận\s*chuyển/i,/mã\s*giảm\s*giá/i,/voucher/i,/địa\s*chỉ\s*nhận\s*hàng/i,
+            /th[oô]ng tin vận chuyển/i,/giao\s*nhanh/i,/giao\s*đúng\s*hẹn/i,/chuẩn\s*bị\s*hàng/i,
+            /liên\s*hệ\s*shop/i,/xem\s*shop/i,/chat\s*ngay/i,/chat\s*với/i,/trung\s*tâm\s*hỗ\s*trợ/i,
+            /hủy\s*đơn/i,/sao\s*chép/i,/đặt\s*hàng\s*lúc/i,/hoàn\s*thành/i,/^\+?84/,/\(\+84\)/,
+            /^\d{1,2}[-/]\d{1,2}[-/]\d{4}/,/\bSPXVN[A-Z0-9]+\b/i
+        ];
+        const productWords = /\bml\b|\bkg\b|\bgram\b|\bg\b|\blít\b|\bl\b|tuổi|lốc|hộp|chai|gói|túi|thùng|combo|size|màu|vị|sữa|bỉm|tã|kem|nước|áo|quần|giày|dép|khăn|bánh|kẹp|dầu|dưỡng|serum|son|phấn|sạc|cáp|pin|ốp|tai nghe/i;
+        const shopWords = /\bshop\b|\bstore\b|official|chính hãng|mall|flagship/i;
+        const candidates = [];
+
+        for (let i=0;i<lines.length;i++) {
+            const line = String(lines[i] || '').replace(/\s+/g,' ').trim();
+            if (line.length < 7 || line.length > 180) continue;
+            if (hardIgnore.some(p => p.test(line))) continue;
+            if (/^[A-Z0-9]{8,30}$/i.test(line) || /^[₫đ]?\s*[\d.,]+\s*[₫đ]?$/i.test(line) || /^x\s*\d+$/i.test(line)) continue;
+
+            let score = 0;
+            if (/[a-zA-ZÀ-ỹ]/.test(line)) score += 2;
+            if (line.length >= 15) score += 2;
+            if (line.length >= 25) score += 2;
+            if (line.length >= 40) score += 1;
+            if (productWords.test(line)) score += 7;
+            if (/\d+\s*(ml|kg|g|gram|l|cm|mm|m)\b/i.test(line)) score += 5;
+            if (/[a-zA-ZÀ-ỹ].*\d|\d.*[a-zA-ZÀ-ỹ]/.test(line)) score += 2;
+
+            const next1 = String(lines[i+1] || '').trim();
+            const next2 = String(lines[i+2] || '').trim();
+            const prev1 = String(lines[i-1] || '').trim();
+            if (/^x\s*\d+$/i.test(next1)) score += 10;
+            if (/^x\s*\d+$/i.test(next2)) score += 6;
+            if (/(?:₫|đ)|\d{1,3}(?:[.,]\d{3})+/i.test(next1)) score += 3;
+            if (shopWords.test(line)) score -= 12;
+            if (/người\s*bán|shop|cửa\s*hàng/i.test(prev1)) score -= 12;
+            if (line.length < 30 && !productWords.test(line) && !/\d/.test(line)) score -= 2;
+            candidates.push({line,index:i,score});
+        }
+
+        if (!candidates.length) return '';
+        candidates.sort((a,b) => b.score-a.score || b.line.length-a.line.length);
+        const best = candidates[0];
+        if (!best || best.score < 3) return '';
+
+        let product = best.line;
+        const nextLine = String(lines[best.index+1] || '').replace(/\s+/g,' ').trim();
+        if (nextLine && nextLine.length <= 100) {
+            const ignore = hardIgnore.some(p => p.test(nextLine));
+            const money = /^[₫đ]?\s*[\d.,]+\s*[₫đ]?$/i.test(nextLine);
+            const qty = /^x\s*\d+$/i.test(nextLine);
+            const shop = shopWords.test(nextLine);
+            if (!ignore && !money && !qty && !shop && /phân\s*loại|size|màu|vị|loại|ít\s*đường|có\s*đường|\bml\b|\bkg\b|\bg\b|lốc|hộp|chai|gói/i.test(nextLine)) {
+                if (!product.toLowerCase().includes(nextLine.toLowerCase())) product += ' ' + nextLine;
+            }
+        }
+        return product.replace(/\s+/g,' ').trim();
+    };
+
+    window.parseShopeeOrderOCR = function (rawText) {
+        const text = normalizeOcrText(rawText);
+        const lines = text.split('\n').map(x => x.trim()).filter(Boolean);
+        return {
+            orderCode: extractShopeeOrderCode(lines, text) || '',
+            trackingCode: extractSpxTrackingCode(text) || '',
+            productName: window.extractShopeeProductName(lines) || '',
+            amount: extractShopeeFinalAmount(lines) || 0,
+            rawText: text
+        };
+    };
+
+    window.mergeShopeeOcrResults = function (inputResults) {
+        const results = inputResults.map(item => ({...item}));
+        const merged = [];
+        for (let i=0;i<results.length;i++) {
+            let current = {...results[i]};
+            if (!current.orderCode && i+1 < results.length) {
+                const next = results[i+1];
+                if (next.orderCode) {
+                    current.orderCode = next.orderCode;
+                    if (!current.productName && next.productName) current.productName = next.productName;
+                    if (!current.amount && next.amount) current.amount = next.amount;
+                    if (!current.trackingCode && next.trackingCode) current.trackingCode = next.trackingCode;
+                    current.rawText = (current.rawText || '') + '\n' + (next.rawText || '');
+                    i++;
+                }
+            }
+            if (current.orderCode && merged.length) {
+                const previous = merged[merged.length-1];
+                if (!previous.orderCode) {
+                    if (!current.productName && previous.productName) current.productName = previous.productName;
+                    if (!current.amount && previous.amount) current.amount = previous.amount;
+                    if (!current.trackingCode && previous.trackingCode) current.trackingCode = previous.trackingCode;
+                    merged.pop();
+                }
+            }
+            merged.push(current);
+        }
+        const byCode = [];
+        const codeMap = new Map();
+        for (const item of merged) {
+            const code = String(item.orderCode || '').trim().toUpperCase();
+            if (!code) { byCode.push(item); continue; }
+            if (!codeMap.has(code)) {
+                const copy = {...item,orderCode:code};
+                codeMap.set(code,copy); byCode.push(copy);
+            } else {
+                const existing = codeMap.get(code);
+                if (!existing.productName && item.productName) existing.productName = item.productName;
+                if (!existing.amount && item.amount) existing.amount = item.amount;
+                if (!existing.trackingCode && item.trackingCode) existing.trackingCode = item.trackingCode;
+            }
+        }
+        return byCode;
+    };
+
+    window.handleOrderImages = async function (input) {
+        const files = Array.from(input.files || []);
+        if (!files.length) return;
+        if (orderOcrRunning) { showModal('Thông báo','OCR đang xử lý ảnh. Vui lòng chờ.'); return; }
+        if (typeof Tesseract === 'undefined') { showModal('Lỗi OCR','Không tải được thư viện OCR. Hãy tải lại trang rồi thử lại.'); return; }
+
+        orderOcrRunning = true;
+        const btn = document.getElementById('btnOrderOcr');
+        const status = document.getElementById('ocrStatus');
+        const output = document.getElementById('inputMultipleLines');
+        btn.disabled = true; btn.innerText = '⏳ Đang chuẩn bị OCR...';
+        status.style.display = 'block';
+        status.innerHTML = `📷 Đã chọn <b>${files.length}</b> ảnh.<br>⏳ Đang chuẩn bị nhận dạng...`;
+        const rawResults = [], failed = [];
+
+        try {
+            for (let i=0;i<files.length;i++) {
+                const file = files[i];
+                status.innerHTML = `📷 Ảnh <b>${i+1}/${files.length}</b><br>🔄 Đang chuẩn bị ảnh...<br><span style="color:#718096">${escapeHtml(file.name)}</span>`;
+                try {
+                    const image = await prepareImageForOCR(file);
+                    const result = await Tesseract.recognize(image,'vie+eng',{logger:m=>{
+                        if (m.status === 'recognizing text') {
+                            const percent = Math.round((m.progress || 0)*100);
+                            status.innerHTML = `🔎 Đang đọc ảnh <b>${i+1}/${files.length}</b> — ${percent}%<br><span style="color:#718096">${escapeHtml(file.name)}</span>`;
+                        }
+                    }});
+                    const rawText = result?.data?.text || '';
+                    const parsed = window.parseShopeeOrderOCR(rawText);
+                    parsed.fileName = file.name; parsed.imageIndex = i;
+                    if (parsed.orderCode || parsed.productName || parsed.amount || parsed.trackingCode) rawResults.push(parsed);
+                    else failed.push(file.name);
+                } catch (e) { console.error('OCR ERROR:',file.name,e); failed.push(file.name); }
+            }
+
+            if (!rawResults.length) {
+                status.innerHTML = '<span style="color:#e74c3c;font-weight:800">❌ Không nhận dạng được đơn hàng.</span>';
+                return;
+            }
+            const results = window.mergeShopeeOcrResults(rawResults);
+            const valid = results.filter(o => !!o.orderCode);
+            const incompleteCount = results.length-valid.length;
+            if (!valid.length) {
+                status.innerHTML = '<span style="color:#e74c3c;font-weight:800">❌ OCR chưa tìm thấy Mã đơn hàng.</span>';
+                return;
+            }
+
+            const outputLines = valid.map(order => {
+                const code = cleanOcrOutput(order.orderCode);
+                const product = cleanOcrOutput(order.productName || 'Đơn Shopee');
+                const amount = Number(order.amount) || 0;
+                const spx = isValidSpxCode(order.trackingCode) ? normalizeSpxCode(order.trackingCode) : '';
+                return `${code} | | ${product} | ${amount} | ${spx}`;
+            });
+            const old = output.value.trim();
+            output.value = old ? old+'\n'+outputLines.join('\n') : outputLines.join('\n');
+            status.innerHTML = `<span style="color:#27ae60;font-weight:800">✅ Đã tạo ${valid.length} đơn từ ${files.length} ảnh</span>`+
+                (failed.length ? `<br><span style="color:#e67e22">⚠️ ${failed.length} ảnh không đọc được.</span>` : '')+
+                (incompleteCount ? `<br><span style="color:#e67e22">⚠️ ${incompleteCount} kết quả thiếu mã đơn.</span>` : '')+
+                '<br><span style="color:#718096">Dòng cuối là mã SPX nếu OCR tìm thấy. Kiểm tra lại rồi bấm Nạp Hàng Loạt.</span>';
+        } finally {
+            orderOcrRunning = false;
+            btn.disabled = false;
+            btn.innerText = '📷 Chọn thêm ảnh đơn hàng Shopee';
+            input.value = '';
+        }
+    };
+
+    window.addMultipleOrders = async function (btnEl) {
+        if (!currentUser) { showModal('Lỗi','Vui lòng đăng nhập!'); return; }
+        const raw = document.getElementById('inputMultipleLines').value.trim();
+        if (!raw) { showModal('Thông báo','Chưa có dữ liệu đơn hàng để nạp.'); return; }
+
+        const rows = raw.split('\n').map(x=>x.trim()).filter(Boolean).map(line => {
+            const p = line.split('|').map(x=>x.trim());
+            if (!p[0]) return null;
+            const amount = parseInt(String(p[3] || '').replace(/\D/g,''),10) || 0;
+            return {
+                order:{order_code:p[0],email:p[1]||'',product_name:p[2]||'Đơn Shopee',amount,price:amount,user_id:currentUser.id,status:'Đang chờ giao'},
+                trackingCode:normalizeSpxCode(p[4] || '')
+            };
+        }).filter(Boolean);
+        if (!rows.length) { showModal('Thông báo','Không có dữ liệu hợp lệ để nạp.'); return; }
+        if (btnEl) { btnEl.disabled=true; btnEl.innerText='⏳ Đang nạp hàng loạt...'; }
+
+        let inserted=0, trackingSaved=0;
+        try {
+            for (let i=0;i<rows.length;i+=50) {
+                const chunk=rows.slice(i,i+50);
+                const {data,error}=await _supabase.from('shopee_orders').insert(chunk.map(x=>x.order)).select('id,order_code');
+                if (error) throw error;
+                inserted += (data || []).length;
+                const codeMap = new Map(chunk.map(x=>[String(x.order.order_code).toUpperCase(),x.trackingCode]));
+                const trackingRows = (data || []).map(o=>{
+                    const tc=codeMap.get(String(o.order_code).toUpperCase()) || '';
+                    return isValidSpxCode(tc) ? {order_id:Number(o.id),user_id:currentUser.id,tracking_code:tc,updated_at:new Date().toISOString()} : null;
+                }).filter(Boolean);
+                if (trackingRows.length) {
+                    const {error:te}=await _supabase.from('shopee_tracking').upsert(trackingRows,{onConflict:'order_id'});
+                    if (te) throw te;
+                    trackingSaved += trackingRows.length;
+                }
+            }
+            document.getElementById('inputMultipleLines').value='';
+            await window.loadOrdersFromSupabase();
+            showModal('Thành công',`Đã nạp ${inserted} đơn. Đã lưu ${trackingSaved} mã SPX.`);
+        } catch(e) {
+            showModal('Lỗi','Nạp dữ liệu thất bại: '+(e.message || e));
+        } finally {
+            if (btnEl) { btnEl.disabled=false; btnEl.innerText='Nạp Hàng Loạt'; }
+        }
+    };
+
+    window.filterOrders = function (resetPage=false) {
+        if (resetPage) currentOrderPage=1;
+        const searchInput=document.getElementById('searchOrderInput');
+        const keyword=searchInput ? searchInput.value.toLowerCase().trim() : '';
+        const filtered=cachedOrders.filter(o=>{
+            const code=String(o.order_code||'').toLowerCase();
+            const product=String(o.product_name||'').toLowerCase();
+            const trackingCode=String(o.tracking?.tracking_code||'').toLowerCase();
+            const trackingStatus=String(o.tracking?.tracking_status||'').toLowerCase();
+            const matchesSearch=!keyword || code.includes(keyword) || product.includes(keyword) || trackingCode.includes(keyword) || trackingStatus.includes(keyword);
+            const isSuccess=o.status==='Đã giao' || o.status==='Đã giao thành công' || (o.status && o.status.includes('Đã giao'));
+            let matchesTab=true;
+            if(currentOrderTab==='completed') matchesTab=isSuccess;
+            else if(currentOrderTab==='pending') matchesTab=!isSuccess;
+            return matchesSearch && matchesTab;
+        });
+        window.renderOrders(filtered);
+    };
+
+    const originalRenderOrders = window.renderOrders;
+    window.renderOrders = function (ordersToRender) {
+        originalRenderOrders(ordersToRender);
+        if (!ordersToRender || !ordersToRender.length) return;
+        const totalPages=Math.ceil(ordersToRender.length/ordersPerPage);
+        if(currentOrderPage>totalPages) currentOrderPage=totalPages;
+        if(currentOrderPage<1) currentOrderPage=1;
+        const startIdx=(currentOrderPage-1)*ordersPerPage;
+        const visible=ordersToRender.slice(startIdx,startIdx+ordersPerPage);
+        const cards=document.querySelectorAll('#orderListContainer .order-card');
+
+        cards.forEach((card,index)=>{
+            const order=visible[index];
+            if(!order) return;
+            const t=order.tracking || null;
+            const code=String(t?.tracking_code || '');
+            const details=card.querySelector('.order-details-grid');
+            if(details) {
+                const box=document.createElement('div');
+                box.className='order-item-row nk-spx-row';
+                box.innerHTML=code
+                    ? `🚚 <b>SPX:</b> <span style="color:#2563eb;font-weight:800">${escapeHtml(code)}</span>`
+                    : '🚚 <b>SPX:</b> <span style="color:#999">Chưa có mã</span>';
+                details.appendChild(box);
+                if(t?.tracking_status) {
+                    const s=document.createElement('div'); s.className='order-item-row';
+                    s.innerHTML=`📍 <b>Vận chuyển:</b> ${escapeHtml(t.tracking_status)}`; details.appendChild(s);
+                }
+                if(t?.next_location) {
+                    const n=document.createElement('div'); n.className='order-item-row';
+                    n.innerHTML=`➡️ <b>Điểm tiếp:</b> ${escapeHtml(t.next_location)}`; details.appendChild(n);
+                }
+            }
+            const actions=card.querySelector('.order-actions');
+            if(actions) {
+                actions.style.flexWrap='wrap';
+                Array.from(actions.children).forEach(b=>{b.style.minWidth='calc(50% - 4px)';});
+                const spxBtn=document.createElement('button');
+                spxBtn.className='order-btn-check'; spxBtn.style.background='#7c3aed';
+                spxBtn.style.minWidth='calc(50% - 4px)'; spxBtn.textContent=code ? '🚚 Check SPX' : '➕ Thêm SPX';
+                spxBtn.onclick=()=>window.openSpxTracking(Number(order.id),code);
+                actions.appendChild(spxBtn);
+            }
+        });
+    };
+
+    window.checkAllSpxOrders = async function (btnEl) {
+        if(!currentUser){showModal('Lỗi','Vui lòng đăng nhập!');return;}
+        const targets=cachedOrders.filter(o=>o.tracking?.tracking_code && !o.tracking?.delivered);
+        if(!targets.length){showModal('SPX','Không có đơn SPX nào cần quét.');return;}
+        if(btnEl){btnEl.disabled=true;btnEl.innerText='⏳ Đang quét SPX...';}
+        let ok=0,delivered=0,fail=0;
+        try {
+            for(let i=0;i<targets.length;i++){
+                const o=targets[i];
+                if(btnEl) btnEl.innerText=`⏳ SPX ${i+1}/${targets.length}`;
+                try {
+                    const data=await window.checkSpxForOrder(o.id,o.tracking.tracking_code,false);
+                    ok++; if(data?.delivered) delivered++;
+                } catch(e){fail++; console.error('SPX BULK:',e);}
+                if(i<targets.length-1) await new Promise(r=>setTimeout(r,1000));
+            }
+            await window.loadOrdersFromSupabase();
+            showModal('Quét SPX xong',`Đã kiểm tra ${ok}/${targets.length} mã SPX.\nĐã giao: ${delivered}.\nLỗi: ${fail}.`);
+        } finally {
+            if(btnEl){btnEl.disabled=false;btnEl.innerText='🚚 Quét Trạng Thái SPX';}
+        }
+    };
+
+    function installUi() {
+        const bulk=document.getElementById('btnCheckAllOrders');
+        if(bulk && !document.getElementById('btnCheckAllSpxOrders')) {
+            const b=document.createElement('button');
+            b.id='btnCheckAllSpxOrders'; b.className='btn-main'; b.style.backgroundColor='#7c3aed';
+            b.textContent='🚚 Quét Trạng Thái SPX'; b.onclick=()=>window.checkAllSpxOrders(b);
+            bulk.insertAdjacentElement('afterend',b);
+        }
+        const area=document.querySelector('#depositMultipleForm .ocr-desc');
+        if(area) area.innerHTML='Chọn một hoặc nhiều ảnh. Hệ thống sẽ đọc Mã đơn hàng, Tên sản phẩm, Thành tiền và mã SPXVN nếu có. Email không có trong ảnh sẽ để trống. Bạn có thể sửa kết quả trước khi nạp.';
+        const ta=document.getElementById('inputMultipleLines');
+        if(ta) ta.placeholder='Mã Đơn | Email | Tên SP | Số tiền | Mã SPX (nếu có)';
+    }
+
+    if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',installUi);
+    else installUi();
+
+    /* Refresh once so existing rows immediately receive tracking data/UI. */
+    setTimeout(()=>{ if(window.currentUser || typeof currentUser!=='undefined' && currentUser) window.loadOrdersFromSupabase(); },300);
+})();
+
+
+/* ===== NK MMO: final integrated SPX patch ===== */
+(function(){
+    window.addNewOrder = async function(btnEl) {
+        if (!currentUser) { showModal('Lỗi','Vui lòng đăng nhập!'); return; }
+        const c=document.getElementById('inputOrderCode').value.trim();
+        const e=document.getElementById('inputEmail').value.trim();
+        const n=document.getElementById('inputProductName').value.trim() || 'Đơn Shopee';
+        const a=parseInt(document.getElementById('inputAmount').value,10) || 0;
+        const trackingInput=document.getElementById('inputTrackingCode');
+        const trackingCode=normalizeSpxCode(trackingInput ? trackingInput.value : '');
+        if(!c){showModal('Lỗi','Mã đơn không được để trống!');return;}
+        if(trackingCode && !isValidSpxCode(trackingCode)){showModal('Lỗi','Mã vận đơn SPX không hợp lệ. Mã phải bắt đầu bằng SPXVN.');return;}
+        if(btnEl){btnEl.disabled=true;btnEl.innerText='⏳ Đang nạp...';}
+        try {
+            const {data,error}=await _supabase.from('shopee_orders').insert({order_code:c,product_name:n,email:e||'',amount:a,price:a,user_id:currentUser.id,status:'Đang chờ giao'}).select('id').single();
+            if(error) throw error;
+            if(trackingCode){
+                const {error:te}=await _supabase.from('shopee_tracking').upsert({order_id:Number(data.id),user_id:currentUser.id,tracking_code:trackingCode,updated_at:new Date().toISOString()},{onConflict:'order_id'});
+                if(te) throw te;
+            }
+            ['inputOrderCode','inputProductName','inputAmount','inputEmail','inputTrackingCode'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+            await loadOrdersFromSupabase();
+            showModal('Thành công',trackingCode?'Đã nạp đơn và lưu mã vận đơn SPX!':'Đã nạp đơn thành công!');
+        } catch(error) {
+            const duplicate=error?.code==='23505'||String(error?.message||'').includes('unique_user_order_code');
+            showModal(duplicate?'Lỗi trùng lặp':'Lỗi',duplicate?`Mã đơn hàng #${c} đã tồn tại trong hệ thống của bạn!`:'Không thể nạp đơn: '+(error?.message||error));
+        } finally { if(btnEl){btnEl.disabled=false;btnEl.innerText='Nạp Đơn Vào Hệ Thống';} }
+    };
+
+    window.checkSingleOrder = async function(orderId, orderCode, trackingCode='') {
+        // Tương thích onclick cũ chỉ truyền orderCode
+        if(arguments.length===1){orderCode=orderId; const found=cachedOrders.find(o=>String(o.order_code)===String(orderCode)); orderId=found?.id; trackingCode=found?.tracking?.tracking_code||'';}
+        showModal('Đang kiểm tra',`Đang check đơn #${orderCode}...`);
+        let mailMsg=''; let spxMsg='';
+        const baseUrl=window.location.protocol+'//'+window.location.host;
+        try {
+            const response=await fetch(`${baseUrl}/api/order?action=check_one&code=${encodeURIComponent(orderCode)}`);
+            if(!response.ok) throw new Error(`HTTP ${response.status}`);
+            const res=await response.json().catch(()=>({}));
+            mailMsg='📧 Mail: '+(res.message||'Đã kiểm tra xong.');
+        } catch(e){ mailMsg='📧 Mail: Không thể kết nối máy chủ kiểm tra.'; }
+        const code=normalizeSpxCode(trackingCode);
+        if(code && orderId){
+            try { const d=await window.checkSpxForOrder(orderId,code,false); spxMsg='🚚 SPX: '+(d.delivered?'ĐÃ GIAO':(d.status||'Đã cập nhật')); }
+            catch(e){ spxMsg='🚚 SPX: '+(e.message||'Không tra được vận đơn.'); }
+        } else spxMsg='🚚 SPX: Chưa có mã vận đơn.';
+        await window.loadOrdersFromSupabase();
+        showModal('Kết quả',mailMsg+'\n'+spxMsg);
+    };
+
+    window.checkAllOrders = async function(btnEl) {
+        if(!currentUser){showModal('Lỗi','Vui lòng đăng nhập!');return;}
+        if(btnEl){btnEl.disabled=true;btnEl.innerText='⏳ Đang quét Mail...';}
+        let mailMsg=''; let scanned=0, delivered=0, fail=0;
+        const baseUrl=window.location.protocol+'//'+window.location.host;
+        try {
+            try {
+                const response=await fetch(`${baseUrl}/api/order?action=check_all`);
+                if(!response.ok) throw new Error(`HTTP ${response.status}`);
+                const res=await response.json().catch(()=>({}));
+                mailMsg=res.message||'Đã quét Mail xong.';
+            } catch(e){ mailMsg='Quét Mail thất bại: '+(e.message||e); }
+            await window.loadOrdersFromSupabase();
+            const targets=cachedOrders.filter(o=>o.tracking?.tracking_code && !o.tracking?.delivered);
+            for(let i=0;i<targets.length;i++){
+                if(btnEl)btnEl.innerText=`⏳ SPX ${i+1}/${targets.length}`;
+                try { const d=await window.checkSpxForOrder(targets[i].id,targets[i].tracking.tracking_code,false); scanned++; if(d?.delivered)delivered++; }
+                catch(e){ fail++; }
+                if(i<targets.length-1) await new Promise(r=>setTimeout(r,1000));
+            }
+            await window.loadOrdersFromSupabase();
+            showModal('Quét hoàn tất',`📧 Mail: ${mailMsg}\n🚚 SPX đã kiểm tra: ${scanned}/${targets.length}\n✅ SPX đã giao: ${delivered}\n⚠️ SPX lỗi: ${fail}`);
+        } finally { if(btnEl){btnEl.disabled=false;btnEl.innerText='⚡ Quét Trạng Thái Đơn Báo Cáo';} }
+    };
+
+    // Ghi đè render lần cuối để nút Check gửi cả id + mã SPX.
+    const spxRender=window.renderOrders;
+    window.renderOrders=function(list){
+        spxRender(list);
+        const totalPages=Math.ceil((list||[]).length/ordersPerPage); if(!totalPages)return;
+        const page=Math.max(1,Math.min(currentOrderPage,totalPages));
+        const visible=list.slice((page-1)*ordersPerPage,(page-1)*ordersPerPage+ordersPerPage);
+        const cards=document.querySelectorAll('#orderListContainer .order-card');
+        cards.forEach((card,i)=>{
+            const o=visible[i]; if(!o)return;
+            const first=card.querySelector('.order-btn-check');
+            if(first){ first.onclick=()=>window.checkSingleOrder(o.id,o.order_code,o.tracking?.tracking_code||''); }
+        });
+    };
+
+    window.subscribeOrderRealtime = async function(){
+        if(!currentUser)return;
+        if(realtimeChannel){await _supabase.removeChannel(realtimeChannel);realtimeChannel=null;}
+        realtimeChannel=_supabase.channel('realtime_shopee_orders_'+currentUser.id)
+          .on('postgres_changes',{event:'*',schema:'public',table:'shopee_orders',filter:`user_id=eq.${currentUser.id}`},()=>window.loadOrdersFromSupabase())
+          .on('postgres_changes',{event:'*',schema:'public',table:'shopee_tracking',filter:`user_id=eq.${currentUser.id}`},()=>window.loadOrdersFromSupabase())
+          .subscribe();
+    };
+})();
+
+</script>
 
 <script>
     updateAuthUI();
