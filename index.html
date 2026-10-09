@@ -6517,5 +6517,130 @@ function deleteOrder(id) {
     updateAuthUI();
 </script>
 
+<script>
+/* ===== NK MMO: unified SPX + GHN UI / single-order patch ===== */
+(function(){
+    'use strict';
+
+    function clean4(v){ return String(v||'').replace(/\D/g,'').slice(-4); }
+    function carrierOf(code){
+        code=String(code||'').trim().toUpperCase();
+        if(/^SPXVN/.test(code)) return 'SPX';
+        if(window.isGhnCode && window.isGhnCode(code)) return 'GHN';
+        return '';
+    }
+
+    function installSingleFields(){
+        const tracking=document.getElementById('inputTrackingCode');
+        if(!tracking) return;
+        tracking.placeholder='Mã vận đơn SPX / GHN (có thể để trống)';
+        if(!document.getElementById('inputTrackingPhone4')){
+            const p=document.createElement('input');
+            p.type='text'; p.id='inputTrackingPhone4'; p.maxLength=4; p.inputMode='numeric';
+            p.placeholder='4 số cuối SĐT (GHN - nếu có)';
+            p.autocomplete='off';
+            tracking.insertAdjacentElement('afterend',p);
+        }
+    }
+
+    window.addNewOrder=async function(btnEl){
+        if(!currentUser){ showModal('Lỗi','Vui lòng đăng nhập!'); return; }
+        const c=document.getElementById('inputOrderCode')?.value.trim()||'';
+        const e=document.getElementById('inputEmail')?.value.trim()||'';
+        const n=document.getElementById('inputProductName')?.value.trim()||'Đơn Shopee';
+        const a=parseInt(document.getElementById('inputAmount')?.value,10)||0;
+        const raw=String(document.getElementById('inputTrackingCode')?.value||'').trim().toUpperCase();
+        const type=carrierOf(raw);
+        const trackingCode=type==='SPX' ? normalizeSpxCode(raw) : raw;
+        const phone4=clean4(document.getElementById('inputTrackingPhone4')?.value||'');
+        if(!c){ showModal('Lỗi','Mã đơn không được để trống!'); return; }
+        if(raw && !type){ showModal('Lỗi','Mã vận đơn chưa đúng định dạng SPX hoặc GHN.'); return; }
+        if(type==='GHN' && phone4 && !/^\d{4}$/.test(phone4)){ showModal('Lỗi','4 số cuối SĐT phải gồm đúng 4 số.'); return; }
+        if(btnEl){btnEl.disabled=true;btnEl.innerText='⏳ Đang nạp...';}
+        try{
+            const {data,error}=await _supabase.from('shopee_orders').insert({order_code:c,product_name:n,email:e||'',amount:a,price:a,user_id:currentUser.id,status:'Đang chờ giao'}).select('id').single();
+            if(error) throw error;
+            if(trackingCode){
+                const {error:te}=await _supabase.from('shopee_tracking').upsert({order_id:Number(data.id),user_id:currentUser.id,tracking_code:trackingCode,updated_at:new Date().toISOString()},{onConflict:'order_id'});
+                if(te) throw te;
+                if(type==='GHN' && /^\d{4}$/.test(phone4)){
+                    try{ const m=JSON.parse(localStorage.getItem('nk_ghn_phone4_v1')||'{}')||{}; m[String(data.id)]=phone4; localStorage.setItem('nk_ghn_phone4_v1',JSON.stringify(m)); }catch(_e){}
+                }
+            }
+            ['inputOrderCode','inputProductName','inputAmount','inputEmail','inputTrackingCode','inputTrackingPhone4'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+            await window.loadOrdersFromSupabase();
+            showModal('Thành công',trackingCode?`Đã nạp đơn và lưu mã vận đơn ${type}!`:'Đã nạp đơn thành công!');
+        }catch(error){
+            const duplicate=error?.code==='23505'||String(error?.message||'').includes('unique_user_order_code');
+            showModal(duplicate?'Lỗi trùng lặp':'Lỗi',duplicate?`Mã đơn hàng #${c} đã tồn tại trong hệ thống của bạn!`:'Không thể nạp đơn: '+(error?.message||error));
+        }finally{ if(btnEl){btnEl.disabled=false;btnEl.innerText='Nạp Đơn Vào Hệ Thống';} }
+    };
+
+    const prevRender=window.renderOrders;
+    window.renderOrders=function(list){
+        prevRender(list);
+        const total=Math.ceil((list||[]).length/ordersPerPage); if(!total)return;
+        const page=Math.max(1,Math.min(currentOrderPage,total));
+        const visible=list.slice((page-1)*ordersPerPage,(page-1)*ordersPerPage+ordersPerPage);
+        const cards=document.querySelectorAll('#orderListContainer .order-card');
+        cards.forEach((card,i)=>{
+            const o=visible[i]; if(!o)return;
+            const code=String(o.tracking?.tracking_code||'').trim().toUpperCase();
+            const type=carrierOf(code);
+            const row=card.querySelector('.nk-spx-row');
+            if(row) row.innerHTML=code ? `🚚 <b>${type||'Vận đơn'}:</b> <span style="color:#2563eb;font-weight:800">${escapeHtml(code)}</span>` : '🚚 <b>Vận đơn:</b> <span style="color:#999">Chưa có mã</span>';
+            const actions=card.querySelector('.order-actions'); if(!actions)return;
+            const candidates=Array.from(actions.querySelectorAll('button')).filter(b=>/Check SPX|Thêm SPX|Check GHN|Thêm GHN|Theo dõi|Thêm vận đơn/i.test(b.textContent||''));
+            let btn=candidates[0]; candidates.slice(1).forEach(x=>x.remove());
+            if(!btn){ btn=document.createElement('button'); btn.className='order-btn-check'; actions.appendChild(btn); }
+            btn.style.background=type==='GHN'?'#16a34a':'#7c3aed'; btn.style.minWidth='calc(50% - 4px)';
+            btn.textContent=code ? `🔍 Theo dõi ${type||'vận đơn'}` : '➕ Thêm vận đơn';
+            btn.onclick=()=>{
+                if(type==='GHN') window.openGhnTracking(Number(o.id),code);
+                else window.openSpxTracking(Number(o.id),code);
+            };
+        });
+    };
+
+    window.checkAllSpxOrders=async function(btnEl){
+        if(!currentUser){showModal('Lỗi','Vui lòng đăng nhập!');return;}
+        const targets=cachedOrders.filter(o=>o.tracking?.tracking_code && !o.tracking?.delivered);
+        if(!targets.length){showModal('Vận đơn','Không có vận đơn nào cần quét.');return;}
+        if(btnEl){btnEl.disabled=true;btnEl.innerText='⏳ Đang quét vận đơn...';}
+        let ok=0,delivered=0,fail=0,needPhone=0;
+        try{
+            for(let i=0;i<targets.length;i++){
+                const o=targets[i], code=String(o.tracking.tracking_code||'').toUpperCase(), type=carrierOf(code);
+                if(btnEl) btnEl.innerText=`⏳ ${type||'Vận đơn'} ${i+1}/${targets.length}`;
+                try{
+                    let d;
+                    if(type==='GHN'){
+                        let p4=''; try{p4=String((JSON.parse(localStorage.getItem('nk_ghn_phone4_v1')||'{}')||{})[String(o.id)]||'');}catch(_e){}
+                        if(!/^\d{4}$/.test(p4)){needPhone++;continue;}
+                        d=await window.checkGhnForOrder(o.id,code,p4,false);
+                        if((d?.data||d)?.isTerminal) delivered++;
+                    }else if(type==='SPX'){
+                        d=await window.checkSpxForOrder(o.id,code,false); if(d?.delivered)delivered++;
+                    }else{ fail++; continue; }
+                    ok++;
+                }catch(e){fail++;console.error('TRACKING BULK:',e);}
+                if(i<targets.length-1) await new Promise(r=>setTimeout(r,700));
+            }
+            await window.loadOrdersFromSupabase();
+            showModal('Quét vận đơn xong',`Đã kiểm tra: ${ok}/${targets.length}\nĐã giao: ${delivered}\nGHN thiếu 4 số SĐT: ${needPhone}\nLỗi: ${fail}`);
+        }finally{if(btnEl){btnEl.disabled=false;btnEl.innerText='🚚 Quét Trạng Thái Vận Đơn';}}
+    };
+
+    function finishUi(){
+        installSingleFields();
+        const b=document.getElementById('btnCheckAllSpxOrders'); if(b){b.textContent='🚚 Quét Trạng Thái Vận Đơn'; b.onclick=()=>window.checkAllSpxOrders(b);}
+        const desc=document.querySelector('#depositMultipleForm .ocr-desc');
+        if(desc) desc.innerHTML='Chọn một hoặc nhiều ảnh. Hệ thống sẽ đọc Mã đơn hàng, Tên sản phẩm, Thành tiền, mã vận đơn SPX/GHN và 4 số cuối SĐT nếu có. Nếu GHN không có SĐT, bạn có thể nhập 4 số cuối khi theo dõi.';
+    }
+    if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',finishUi); else finishUi();
+    setTimeout(finishUi,500);
+})();
+</script>
+
 </body>
 </html>
