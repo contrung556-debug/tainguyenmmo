@@ -692,7 +692,7 @@
             <div id="nkDeliveryManager" style="margin-bottom:12px;">
                 <div style="font-weight:900;font-size:14px;margin-bottom:8px;">🚚 Quản lý giao hàng</div>
 
-                <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px;">
+                <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:7px;">
                     <button type="button" onclick="showNkDeliveryGroup('danang')" style="border:1px solid #fed7aa;background:#fff7ed;border-radius:10px;padding:10px 5px;cursor:pointer;">
                         <div style="font-size:19px;font-weight:900;color:#c2410c;" id="nkCountDanang">0</div>
                         <div style="font-size:10px;font-weight:800;">🏢 Đà Nẵng<br>Mega SOC</div>
@@ -706,6 +706,10 @@
                     <button type="button" onclick="showNkDeliveryGroup('shipping')" style="border:1px solid #bfdbfe;background:#eff6ff;border-radius:10px;padding:10px 5px;cursor:pointer;">
                         <div style="font-size:19px;font-weight:900;color:#1d4ed8;" id="nkCountShipping">0</div>
                         <div style="font-size:10px;font-weight:800;">📦 Đang<br>vận chuyển</div>
+                    </button>
+                    <button type="button" onclick="showNkDeliveryGroup('cancelled')" style="border:1px solid #fecaca;background:#fef2f2;border-radius:10px;padding:10px 5px;cursor:pointer;">
+                        <div style="font-size:19px;font-weight:900;color:#b91c1c;" id="nkCountCancelled">0</div>
+                        <div style="font-size:10px;font-weight:800;">❌ Đơn<br>bị hủy</div>
                     </button>
                 </div>
 
@@ -6124,7 +6128,7 @@ function deleteOrder(id) {
     }
 
     function nkIsDanangMegaSoc(order) {
-        if (nkIsDelivered(order)) return false;
+        if (nkIsDelivered(order) || nkIsCancelled(order)) return false;
         const t = order?.tracking || {};
         const current = nkNormDeliveryText(t.current_location);
         const next = nkNormDeliveryText(t.next_location);
@@ -6140,7 +6144,7 @@ function deleteOrder(id) {
     }
 
     function nkIsDriverDelivery(order) {
-        if (nkIsDelivered(order)) return false;
+        if (nkIsDelivered(order) || nkIsCancelled(order)) return false;
         const s = nkTrackingText(order);
         const keys = [
             'sap xep tai xe',
@@ -6155,8 +6159,27 @@ function deleteOrder(id) {
         return keys.some(k => s.includes(k));
     }
 
+    function nkIsCancelled(order) {
+        const s = nkNormDeliveryText([
+            order?.status,
+            order?.tracking?.tracking_status,
+            order?.tracking?.milestone
+        ].filter(Boolean).join(' | '));
+
+        return [
+            'da huy',
+            'bi huy',
+            'don hang huy',
+            'don da huy',
+            'cancelled',
+            'canceled',
+            'order cancelled',
+            'order canceled'
+        ].some(k => s.includes(k));
+    }
+
     function nkIsShipping(order) {
-        if (nkIsDelivered(order)) return false;
+        if (nkIsDelivered(order) || nkIsCancelled(order)) return false;
         const t = order?.tracking || {};
         return !!t.tracking_code;
     }
@@ -6166,6 +6189,7 @@ function deleteOrder(id) {
         const danang = orders.filter(nkIsDanangMegaSoc);
         const driver = orders.filter(nkIsDriverDelivery);
         const shipping = orders.filter(nkIsShipping);
+        const cancelled = orders.filter(nkIsCancelled);
 
         const setCount = (id, n) => {
             const el = document.getElementById(id);
@@ -6174,6 +6198,7 @@ function deleteOrder(id) {
         setCount('nkCountDanang', danang.length);
         setCount('nkCountDriver', driver.length);
         setCount('nkCountShipping', shipping.length);
+        setCount('nkCountCancelled', cancelled.length);
 
         const box = document.getElementById('nkDeliveryGroupBox');
         if (box && box.style.display !== 'none' && box.dataset.group) {
@@ -6192,6 +6217,9 @@ function deleteOrder(id) {
         } else if (group === 'driver') {
             list = orders.filter(nkIsDriverDelivery);
             title = '🛵 Đã sắp xếp tài xế / đang giao';
+        } else if (group === 'cancelled') {
+            list = orders.filter(nkIsCancelled);
+            title = '❌ Đơn bị hủy';
         } else {
             list = orders.filter(nkIsShipping);
             title = '📦 Tổng đơn đang vận chuyển';
@@ -6234,131 +6262,4 @@ function deleteOrder(id) {
                 <b>${label}</b> ${escapeHtml(String(value))}
             </div>` : '';
 
-        let html = `<div style="text-align:left;font-size:12px;line-height:1.55;">`;
-        html += row('📦 Mã đơn:', o.order_code);
-        html += row('🛍️ Sản phẩm:', o.product_name);
-        html += row('📧 Email:', o.email);
-        html += row('💰 Số tiền:', o.amount ? Number(o.amount).toLocaleString('vi-VN') + 'đ' : '');
-        html += row('🚚 Mã SPX:', t.tracking_code);
-        html += row('📍 Trạng thái:', t.tracking_status);
-        html += row('🏢 Vị trí hiện tại:', t.current_location);
-        html += row('➡️ Điểm tiếp:', t.next_location);
-        html += `<div style="margin-top:9px;padding:8px;border-radius:8px;background:${nkIsDelivered(o) ? '#ecfdf5' : '#f8fafc'};font-weight:800;">
-            ${nkIsDelivered(o) ? '✅ ĐÃ GIAO' : '🚚 ĐANG VẬN CHUYỂN'}
-        </div></div>`;
-
-        showModal('📦 Chi tiết đơn hàng', '', false, null, html);
-    };
-
-    /* Móc vào loadOrders để số liệu quản lý giao hàng luôn cập nhật
-       sau Check All, auto-check 5 phút và realtime. */
-    const nkLoadOrdersForManager = window.loadOrdersFromSupabase;
-    window.loadOrdersFromSupabase = async function (...args) {
-        const result = await nkLoadOrdersForManager.apply(this, args);
-        window.updateNkDeliveryManager();
-        return result;
-    };
-
-    /* ===== AUTO CHECK ALL MỖI 5 PHÚT =====
-       - Chạy khi trang đang mở và người dùng đã đăng nhập.
-       - Check Mail trước, sau đó check toàn bộ SPX chưa giao.
-       - SPX chạy tuần tự, cách nhau 1 giây để tránh dồn request.
-       - Chạy nền, không bật popup sau mỗi lần tự động.
-    */
-    let nkAutoCheckRunning = false;
-
-    window.autoCheckAllOrdersSilent = async function () {
-        if (!currentUser || nkAutoCheckRunning) return;
-        nkAutoCheckRunning = true;
-
-        const baseUrl = window.location.protocol + '//' + window.location.host;
-        try {
-            try {
-                await fetch(`${baseUrl}/api/order?action=check_all`, { cache:'no-store' });
-            } catch (e) {
-                console.warn('AUTO CHECK MAIL:', e);
-            }
-
-            await window.loadOrdersFromSupabase();
-
-            const targets = cachedOrders.filter(
-                o => o.tracking?.tracking_code && !o.tracking?.delivered
-            );
-
-            for (let i = 0; i < targets.length; i++) {
-                const o = targets[i];
-                try {
-                    await window.checkSpxForOrder(
-                        o.id,
-                        o.tracking.tracking_code,
-                        false
-                    );
-                } catch (e) {
-                    console.warn('AUTO CHECK SPX:', o.order_code, e);
-                }
-
-                if (i < targets.length - 1) {
-                    await new Promise(resolve => setTimeout(resolve, 1000));
-                }
-            }
-
-            await window.loadOrdersFromSupabase();
-            console.log(
-                `[AUTO CHECK] ${new Date().toLocaleString('vi-VN')} - Mail + ${targets.length} SPX`
-            );
-        } finally {
-            nkAutoCheckRunning = false;
-        }
-    };
-
-    window.startNkAutoCheck = function () {
-        if (window.nkAutoCheckTimer) {
-            clearInterval(window.nkAutoCheckTimer);
-            window.nkAutoCheckTimer = null;
-        }
-
-        if (!currentUser) return;
-
-        /* Đăng nhập xong: check ngay một lần. */
-        setTimeout(() => {
-            if (currentUser) window.autoCheckAllOrdersSilent();
-        }, 800);
-
-        /* Sau đó tự check lại mỗi 5 phút khi còn đăng nhập và trang còn mở. */
-        window.nkAutoCheckTimer = setInterval(() => {
-            if (currentUser) {
-                window.autoCheckAllOrdersSilent();
-            } else {
-                window.stopNkAutoCheck();
-            }
-        }, 5 * 60 * 1000);
-    };
-
-    window.stopNkAutoCheck = function () {
-        if (window.nkAutoCheckTimer) {
-            clearInterval(window.nkAutoCheckTimer);
-            window.nkAutoCheckTimer = null;
-        }
-    };
-
-    /* Theo dõi trạng thái đăng nhập:
-       SIGNED_IN / INITIAL_SESSION -> check ngay + bật chu kỳ 5 phút.
-       SIGNED_OUT -> dừng chu kỳ.
-    */
-    _supabase.auth.onAuthStateChange((event, session) => {
-        if (session?.user) {
-            setTimeout(() => window.startNkAutoCheck(), 500);
-        } else if (event === 'SIGNED_OUT') {
-            window.stopNkAutoCheck();
-        }
-    });
-})();
-
-</script>
-
-<script>
-    updateAuthUI();
-</script>
-
-</body>
-</html>
+        let html = `<div style="text-align:l
