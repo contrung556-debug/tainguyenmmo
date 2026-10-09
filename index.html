@@ -5447,7 +5447,7 @@ function deleteOrder(id) {
         return String(value || '').trim().toUpperCase().replace(/\s+/g, '');
     }
     function isValidSpxCode(value) {
-        return /^SPXVN[A-Z0-9]+$/.test(normalizeSpxCode(value));
+        return /^SPXVN[A-Z0-9]{8,25}$/.test(normalizeSpxCode(value));
     }
     function extractSpxTrackingCode(text) {
         const s = String(text || '').toUpperCase()
@@ -5535,7 +5535,48 @@ function deleteOrder(id) {
                 if (data.current_location) html += `<div><b>📍 Hiện tại:</b> ${escapeHtml(data.current_location)}</div>`;
                 if (data.next_location) html += `<div><b>➡️ Điểm tiếp:</b> ${escapeHtml(data.next_location)}</div>`;
                 if (data.time) html += `<div><b>🕒 Cập nhật:</b> ${new Date(Number(data.time) * 1000).toLocaleString('vi-VN', {timeZone:'Asia/Ho_Chi_Minh'})}</div>`;
-                html += `<div style="margin-top:8px;padding:8px;border-radius:8px;background:${data.delivered ? '#ecfdf5' : '#fff7ed'};color:${data.delivered ? '#15803d' : '#c2410c'};font-weight:800">${data.delivered ? '✅ ĐÃ GIAO' : '🚚 CHƯA GIAO'}</div></div>`;
+                html += `<div style="margin-top:8px;padding:8px;border-radius:8px;background:${data.delivered ? '#ecfdf5' : '#fff7ed'};color:${data.delivered ? '#15803d' : '#c2410c'};font-weight:800">${data.delivered ? '✅ ĐÃ GIAO' : '🚚 CHƯA GIAO'}</div>`;
+
+                const events = Array.isArray(data.events) ? data.events.slice(0, 15) : [];
+                if (events.length) {
+                    const eventTime = ev => {
+                        const raw = ev?.time ?? ev?.timestamp ?? ev?.event_time ?? ev?.created_at ?? ev?.date ?? '';
+                        if (!raw) return '';
+                        let d;
+                        if (typeof raw === 'number' || /^\d{10,13}$/.test(String(raw))) {
+                            const n = Number(raw);
+                            d = new Date(n < 100000000000 ? n * 1000 : n);
+                        } else {
+                            d = new Date(raw);
+                        }
+                        return isNaN(d.getTime()) ? escapeHtml(String(raw)) :
+                            d.toLocaleString('vi-VN', {timeZone:'Asia/Ho_Chi_Minh'});
+                    };
+                    const eventStatus = ev => ev?.status || ev?.description || ev?.content || ev?.message || ev?.title || ev?.milestone || 'Cập nhật hành trình';
+                    const eventLocation = ev => ev?.current_location || ev?.location || ev?.next_location || ev?.place || ev?.hub || '';
+
+                    html += `<div style="margin-top:12px;border-top:1px solid #e5e7eb;padding-top:10px">
+                        <div style="font-weight:900;font-size:13px;margin-bottom:8px">📜 Sổ hành trình (${events.length} mốc gần nhất)</div>
+                        <div style="max-height:260px;overflow-y:auto;padding-right:3px">`;
+
+                    events.forEach((ev, index) => {
+                        const st = escapeHtml(eventStatus(ev));
+                        const loc = escapeHtml(eventLocation(ev));
+                        const tm = eventTime(ev);
+                        html += `<div style="padding:9px 8px;border-left:3px solid ${index === 0 ? '#7c3aed' : '#d1d5db'};background:${index === 0 ? '#f5f3ff' : '#f8fafc'};border-radius:7px;margin-bottom:7px">
+                            <div style="font-weight:800">${index === 0 ? '🟣' : '⚪'} ${st}</div>
+                            ${tm ? `<div style="color:#64748b;font-size:11px">🕒 ${tm}</div>` : ''}
+                            ${loc ? `<div style="color:#475569;font-size:11px">📍 ${loc}</div>` : ''}
+                        </div>`;
+                    });
+                    html += `</div></div>`;
+                } else {
+                    html += `<div style="margin-top:12px;border-top:1px solid #e5e7eb;padding-top:10px;color:#64748b">
+                        📜 Chưa có dữ liệu sổ hành trình chi tiết.
+                    </div>`;
+                }
+
+                html += `</div>`;
                 showModal(data.delivered ? '✅ SPX đã giao' : '🚚 Trạng thái SPX', '', false, null, html);
             }
             return data;
@@ -6027,6 +6068,100 @@ function deleteOrder(id) {
           .on('postgres_changes',{event:'*',schema:'public',table:'shopee_tracking',filter:`user_id=eq.${currentUser.id}`},()=>window.loadOrdersFromSupabase())
           .subscribe();
     };
+
+    /* ===== AUTO CHECK ALL MỖI 5 PHÚT =====
+       - Chạy khi trang đang mở và người dùng đã đăng nhập.
+       - Check Mail trước, sau đó check toàn bộ SPX chưa giao.
+       - SPX chạy tuần tự, cách nhau 1 giây để tránh dồn request.
+       - Chạy nền, không bật popup sau mỗi lần tự động.
+    */
+    let nkAutoCheckRunning = false;
+
+    window.autoCheckAllOrdersSilent = async function () {
+        if (!currentUser || nkAutoCheckRunning) return;
+        nkAutoCheckRunning = true;
+
+        const baseUrl = window.location.protocol + '//' + window.location.host;
+        try {
+            try {
+                await fetch(`${baseUrl}/api/order?action=check_all`, { cache:'no-store' });
+            } catch (e) {
+                console.warn('AUTO CHECK MAIL:', e);
+            }
+
+            await window.loadOrdersFromSupabase();
+
+            const targets = cachedOrders.filter(
+                o => o.tracking?.tracking_code && !o.tracking?.delivered
+            );
+
+            for (let i = 0; i < targets.length; i++) {
+                const o = targets[i];
+                try {
+                    await window.checkSpxForOrder(
+                        o.id,
+                        o.tracking.tracking_code,
+                        false
+                    );
+                } catch (e) {
+                    console.warn('AUTO CHECK SPX:', o.order_code, e);
+                }
+
+                if (i < targets.length - 1) {
+                    await new Promise(resolve => setTimeout(resolve, 1000));
+                }
+            }
+
+            await window.loadOrdersFromSupabase();
+            console.log(
+                `[AUTO CHECK] ${new Date().toLocaleString('vi-VN')} - Mail + ${targets.length} SPX`
+            );
+        } finally {
+            nkAutoCheckRunning = false;
+        }
+    };
+
+    window.startNkAutoCheck = function () {
+        if (window.nkAutoCheckTimer) {
+            clearInterval(window.nkAutoCheckTimer);
+            window.nkAutoCheckTimer = null;
+        }
+
+        if (!currentUser) return;
+
+        /* Đăng nhập xong: check ngay một lần. */
+        setTimeout(() => {
+            if (currentUser) window.autoCheckAllOrdersSilent();
+        }, 800);
+
+        /* Sau đó tự check lại mỗi 5 phút khi còn đăng nhập và trang còn mở. */
+        window.nkAutoCheckTimer = setInterval(() => {
+            if (currentUser) {
+                window.autoCheckAllOrdersSilent();
+            } else {
+                window.stopNkAutoCheck();
+            }
+        }, 5 * 60 * 1000);
+    };
+
+    window.stopNkAutoCheck = function () {
+        if (window.nkAutoCheckTimer) {
+            clearInterval(window.nkAutoCheckTimer);
+            window.nkAutoCheckTimer = null;
+        }
+    };
+
+    /* Theo dõi trạng thái đăng nhập:
+       SIGNED_IN / INITIAL_SESSION -> check ngay + bật chu kỳ 5 phút.
+       SIGNED_OUT -> dừng chu kỳ.
+    */
+    _supabase.auth.onAuthStateChange((event, session) => {
+        if (session?.user) {
+            setTimeout(() => window.startNkAutoCheck(), 500);
+        } else if (event === 'SIGNED_OUT') {
+            window.stopNkAutoCheck();
+        }
+    });
 })();
 
 </script>
