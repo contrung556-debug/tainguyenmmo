@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Test GHN API</title>
+</head>
+
+<body style="font-family:Arial;padding:20px">
+
+  <h2>Test API GHN</h2>
+
+  <p>Mã vận đơn</p>
+  <input id="tracking"
+         value="GYRANEQB"
+         style="width:100%;padding:12px;box-sizing:border-box">
+
+  <p>4 số cuối SĐT</p>
+  <input id="phone"
+         value="6106"
+         maxlength="4"
+         inputmode="numeric"
+         style="width:100%;padding:12px;box-sizing:border-box">
+
+  <br><br>
+
+  <button onclick="testGHN()"
+          style="padding:14px 25px">
+    TRA GHN
+  </button>
+
+  <pre id="result"
+       style="white-space:pre-wrap;margin-top:20px"></pre>
+
+<script>
+async function testGHN() {
+  const result = document.getElementById("result");
+
+  result.textContent = "Đang tra...";
+
+  try {
+    const response = await fetch("/api/ghn", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        trackingNumber:
+          document.getElementById("tracking").value.trim(),
+
+        phoneLast4:
+          document.getElementById("phone").value.trim()
+      })
+    });
+
+    const data = await response.json();
+
+    result.textContent =
+      JSON.stringify(data, null, 2);
+
+  } catch (e) {
+    result.textContent = "LỖI: " + e.message;
+  }
+}
+</script>
+
+</body>
+</html>
