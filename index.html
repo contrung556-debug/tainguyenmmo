@@ -688,6 +688,36 @@
 
         <div style="margin-top:12px;">
 
+            <!-- ===== QUẢN LÝ GIAO HÀNG GỌN ===== -->
+            <div id="nkDeliveryManager" style="margin-bottom:12px;">
+                <div style="font-weight:900;font-size:14px;margin-bottom:8px;">🚚 Quản lý giao hàng</div>
+
+                <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px;">
+                    <button type="button" onclick="showNkDeliveryGroup('danang')" style="border:1px solid #fed7aa;background:#fff7ed;border-radius:10px;padding:10px 5px;cursor:pointer;">
+                        <div style="font-size:19px;font-weight:900;color:#c2410c;" id="nkCountDanang">0</div>
+                        <div style="font-size:10px;font-weight:800;">🏢 Đà Nẵng<br>Mega SOC</div>
+                    </button>
+
+                    <button type="button" onclick="showNkDeliveryGroup('driver')" style="border:1px solid #bbf7d0;background:#f0fdf4;border-radius:10px;padding:10px 5px;cursor:pointer;">
+                        <div style="font-size:19px;font-weight:900;color:#15803d;" id="nkCountDriver">0</div>
+                        <div style="font-size:10px;font-weight:800;">🛵 Sắp giao<br>/ Tài xế</div>
+                    </button>
+
+                    <button type="button" onclick="showNkDeliveryGroup('shipping')" style="border:1px solid #bfdbfe;background:#eff6ff;border-radius:10px;padding:10px 5px;cursor:pointer;">
+                        <div style="font-size:19px;font-weight:900;color:#1d4ed8;" id="nkCountShipping">0</div>
+                        <div style="font-size:10px;font-weight:800;">📦 Đang<br>vận chuyển</div>
+                    </button>
+                </div>
+
+                <div id="nkDeliveryGroupBox" style="display:none;margin-top:8px;border:1px solid #e5e7eb;border-radius:10px;background:#fff;padding:9px;">
+                    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:7px;">
+                        <b id="nkDeliveryGroupTitle" style="font-size:12px;">Danh sách</b>
+                        <button type="button" onclick="document.getElementById('nkDeliveryGroupBox').style.display='none'" style="border:0;background:#f1f5f9;border-radius:7px;padding:4px 8px;cursor:pointer;">✕</button>
+                    </div>
+                    <div id="nkDeliveryOrderCodes" style="display:flex;flex-wrap:wrap;gap:6px;"></div>
+                </div>
+            </div>
+
             <div class="sub-tab-container" style="margin-bottom:10px;">
 
                 <button class="sub-tab-btn active"
@@ -6067,6 +6097,166 @@ function deleteOrder(id) {
           .on('postgres_changes',{event:'*',schema:'public',table:'shopee_orders',filter:`user_id=eq.${currentUser.id}`},()=>window.loadOrdersFromSupabase())
           .on('postgres_changes',{event:'*',schema:'public',table:'shopee_tracking',filter:`user_id=eq.${currentUser.id}`},()=>window.loadOrdersFromSupabase())
           .subscribe();
+    };
+
+
+    /* ===== QUẢN LÝ GIAO HÀNG: ĐÀ NẴNG / TÀI XẾ / ĐANG VẬN CHUYỂN ===== */
+    function nkNormDeliveryText(value) {
+        return String(value || '')
+            .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+            .toLowerCase().replace(/\s+/g, ' ').trim();
+    }
+
+    function nkTrackingText(order) {
+        const t = order?.tracking || {};
+        return nkNormDeliveryText([
+            t.tracking_status,
+            t.milestone,
+            t.current_location,
+            t.next_location
+        ].filter(Boolean).join(' | '));
+    }
+
+    function nkIsDelivered(order) {
+        const t = order?.tracking || {};
+        const s = nkNormDeliveryText(order?.status);
+        return !!t.delivered || s.includes('da giao');
+    }
+
+    function nkIsDanangMegaSoc(order) {
+        if (nkIsDelivered(order)) return false;
+        const t = order?.tracking || {};
+        const current = nkNormDeliveryText(t.current_location);
+        const next = nkNormDeliveryText(t.next_location);
+        const status = nkNormDeliveryText(t.tracking_status);
+
+        const isDaNangMega = value =>
+            (value.includes('da nang') || value.includes('danang')) &&
+            (value.includes('mega soc') || value.includes('megasoc'));
+
+        /* Tính đơn đang ở hoặc đang hướng tới Đà Nẵng Mega SOC.
+           Khi current/next chuyển sang bưu cục khác thì đơn tự rời nhóm. */
+        return isDaNangMega(current) || isDaNangMega(next) || isDaNangMega(status);
+    }
+
+    function nkIsDriverDelivery(order) {
+        if (nkIsDelivered(order)) return false;
+        const s = nkTrackingText(order);
+        const keys = [
+            'sap xep tai xe',
+            'da sap xep tai xe',
+            'phan cong tai xe',
+            'tai xe giao hang',
+            'dang giao hang',
+            'dang giao',
+            'out for delivery',
+            'delivery in progress'
+        ];
+        return keys.some(k => s.includes(k));
+    }
+
+    function nkIsShipping(order) {
+        if (nkIsDelivered(order)) return false;
+        const t = order?.tracking || {};
+        return !!t.tracking_code;
+    }
+
+    window.updateNkDeliveryManager = function () {
+        const orders = Array.isArray(cachedOrders) ? cachedOrders : [];
+        const danang = orders.filter(nkIsDanangMegaSoc);
+        const driver = orders.filter(nkIsDriverDelivery);
+        const shipping = orders.filter(nkIsShipping);
+
+        const setCount = (id, n) => {
+            const el = document.getElementById(id);
+            if (el) el.textContent = String(n);
+        };
+        setCount('nkCountDanang', danang.length);
+        setCount('nkCountDriver', driver.length);
+        setCount('nkCountShipping', shipping.length);
+
+        const box = document.getElementById('nkDeliveryGroupBox');
+        if (box && box.style.display !== 'none' && box.dataset.group) {
+            window.showNkDeliveryGroup(box.dataset.group);
+        }
+    };
+
+    window.showNkDeliveryGroup = function (group) {
+        const orders = Array.isArray(cachedOrders) ? cachedOrders : [];
+        let list = [];
+        let title = '';
+
+        if (group === 'danang') {
+            list = orders.filter(nkIsDanangMegaSoc);
+            title = '🏢 Đang ở / đang đến Đà Nẵng Mega SOC';
+        } else if (group === 'driver') {
+            list = orders.filter(nkIsDriverDelivery);
+            title = '🛵 Đã sắp xếp tài xế / đang giao';
+        } else {
+            list = orders.filter(nkIsShipping);
+            title = '📦 Tổng đơn đang vận chuyển';
+            group = 'shipping';
+        }
+
+        const box = document.getElementById('nkDeliveryGroupBox');
+        const titleEl = document.getElementById('nkDeliveryGroupTitle');
+        const codesEl = document.getElementById('nkDeliveryOrderCodes');
+        if (!box || !titleEl || !codesEl) return;
+
+        box.dataset.group = group;
+        box.style.display = 'block';
+        titleEl.textContent = `${title} (${list.length})`;
+
+        if (!list.length) {
+            codesEl.innerHTML = '<span style="font-size:12px;color:#94a3b8;">Chưa có đơn.</span>';
+            return;
+        }
+
+        codesEl.innerHTML = list.map(o => `
+            <button type="button"
+                onclick="showNkOrderDetail(${Number(o.id)})"
+                style="border:1px solid #dbeafe;background:#f8fafc;color:#1e40af;border-radius:8px;padding:7px 9px;font-size:11px;font-weight:800;cursor:pointer;max-width:100%;overflow:hidden;text-overflow:ellipsis;">
+                ${escapeHtml(String(o.order_code || 'Không có mã'))}
+            </button>
+        `).join('');
+    };
+
+    window.showNkOrderDetail = function (orderId) {
+        const o = (cachedOrders || []).find(x => Number(x.id) === Number(orderId));
+        if (!o) {
+            showModal('Chi tiết đơn', 'Không tìm thấy đơn hàng.');
+            return;
+        }
+
+        const t = o.tracking || {};
+        const row = (label, value) => value ? `
+            <div style="padding:6px 0;border-bottom:1px solid #f1f5f9;">
+                <b>${label}</b> ${escapeHtml(String(value))}
+            </div>` : '';
+
+        let html = `<div style="text-align:left;font-size:12px;line-height:1.55;">`;
+        html += row('📦 Mã đơn:', o.order_code);
+        html += row('🛍️ Sản phẩm:', o.product_name);
+        html += row('📧 Email:', o.email);
+        html += row('💰 Số tiền:', o.amount ? Number(o.amount).toLocaleString('vi-VN') + 'đ' : '');
+        html += row('🚚 Mã SPX:', t.tracking_code);
+        html += row('📍 Trạng thái:', t.tracking_status);
+        html += row('🏢 Vị trí hiện tại:', t.current_location);
+        html += row('➡️ Điểm tiếp:', t.next_location);
+        html += `<div style="margin-top:9px;padding:8px;border-radius:8px;background:${nkIsDelivered(o) ? '#ecfdf5' : '#f8fafc'};font-weight:800;">
+            ${nkIsDelivered(o) ? '✅ ĐÃ GIAO' : '🚚 ĐANG VẬN CHUYỂN'}
+        </div></div>`;
+
+        showModal('📦 Chi tiết đơn hàng', '', false, null, html);
+    };
+
+    /* Móc vào loadOrders để số liệu quản lý giao hàng luôn cập nhật
+       sau Check All, auto-check 5 phút và realtime. */
+    const nkLoadOrdersForManager = window.loadOrdersFromSupabase;
+    window.loadOrdersFromSupabase = async function (...args) {
+        const result = await nkLoadOrdersForManager.apply(this, args);
+        window.updateNkDeliveryManager();
+        return result;
     };
 
     /* ===== AUTO CHECK ALL MỖI 5 PHÚT =====
