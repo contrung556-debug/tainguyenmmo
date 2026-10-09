@@ -673,7 +673,7 @@
             <textarea
                 id="inputMultipleLines"
                 style="min-height:160px;"
-                placeholder="Mã Đơn | Email | Tên SP | Số tiền | Mã SPX (nếu có)"
+                placeholder="Mã Đơn | Email | Tên SP | Số tiền | Mã vận đơn | 4 số cuối SĐT"
             ></textarea>
 
             <button
@@ -5724,12 +5724,51 @@ function deleteOrder(id) {
         return product.replace(/\s+/g,' ').trim();
     };
 
+    function extractPhoneLast4(text, lines) {
+        const src = String(text || '');
+        const candidates = [];
+        const phoneRe = /(?:\+?84|0)[\s.\-]*(\d[\s.\-]*){8,10}/g;
+        let m;
+        while ((m = phoneRe.exec(src))) {
+            const digits = String(m[0]).replace(/\D/g, '');
+            const normalized = digits.startsWith('84') ? '0' + digits.slice(2) : digits;
+            if (/^0\d{9,10}$/.test(normalized)) candidates.push(normalized);
+        }
+        if (!candidates.length) {
+            for (let i=0;i<(lines||[]).length;i++) {
+                if (!/(số điện thoại|điện thoại|sđt|phone|người nhận|địa chỉ nhận)/i.test(lines[i])) continue;
+                const around = [lines[i], lines[i+1]||'', lines[i+2]||''].join(' ');
+                const digits = around.replace(/\D/g,'');
+                const mm = digits.match(/0\d{9,10}/);
+                if (mm) candidates.push(mm[0]);
+            }
+        }
+        return candidates.length ? candidates[0].slice(-4) : '';
+    }
+
+    function extractGhnTrackingCode(text, lines) {
+        const arr = Array.isArray(lines) ? lines : String(text || '').split('\n');
+        for (let i=0;i<arr.length;i++) {
+            const line = String(arr[i] || '').toUpperCase().replace(/\s+/g,' ').trim();
+            if (!/(GHN|GIAO HÀNG NHANH|GIAO HANG NHANH|MÃ VẬN ĐƠN|MA VAN DON|VẬN ĐƠN|VAN DON)/i.test(line)) continue;
+            const scope = [line, String(arr[i+1]||'').toUpperCase(), String(arr[i+2]||'').toUpperCase()].join(' ');
+            const matches = scope.match(/\b[A-Z0-9]{8,20}\b/g) || [];
+            const hit = matches.find(x => !/^SPXVN/.test(x) && !/^\d+$/.test(x));
+            if (hit) return hit;
+        }
+        return '';
+    }
+
+    window.extractPhoneLast4 = extractPhoneLast4;
+    window.extractGhnTrackingCode = extractGhnTrackingCode;
+
     window.parseShopeeOrderOCR = function (rawText) {
         const text = normalizeOcrText(rawText);
         const lines = text.split('\n').map(x => x.trim()).filter(Boolean);
         return {
             orderCode: extractShopeeOrderCode(lines, text) || '',
-            trackingCode: extractSpxTrackingCode(text) || '',
+            trackingCode: (extractSpxTrackingCode(text) || extractGhnTrackingCode(text, lines)) || '',
+            phoneLast4: extractPhoneLast4(text, lines) || '',
             productName: window.extractShopeeProductName(lines) || '',
             amount: extractShopeeFinalAmount(lines) || 0,
             rawText: text
@@ -5832,15 +5871,17 @@ function deleteOrder(id) {
                 const code = cleanOcrOutput(order.orderCode);
                 const product = cleanOcrOutput(order.productName || 'Đơn Shopee');
                 const amount = Number(order.amount) || 0;
-                const spx = isValidSpxCode(order.trackingCode) ? normalizeSpxCode(order.trackingCode) : '';
-                return `${code} | | ${product} | ${amount} | ${spx}`;
+                const rawTracking = String(order.trackingCode || '').trim().toUpperCase();
+                const tracking = isValidSpxCode(rawTracking) ? normalizeSpxCode(rawTracking) : rawTracking;
+                const phone4 = /^\d{4}$/.test(String(order.phoneLast4 || '')) ? String(order.phoneLast4) : '';
+                return `${code} | | ${product} | ${amount} | ${tracking} | ${phone4}`;
             });
             const old = output.value.trim();
             output.value = old ? old+'\n'+outputLines.join('\n') : outputLines.join('\n');
             status.innerHTML = `<span style="color:#27ae60;font-weight:800">✅ Đã tạo ${valid.length} đơn từ ${files.length} ảnh</span>`+
                 (failed.length ? `<br><span style="color:#e67e22">⚠️ ${failed.length} ảnh không đọc được.</span>` : '')+
                 (incompleteCount ? `<br><span style="color:#e67e22">⚠️ ${incompleteCount} kết quả thiếu mã đơn.</span>` : '')+
-                '<br><span style="color:#718096">Dòng cuối là mã SPX nếu OCR tìm thấy. Kiểm tra lại rồi bấm Nạp Hàng Loạt.</span>';
+                '<br><span style="color:#718096">Hai cột cuối là Mã vận đơn và 4 số cuối SĐT nếu OCR tìm thấy. Kiểm tra lại rồi bấm Nạp Hàng Loạt.</span>';
         } finally {
             orderOcrRunning = false;
             btn.disabled = false;
@@ -5991,9 +6032,9 @@ function deleteOrder(id) {
             bulk.insertAdjacentElement('afterend',b);
         }
         const area=document.querySelector('#depositMultipleForm .ocr-desc');
-        if(area) area.innerHTML='Chọn một hoặc nhiều ảnh. Hệ thống sẽ đọc Mã đơn hàng, Tên sản phẩm, Thành tiền và mã SPXVN nếu có. Email không có trong ảnh sẽ để trống. Bạn có thể sửa kết quả trước khi nạp.';
+        if(area) area.innerHTML='Chọn một hoặc nhiều ảnh. Hệ thống sẽ đọc Mã đơn hàng, Tên sản phẩm, Thành tiền, mã vận đơn và 4 số cuối SĐT nếu có. Email không có trong ảnh sẽ để trống. Bạn có thể sửa kết quả trước khi nạp.';
         const ta=document.getElementById('inputMultipleLines');
-        if(ta) ta.placeholder='Mã Đơn | Email | Tên SP | Số tiền | Mã SPX (nếu có)';
+        if(ta) ta.placeholder='Mã Đơn | Email | Tên SP | Số tiền | Mã vận đơn | 4 số cuối SĐT';
     }
 
     if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',installUi);
@@ -6388,6 +6429,88 @@ function deleteOrder(id) {
     });
 })();
 
+</script>
+
+
+<script>
+/* ===== NK MMO: GHN tracking addon ===== */
+(function(){
+    'use strict';
+    const PHONE_KEY='nk_ghn_phone4_v1';
+    function readPhoneMap(){ try{return JSON.parse(localStorage.getItem(PHONE_KEY)||'{}')||{};}catch(e){return {};} }
+    function savePhone4(orderId, phone4){
+        phone4=String(phone4||'').replace(/\D/g,'').slice(-4);
+        if(!/^\d{4}$/.test(phone4)) return;
+        const m=readPhoneMap(); m[String(orderId)]=phone4; localStorage.setItem(PHONE_KEY,JSON.stringify(m));
+    }
+    function loadPhone4(orderId){ return String(readPhoneMap()[String(orderId)]||''); }
+    function isGhnCode(code){ code=String(code||'').trim().toUpperCase(); return /^[A-Z0-9]{8,20}$/.test(code) && !/^SPXVN/.test(code); }
+    window.isGhnCode=isGhnCode;
+
+    window.fetchGhnTracking=async function(trackingCode,phoneLast4){
+        const code=String(trackingCode||'').trim().toUpperCase();
+        const phone4=String(phoneLast4||'').replace(/\D/g,'').slice(-4);
+        if(!isGhnCode(code)) throw new Error('Mã GHN không hợp lệ');
+        if(!/^\d{4}$/.test(phone4)) throw new Error('Cần đúng 4 số cuối SĐT nhận hàng');
+        const ctl=new AbortController(); const timer=setTimeout(()=>ctl.abort(),15000);
+        try{
+            const r=await fetch('/api/ghn',{method:'POST',headers:{'Content-Type':'application/json','Accept':'application/json'},body:JSON.stringify({trackingNumber:code,phoneLast4:phone4}),signal:ctl.signal,cache:'no-store'});
+            const d=await r.json().catch(()=>null);
+            if(!r.ok||!d||d.success!==true) throw new Error(d?.error?.message||d?.error||d?.message||`GHN HTTP ${r.status}`);
+            return d;
+        }catch(e){ if(e?.name==='AbortError') throw new Error('GHN phản hồi quá lâu'); throw e; }
+        finally{clearTimeout(timer);}
+    };
+
+    window.saveGhnResult=async function(orderId,code,response){
+        const d=response?.data||response||{}; const events=Array.isArray(d.events)?d.events:[]; const latest=events[0]||{};
+        const loc=latest?.location?.name||latest?.location?.address||'';
+        const delivered=d.isTerminal===true || /DELIVERED|ĐÃ GIAO|DA GIAO/i.test(String(d.status||'')+' '+String(d.statusText||''));
+        let eventIso=null; const ts=Number(latest.timestamp||0); if(ts>0) eventIso=new Date(ts>1e12?ts:ts*1000).toISOString();
+        const now=new Date().toISOString();
+        const {error}=await _supabase.from('shopee_tracking').upsert({order_id:Number(orderId),user_id:currentUser.id,tracking_code:String(code).toUpperCase(),tracking_status:d.statusText||latest.statusText||latest.description||d.status||'',tracking_status_code:d.status||latest.status||'',milestone:latest.description||latest.statusText||'',current_location:loc,next_location:'',delivered,last_event_at:eventIso,last_checked_at:now,updated_at:now},{onConflict:'order_id'});
+        if(error) throw error;
+        if(delivered){ await _supabase.from('shopee_orders').update({status:'Đã giao',delivered_at:eventIso||now}).eq('id',Number(orderId)).eq('user_id',currentUser.id); }
+    };
+
+    window.checkGhnForOrder=async function(orderId,code,phone4,showResult=true){
+        const d=await window.fetchGhnTracking(code,phone4); await window.saveGhnResult(orderId,code,d); savePhone4(orderId,phone4);
+        if(showResult){
+            const x=d.data||d; const events=Array.isArray(x.events)?x.events.slice(0,15):[];
+            let html=`<div style="text-align:left;font-size:12px;line-height:1.65"><div><b>🚚 GHN:</b> ${escapeHtml(String(code).toUpperCase())}</div><div><b>📦 Trạng thái:</b> ${escapeHtml(x.statusText||x.status||'')}</div><div><b>🕒 Cập nhật:</b> ${escapeHtml(x.latestUpdate||'')}</div>`;
+            if(events.length){ html+='<div style="max-height:280px;overflow:auto;margin-top:10px">'; events.forEach((ev,i)=>{const loc=ev?.location?.name||ev?.location?.address||''; html+=`<div style="padding:8px;border-left:3px solid #d1d5db;margin-bottom:7px;background:#f8fafc"><b>${i===0?'🟣':'⚪'} ${escapeHtml(ev.statusText||ev.description||ev.status||'Cập nhật')}</b><br><span style="color:#64748b">${escapeHtml(ev.time||'')}</span>${loc?`<br>📍 ${escapeHtml(loc)}`:''}</div>`;}); html+='</div>'; }
+            html+='</div>'; showModal(x.isTerminal?'✅ GHN đã giao':'🚚 Trạng thái GHN','',false,null,html);
+        }
+        return d;
+    };
+
+    window.openGhnTracking=function(orderId,currentCode=''){
+        const old4=loadPhone4(orderId);
+        showModal(currentCode?'🚚 GHN':'➕ Thêm GHN','',true,async ok=>{
+            if(!ok)return; const code=String(document.getElementById('nkGhnCode')?.value||'').trim().toUpperCase(); const p4=String(document.getElementById('nkGhnPhone4')?.value||'').replace(/\D/g,'').slice(-4);
+            if(!isGhnCode(code)){showModal('Lỗi','Mã GHN chưa hợp lệ.');return;} if(!/^\d{4}$/.test(p4)){showModal('Lỗi','Nhập đúng 4 số cuối SĐT.');return;}
+            const {error}=await _supabase.from('shopee_tracking').upsert({order_id:Number(orderId),user_id:currentUser.id,tracking_code:code,updated_at:new Date().toISOString()},{onConflict:'order_id'}); if(error){showModal('Lỗi',error.message);return;}
+            savePhone4(orderId,p4); try{await window.checkGhnForOrder(orderId,code,p4,true);}finally{await window.loadOrdersFromSupabase();}
+        },`<div style="text-align:left;font-size:12px;color:#64748b;margin-bottom:8px">Nhập mã GHN và 4 số cuối SĐT nhận hàng.</div><input id="nkGhnCode" value="${escapeHtml(currentCode)}" placeholder="Ví dụ: GYRANEQB" autocapitalize="characters"><input id="nkGhnPhone4" value="${escapeHtml(old4)}" maxlength="4" inputmode="numeric" placeholder="4 số cuối SĐT" style="margin-top:8px">`);
+    };
+
+    /* Gắn GHN vào thẻ đơn mà không thay cấu trúc Supabase. 4 số cuối chỉ lưu trên trình duyệt. */
+    const oldRender=window.renderOrders;
+    window.renderOrders=function(list){
+        oldRender(list); const total=Math.ceil((list||[]).length/ordersPerPage); if(!total)return; const page=Math.max(1,Math.min(currentOrderPage,total)); const visible=list.slice((page-1)*ordersPerPage,(page-1)*ordersPerPage+ordersPerPage); const cards=document.querySelectorAll('#orderListContainer .order-card');
+        cards.forEach((card,i)=>{const o=visible[i]; if(!o)return; const code=String(o.tracking?.tracking_code||'').toUpperCase(); if(!isGhnCode(code))return; const actions=card.querySelector('.order-actions'); if(actions){ const b=document.createElement('button'); b.className='order-btn-check'; b.style.background='#16a34a'; b.style.minWidth='calc(50% - 4px)'; b.textContent='🚚 Check GHN'; b.onclick=()=>window.openGhnTracking(Number(o.id),code); actions.appendChild(b); }});
+    };
+
+    /* Nạp hàng loạt 6 cột: cột 6 là phoneLast4. */
+    window.addMultipleOrders=async function(btnEl){
+        if(!currentUser){showModal('Lỗi','Vui lòng đăng nhập!');return;} const raw=document.getElementById('inputMultipleLines').value.trim(); if(!raw){showModal('Thông báo','Chưa có dữ liệu đơn hàng để nạp.');return;}
+        const rows=raw.split('\n').map(x=>x.trim()).filter(Boolean).map(line=>{const p=line.split('|').map(x=>x.trim()); if(!p[0])return null; const amount=parseInt(String(p[3]||'').replace(/\D/g,''),10)||0; const tc=String(p[4]||'').trim().toUpperCase(); const p4=String(p[5]||'').replace(/\D/g,'').slice(-4); return {order:{order_code:p[0],email:p[1]||'',product_name:p[2]||'Đơn Shopee',amount,price:amount,user_id:currentUser.id,status:'Đang chờ giao'},trackingCode:tc,phone4:/^\d{4}$/.test(p4)?p4:''};}).filter(Boolean);
+        if(btnEl){btnEl.disabled=true;btnEl.innerText='⏳ Đang nạp hàng loạt...';} let inserted=0,trackingSaved=0;
+        try{for(let i=0;i<rows.length;i+=50){const chunk=rows.slice(i,i+50); const {data,error}=await _supabase.from('shopee_orders').insert(chunk.map(x=>x.order)).select('id,order_code'); if(error)throw error; inserted+=(data||[]).length; const m=new Map(chunk.map(x=>[String(x.order.order_code).toUpperCase(),x])); const tr=[]; (data||[]).forEach(o=>{const x=m.get(String(o.order_code).toUpperCase()); if(x?.trackingCode){tr.push({order_id:Number(o.id),user_id:currentUser.id,tracking_code:x.trackingCode,updated_at:new Date().toISOString()}); if(x.phone4)savePhone4(o.id,x.phone4);}}); if(tr.length){const {error:te}=await _supabase.from('shopee_tracking').upsert(tr,{onConflict:'order_id'}); if(te)throw te; trackingSaved+=tr.length;}}
+            document.getElementById('inputMultipleLines').value=''; await window.loadOrdersFromSupabase(); showModal('Thành công',`Đã nạp ${inserted} đơn. Đã lưu ${trackingSaved} mã vận đơn.`);
+        }catch(e){showModal('Lỗi','Nạp dữ liệu thất bại: '+(e.message||e));}finally{if(btnEl){btnEl.disabled=false;btnEl.innerText='Nạp Hàng Loạt';}}
+    };
+})();
 </script>
 
 <script>
