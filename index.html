@@ -608,49 +608,17 @@
 
         <div class="section-title">📦 Quản Lý Đơn Hàng Shopee</div>
 
-        <div class="sub-tab-container" style="justify-content:center;">
-            <button class="sub-tab-btn active" id="tabBtnSingle"
-                    style="flex:1;"
-                    onclick="switchDepositTab('single')">
-                Nạp 1 Đơn
-            </button>
-
-            <button class="sub-tab-btn" id="tabBtnMultiple"
-                    style="flex:1;"
-                    onclick="switchDepositTab('multiple')">
-                Nạp Nhiều Đơn
-            </button>
-        </div>
-
-        <div id="depositSingleForm">
-
-            <input type="text" id="inputOrderCode"
-                   placeholder="Mã đơn hàng Shopee">
-
-            <input type="text" id="inputProductName"
-                   placeholder="Tên sản phẩm">
-
-            <input type="number" id="inputAmount"
-                   placeholder="Số tiền thanh toán (VNĐ) - Ví dụ: 50000">
-
-            <input type="text" id="inputEmail"
-                   placeholder="Email hòm thư iCloud (có thể để trống)">
-
-            <input type="text" id="inputTrackingCode"
-                   placeholder="Mã vận đơn SPX (có thể để trống)"
-                   autocapitalize="characters">
-
-            <button id="btnAddSingleOrder"
-                    class="btn-main"
-                    onclick="addNewOrder(this)">
-                Nạp Đơn Vào Hệ Thống
-            </button>
-
+        <div style="margin-bottom:14px;padding:14px 16px;border:1px solid #f2d3ca;border-radius:16px;background:#fffaf8;">
+            <div style="font-size:22px;font-weight:900;color:#2f3d50;">➕ Nạp đơn hàng</div>
+            <div style="margin-top:5px;color:#718096;font-size:13px;line-height:1.55;">
+                Chọn một hoặc nhiều ảnh Shopee → kiểm tra thông tin OCR → bấm Nạp đơn.
+                Nếu mã đơn đã tồn tại, hệ thống sẽ cập nhật thông tin thay vì tạo trùng.
+            </div>
         </div>
 
         <!-- ================= OCR + NẠP NHIỀU ================= -->
 
-        <div id="depositMultipleForm" style="display:none;">
+        <div id="depositMultipleForm">
 
             <div class="ocr-box">
 
@@ -7559,13 +7527,12 @@ html,body{width:100%;max-width:100%;overflow-x:hidden!important}
           ${field(i,'trackingCode','Mã vận đơn',o.trackingCode)}
           ${field(i,'productName','Tên sản phẩm',o.productName,true)}
           ${field(i,'amount','Thành tiền',o.amount)}
+          ${field(i,'email','Mail',o.email)}
           ${field(i,'recipientName','Tên người nhận',o.recipientName)}
           ${field(i,'recipientPhone','Số điện thoại',o.recipientPhone)}
           ${field(i,'shippingAddress','Địa chỉ đầy đủ',o.shippingAddress,true,true)}
           ${field(i,'shippingDetail','Địa chỉ chi tiết',o.shippingDetail,true)}
           ${field(i,'shippingWard','Phường / Xã',o.shippingWard)}
-          ${field(i,'shippingDistrict','Quận / Huyện',o.shippingDistrict)}
-          ${field(i,'shippingProvince','Tỉnh / Thành phố',o.shippingProvince)}
         </div>
       </div>`).join('');
     box.querySelectorAll('[data-i]').forEach(el=>el.addEventListener('input',()=>{
@@ -7578,10 +7545,9 @@ html,body{width:100%;max-width:100%;overflow-x:hidden!important}
   function syncLegacy(){
     const ta=document.getElementById('inputMultipleLines'); if(!ta)return;
     ta.value=ocrRows.map(o=>[
-      tidy(o.orderCode),'',tidy(o.productName),String(o.amount||0).replace(/[^\d]/g,''),
+      tidy(o.orderCode),tidy(o.email),tidy(o.productName),String(o.amount||0).replace(/[^\d]/g,''),
       tidy(o.trackingCode).toUpperCase(),tidy(o.recipientPhone),tidy(o.recipientName),
-      tidy(o.shippingAddress),tidy(o.shippingDetail),tidy(o.shippingWard),
-      tidy(o.shippingDistrict),tidy(o.shippingProvince)
+      tidy(o.shippingAddress),tidy(o.shippingDetail),tidy(o.shippingWard),'',''
     ].join(' | ')).join('\n');
   }
   window.nkRemoveOcr=i=>{ocrRows.splice(i,1);render()};
@@ -7593,7 +7559,7 @@ html,body{width:100%;max-width:100%;overflow-x:hidden!important}
       ta.insertAdjacentElement('beforebegin',box);
     }
     const desc=document.querySelector('#depositMultipleForm .ocr-desc');
-    if(desc)desc.innerHTML='Chọn ảnh Shopee. Sau khi OCR, mỗi đơn sẽ hiện thành <b>các ô riêng</b> để bạn kiểm tra và sửa Tên sản phẩm, Tên người nhận, SĐT, mã vận đơn và địa chỉ trước khi nạp.';
+    if(desc)desc.innerHTML='Chọn ảnh Shopee. Mỗi đơn sẽ hiện thành <b>các ô riêng</b>: mã đơn, mã vận đơn, sản phẩm, thành tiền, Mail, tên người nhận, SĐT, địa chỉ chi tiết và Phường/Xã. Bạn có thể sửa trước khi nạp.';
   }
 
   window.handleOrderImages=async function(input){
@@ -7626,6 +7592,143 @@ html,body{width:100%;max-width:100%;overflow-x:hidden!important}
   };
 
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',installEditor);else installEditor();
+})();
+</script>
+
+
+
+<script id="nk-final-deposit-upsert">
+(function(){
+  function nkClean(v){ return String(v == null ? '' : v).trim(); }
+
+  // Trang Nạp đơn giờ chỉ còn OCR; hàm cũ được giữ no-op để code legacy không lỗi.
+  window.switchDepositTab = function(){
+    const multi = document.getElementById('depositMultipleForm');
+    if (multi) multi.style.display = 'block';
+  };
+
+  window.addMultipleOrders = async function(btnEl){
+    if(!currentUser){
+      showModal('Lỗi','Vui lòng đăng nhập!');
+      return;
+    }
+
+    const raw = document.getElementById('inputMultipleLines')?.value.trim() || '';
+    if(!raw){
+      showModal('Thông báo','Chưa có đơn OCR để nạp.');
+      return;
+    }
+
+    const rows = raw.split('\n').map(x=>x.trim()).filter(Boolean).map(line=>{
+      const p = line.split('|').map(nkClean);
+      if(!p[0]) return null;
+
+      const amount = parseInt(String(p[3]||'').replace(/\D/g,''),10) || 0;
+      const phone = String(p[5]||'').replace(/[^\d+]/g,'');
+
+      return {
+        order: {
+          order_code: p[0],
+          email: p[1] || '',
+          product_name: p[2] || 'Đơn Shopee',
+          amount: amount,
+          price: amount,
+          user_id: currentUser.id,
+          status: 'Đang chờ giao',
+          recipient_phone: phone,
+          recipient_name: p[6] || '',
+          shipping_address: p[7] || '',
+          shipping_detail: p[8] || '',
+          shipping_ward: p[9] || ''
+        },
+        trackingCode: String(p[4]||'').trim().toUpperCase()
+      };
+    }).filter(Boolean);
+
+    if(!rows.length){
+      showModal('Thông báo','Không có dữ liệu hợp lệ để nạp.');
+      return;
+    }
+
+    if(btnEl){
+      btnEl.disabled = true;
+      btnEl.innerText = '⏳ Đang lưu...';
+    }
+
+    let saved = 0;
+    let trackingSaved = 0;
+
+    try{
+      for(let i=0;i<rows.length;i+=40){
+        const chunk = rows.slice(i,i+40);
+
+        // unique_user_order_code = cùng user + order_code.
+        // Upsert giúp scan lại đơn cũ để bổ sung Mail/SĐT/địa chỉ mà không báo duplicate.
+        const {data,error} = await _supabase
+          .from('shopee_orders')
+          .upsert(chunk.map(x=>x.order), {onConflict:'user_id,order_code'})
+          .select('id,order_code');
+
+        if(error) throw error;
+        saved += (data||[]).length;
+
+        const trackingMap = new Map(
+          chunk.map(x=>[String(x.order.order_code).toUpperCase(),x.trackingCode])
+        );
+
+        const trackingRows = (data||[]).map(o=>{
+          const code = trackingMap.get(String(o.order_code).toUpperCase()) || '';
+          return code ? {
+            order_id: Number(o.id),
+            user_id: currentUser.id,
+            tracking_code: code,
+            updated_at: new Date().toISOString()
+          } : null;
+        }).filter(Boolean);
+
+        if(trackingRows.length){
+          const {error:te} = await _supabase
+            .from('shopee_tracking')
+            .upsert(trackingRows,{onConflict:'order_id'});
+          if(te) throw te;
+          trackingSaved += trackingRows.length;
+        }
+      }
+
+      if(typeof ocrRows !== 'undefined' && Array.isArray(ocrRows)){
+        ocrRows.splice(0,ocrRows.length);
+      }
+      const editor = document.getElementById('nkOcrEditor');
+      if(editor) editor.innerHTML = '';
+      const hidden = document.getElementById('inputMultipleLines');
+      if(hidden) hidden.value = '';
+
+      if(typeof window.loadOrdersFromSupabase === 'function'){
+        await window.loadOrdersFromSupabase();
+      }
+
+      showModal(
+        'Thành công',
+        `Đã lưu/cập nhật ${saved} đơn. ${trackingSaved ? `Đã lưu ${trackingSaved} mã vận đơn.` : ''}`
+      );
+    }catch(e){
+      console.error('SAVE OCR ORDERS ERROR',e);
+      showModal('Lỗi','Nạp/cập nhật dữ liệu thất bại: '+(e?.message || e));
+    }finally{
+      if(btnEl){
+        btnEl.disabled = false;
+        btnEl.innerText = 'Nạp / Cập Nhật Đơn';
+      }
+    }
+  };
+
+  document.addEventListener('DOMContentLoaded',()=>{
+    const multi = document.getElementById('depositMultipleForm');
+    if(multi) multi.style.display='block';
+
+    const btn = document.getElementById('btnAddMultiOrder');
+    if(btn) btn.innerText='Nạp / Cập Nhật Đơn';
+  });
 })();
 </script>
 
