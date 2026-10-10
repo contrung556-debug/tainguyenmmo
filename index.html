@@ -8238,4 +8238,442 @@ html,body{width:100%;max-width:100%;overflow-x:hidden!important}
   // Sau khi app render/load/realtime, cập nhật dashboard lại.
   const oldLoad=window.loadOrdersFromSupabase;
   if(typeof oldLoad==='function'){
-    window.loadOrdersFromSupabase=async
+    window.loadOrdersFromSupabase=async function(...args){
+      const r=await oldLoad.apply(this,args);
+      setTimeout(renderFixedDashboard,30);
+      return r;
+    };
+  }
+
+  document.addEventListener('DOMContentLoaded',()=>{
+    setTimeout(renderFixedDashboard,300);
+    setTimeout(renderFixedDashboard,1000);
+  });
+
+  // Theo dõi dữ liệu/card được render trễ.
+  const obs=new MutationObserver(()=>{
+    clearTimeout(window.__nkDashFixTimer);
+    window.__nkDashFixTimer=setTimeout(renderFixedDashboard,80);
+  });
+  document.addEventListener('DOMContentLoaded',()=>{
+    const list=document.getElementById('orderList');
+    if(list) obs.observe(list,{childList:true,subtree:false});
+  });
+})();
+</script>
+
+
+
+<style id="nk-exact-design-v4">
+/* ===== GIAO HOM NAY - MATCH REFERENCE ===== */
+#nkDeliveryManager{padding:0!important;background:transparent!important;border:0!important;box-shadow:none!important}
+.nkx-wrap{display:grid;gap:14px}
+.nkx-hero{display:flex;align-items:center;gap:14px;padding:16px 18px;border:1px solid #ffd4c8;border-radius:18px;background:linear-gradient(110deg,#fff7f4,#fff)}
+.nkx-truck{font-size:38px;line-height:1}
+.nkx-hero-title{font-size:22px;font-weight:950;color:#172033}
+.nkx-hero-sub{font-size:11px;color:#64748b;margin-top:3px}
+.nkx-hero-stats{margin-left:auto;display:flex;align-self:stretch}
+.nkx-stat{min-width:72px;padding:2px 15px;display:flex;flex-direction:column;justify-content:center;text-align:center;border-left:1px solid #e8edf3}
+.nkx-stat:first-child{border-left:0}.nkx-stat b{font-size:24px;color:#172033;line-height:1}.nkx-stat span{font-size:10px;font-weight:900;margin-top:6px}
+.nkx-stat.ghn b,.nkx-stat.ghn span{color:#f97316}.nkx-stat.spx b,.nkx-stat.spx span{color:#ef233c}
+.nkx-tabs{display:grid;grid-template-columns:1.2fr 1fr 1.2fr .7fr;gap:9px}
+.nkx-tab{border:1px solid #e0e7ef;background:#f8fafc;color:#526278;border-radius:999px;padding:11px 7px;font-size:11px;font-weight:900;white-space:nowrap}
+.nkx-tab.active{background:linear-gradient(135deg,#ff5b3d,#ff3d24);color:#fff;border-color:#ff4d32;box-shadow:0 5px 13px rgba(255,77,50,.18)}
+.nkx-groups{display:grid;gap:10px}
+.nkx-group{border:1px solid #dce8f3;border-radius:17px;background:linear-gradient(135deg,#f8fbff,#eef7ff);padding:11px}
+.nkx-group-head{width:100%;border:0;background:transparent;padding:0 3px 9px;display:flex;align-items:center;text-align:left;color:#172033}
+.nkx-pin{font-size:21px;margin-right:7px}.nkx-group-name{font-size:15px;font-weight:950}.nkx-count{margin-left:9px;padding:4px 8px;border-radius:999px;background:#fff0e9;color:#f05b35;font-size:9px;font-weight:900}
+.nkx-chevron{margin-left:auto;font-size:17px;color:#526278}
+.nkx-group-body{display:grid;gap:7px}.nkx-group.collapsed .nkx-group-body{display:none}
+.nkx-order{border:1px solid #e3eaf1;border-radius:14px;background:#fff;display:grid;grid-template-columns:62px minmax(0,1fr) 1px minmax(100px,.75fr) 18px;align-items:center;gap:11px;padding:11px 12px;box-shadow:0 3px 10px rgba(15,23,42,.025)}
+.nkx-logo{height:52px;border-radius:11px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:14px;font-weight:950}
+.nkx-logo.ghn{background:linear-gradient(135deg,#ff9d1d,#ff6b00)}.nkx-logo.spx{background:linear-gradient(135deg,#ff382f,#e90d22)}.nkx-logo.other{background:#94a3b8}
+.nkx-label{font-size:9px;color:#718096}.nkx-code{font-size:13px;font-weight:950;color:#172033;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px}
+.nkx-detail{font-size:9px;color:#64748b;margin-top:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.nkx-divider{height:44px;background:#e6ebf0}.nkx-person{min-width:0}.nkx-person-name{font-size:12px;font-weight:950;color:#172033;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.nkx-go{font-size:24px;color:#64748b}
+.nkx-overview{border:1px solid #dbe8f3;border-radius:17px;background:linear-gradient(135deg,#f4faff,#eef8ff);padding:12px}
+.nkx-overview-title{font-size:14px;font-weight:950;color:#172033;margin-bottom:10px}
+.nkx-overview-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.nkx-overview-item{background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:9px;text-align:center}.nkx-overview-item b{font-size:17px;display:block}.nkx-overview-item span{font-size:8px;font-weight:900;color:#64748b}
+.nkx-tools{display:grid;grid-template-columns:1.45fr .9fr;gap:10px}
+.nkx-search{display:flex;align-items:center;gap:8px;background:#f8fafc;border:1px solid #dfe6ee;border-radius:14px;padding:0 14px}
+.nkx-search input{width:100%;border:0!important;background:transparent!important;outline:0!important;padding:13px 0!important;font-size:12px!important;box-shadow:none!important}
+.nkx-scan{border:0;border-radius:14px;background:linear-gradient(135deg,#ff5a3d,#ed3d24);color:#fff;font-size:11px;font-weight:950;padding:12px 10px}
+#orderSearch,#btnScanTracking,#btnScanReport{display:none!important}
+@media(max-width:600px){
+ .nkx-hero{padding:13px 11px;gap:8px}.nkx-truck{font-size:29px}.nkx-hero-title{font-size:18px}.nkx-hero-sub{font-size:9px}
+ .nkx-stat{min-width:48px;padding:2px 8px}.nkx-stat b{font-size:20px}.nkx-stat span{font-size:8px}
+ .nkx-tabs{gap:6px}.nkx-tab{font-size:9px;padding:10px 3px}
+ .nkx-order{grid-template-columns:48px minmax(0,1fr) 1px minmax(82px,.7fr) 12px;gap:7px;padding:9px}
+ .nkx-logo{height:45px;font-size:11px}.nkx-code{font-size:11px}.nkx-person-name{font-size:10px}
+ .nkx-overview-item{padding:8px 2px}.nkx-tools{grid-template-columns:1.25fr .85fr}
+}
+</style>
+
+<script id="nk-exact-design-v4-js">
+(function(){
+ const C=v=>String(v==null?'':v).trim();
+ const E=v=>typeof escapeHtml==='function'?escapeHtml(String(v??'')):String(v??'').replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));
+ let mode='area', query='';
+
+ function orders(){return Array.isArray(window.cachedOrders)?window.cachedOrders:(typeof cachedOrders!=='undefined'&&Array.isArray(cachedOrders)?cachedOrders:[])}
+ function code(o){for(const v of [o?.tracking?.tracking_code,o?.tracking_code,o?.trackingCode,o?.spx_tracking_code,o?.waybill,o?.waybill_no]){if(C(v))return C(v).toUpperCase()}return ''}
+ function status(o){return C(o?.tracking?.tracking_status||o?.tracking_status||o?.tracking?.status_text||o?.status)}
+ function carrier(o){
+   const x=code(o); if(x.startsWith('SPXVN'))return 'SPX';
+   const ex=C(o?.tracking?.carrier||o?.tracking?.carrier_code||o?.carrier||o?.carrier_code).toUpperCase();
+   if(ex.includes('GHN'))return 'GHN';
+   if(typeof window.isGhnCode==='function'&&window.isGhnCode(x))return 'GHN';
+   const ph=C(o?.recipient_phone).replace(/\D/g,''); if(x&&!x.startsWith('SPXVN')&&ph.length>=4)return 'GHN';
+   return 'MVD';
+ }
+ function delivered(o){return /đã giao|da giao|delivered|giao thành công|giao thanh cong/i.test(status(o))}
+ function cancelled(o){return /hủy|huy|cancel/i.test(status(o))}
+ function active(o){return !!code(o)&&!delivered(o)&&!cancelled(o)}
+ function area(o){return C(o?.shipping_ward)||'Chưa có địa chỉ'}
+ function who(o){return C(o?.recipient_name)||'Chưa có tên'}
+ function detail(o){
+   const c=carrier(o), st=status(o)||'Đang vận chuyển';
+   return `${c} · ${st}`;
+ }
+ function keyFor(o){
+   if(mode==='carrier')return carrier(o);
+   if(mode==='status')return status(o)||'Chưa có trạng thái';
+   if(mode==='all')return 'Tất cả đơn';
+   return area(o);
+ }
+ function iconFor(k){if(mode==='carrier')return '🚚';if(mode==='status')return '◷';if(mode==='all')return '▦';return k==='Chưa có địa chỉ'?'⚠️':'📍'}
+
+ function row(o){
+   const c=carrier(o), cc=c==='GHN'?'ghn':c==='SPX'?'spx':'other';
+   return `<div class="nkx-order" onclick="showNkOrderDetail(${Number(o.id)})">
+     <div class="nkx-logo ${cc}">${E(c)}</div>
+     <div style="min-width:0"><div class="nkx-label">Mã vận đơn</div><div class="nkx-code">${E(code(o))}</div><div class="nkx-detail">${E(detail(o))}</div></div>
+     <div class="nkx-divider"></div>
+     <div class="nkx-person"><div class="nkx-label">👤 Người nhận</div><div class="nkx-person-name">${E(who(o))}</div></div>
+     <div class="nkx-go">›</div>
+   </div>`;
+ }
+ function render(){
+   const root=document.getElementById('nkDeliveryManager'); if(!root)return;
+   const all=orders(), act=all.filter(active);
+   const shown=act.filter(o=>!query||[code(o),who(o),area(o),C(o.product_name)].join(' ').toLowerCase().includes(query.toLowerCase()));
+   const ghn=act.filter(o=>carrier(o)==='GHN').length, spx=act.filter(o=>carrier(o)==='SPX').length;
+   const groups=new Map();
+   shown.forEach(o=>{const k=keyFor(o);if(!groups.has(k))groups.set(k,[]);groups.get(k).push(o)});
+   const gh=[...groups.entries()].sort((a,b)=>b[1].length-a[1].length).map(([k,v],i)=>`
+    <section class="nkx-group" id="nkxg${i}">
+      <button class="nkx-group-head" onclick="this.parentElement.classList.toggle('collapsed')">
+       <span class="nkx-pin">${iconFor(k)}</span><span class="nkx-group-name">${E(k)}</span><span class="nkx-count">${v.length} đơn</span><span class="nkx-chevron">⌃</span>
+      </button><div class="nkx-group-body">${v.map(row).join('')}</div>
+    </section>`).join('');
+   root.innerHTML=`<div class="nkx-wrap">
+    <section class="nkx-hero">
+      <div class="nkx-truck">🚚</div><div><div class="nkx-hero-title">Giao hôm nay</div><div class="nkx-hero-sub">Tổng số đơn hàng đang giao</div></div>
+      <div class="nkx-hero-stats"><div class="nkx-stat"><b>${act.length}</b><span>Tổng đơn</span></div><div class="nkx-stat ghn"><b>${ghn}</b><span>GHN</span></div><div class="nkx-stat spx"><b>${spx}</b><span>SPX</span></div></div>
+    </section>
+    <nav class="nkx-tabs">
+      <button class="nkx-tab ${mode==='area'?'active':''}" onclick="nkxMode('area')">📍 Theo Phường/Xã</button>
+      <button class="nkx-tab ${mode==='carrier'?'active':''}" onclick="nkxMode('carrier')">🚚 Theo Hãng</button>
+      <button class="nkx-tab ${mode==='status'?'active':''}" onclick="nkxMode('status')">◷ Theo Trạng Thái</button>
+      <button class="nkx-tab ${mode==='all'?'active':''}" onclick="nkxMode('all')">▦ Tất cả</button>
+    </nav>
+    <div class="nkx-groups">${gh||'<div style="text-align:center;padding:25px;color:#94a3b8">Chưa có vận đơn đang giao.</div>'}</div>
+    <section class="nkx-overview"><div class="nkx-overview-title">📊 Thống kê tổng quan</div><div class="nkx-overview-grid">
+      <div class="nkx-overview-item"><b style="color:#2563eb">${act.length}</b><span>Đang vận chuyển</span></div>
+      <div class="nkx-overview-item"><b style="color:#16a34a">${all.filter(delivered).length}</b><span>Đã giao</span></div>
+      <div class="nkx-overview-item"><b style="color:#dc2626">${all.filter(cancelled).length}</b><span>Đơn bị hủy</span></div>
+      <div class="nkx-overview-item"><b style="color:#7c3aed">${all.filter(o=>!code(o)&&!delivered(o)&&!cancelled(o)).length}</b><span>Chờ lấy hàng</span></div>
+    </div></section>
+    <div class="nkx-tools"><label class="nkx-search">🔍<input value="${E(query)}" oninput="nkxSearch(this.value)" placeholder="Tìm kiếm đơn hàng..."></label>
+    <button class="nkx-scan" onclick="nkxScan()">📷 Quét Trạng Thái Vận Đơn</button></div>
+   </div>`;
+ }
+ window.nkxMode=function(x){mode=x;render()}; window.nkxSearch=function(x){query=x;render()};
+ window.nkxScan=function(){
+   const candidates=['scanAllTracking','scanTrackingStatuses','checkAllTracking','scanAllSPX'];
+   for(const n of candidates){if(typeof window[n]==='function'){window[n]();return}}
+   const b=document.getElementById('btnScanTracking');if(b){b.click();return}
+   if(typeof showModal==='function')showModal('Thông báo','Không tìm thấy hàm quét trạng thái hiện tại.');
+ };
+ window.renderSmartDelivery=render;
+ const old=window.loadOrdersFromSupabase;
+ if(typeof old==='function')window.loadOrdersFromSupabase=async function(...a){const r=await old.apply(this,a);setTimeout(render,30);return r};
+ document.addEventListener('DOMContentLoaded',()=>{setTimeout(render,350);setTimeout(render,1200)});
+})();
+</script>
+
+
+
+<style id="nk-ward-accordion-final-css">
+/* ===== Phường/Xã: mặc định thu gọn, bấm mới xổ mã vận đơn ===== */
+.nkx-group{padding:0!important;overflow:hidden}
+.nkx-group-head{
+  padding:14px 15px!important;
+  cursor:pointer!important;
+  user-select:none;
+}
+.nkx-group-body{
+  padding:0 10px 10px!important;
+  display:grid;
+  gap:7px;
+}
+.nkx-group.collapsed .nkx-group-body{display:none!important}
+.nkx-group .nkx-chevron{
+  transition:transform .2s ease;
+  transform:rotate(0deg);
+}
+.nkx-group.collapsed .nkx-chevron{transform:rotate(180deg)}
+.nkx-group.collapsed .nkx-group-head{padding-bottom:14px!important}
+</style>
+
+<script id="nk-ward-accordion-final-js">
+(function(){
+  // Ghi nhớ xã nào đang mở, để dashboard render lại không tự bung tất cả.
+  const openGroups = new Set();
+
+  function groupKey(section){
+    const el = section?.querySelector('.nkx-group-name');
+    return (el?.textContent || '').trim();
+  }
+
+  function prepareWardAccordion(){
+    const groups = document.querySelectorAll('#nkDeliveryManager .nkx-group');
+
+    groups.forEach((section, index)=>{
+      const key = groupKey(section) || ('group-' + index);
+      const head = section.querySelector('.nkx-group-head');
+      const chevron = section.querySelector('.nkx-chevron');
+
+      // Mặc định đóng. Chỉ nhóm người dùng đã bấm mở mới bung ra.
+      if(openGroups.has(key)){
+        section.classList.remove('collapsed');
+      }else{
+        section.classList.add('collapsed');
+      }
+
+      if(chevron) chevron.textContent = '⌄';
+
+      if(head && !head.dataset.nkAccordionBound){
+        head.dataset.nkAccordionBound = '1';
+
+        // Loại onclick cũ để tránh toggle 2 lần.
+        head.removeAttribute('onclick');
+
+        head.addEventListener('click', function(e){
+          e.preventDefault();
+          e.stopPropagation();
+
+          const nowKey = groupKey(section) || key;
+          const willOpen = section.classList.contains('collapsed');
+
+          // Accordion: mở xã này thì đóng các xã khác.
+          document.querySelectorAll('#nkDeliveryManager .nkx-group').forEach(other=>{
+            if(other !== section){
+              other.classList.add('collapsed');
+              openGroups.delete(groupKey(other));
+            }
+          });
+
+          if(willOpen){
+            section.classList.remove('collapsed');
+            openGroups.add(nowKey);
+          }else{
+            section.classList.add('collapsed');
+            openGroups.delete(nowKey);
+          }
+        });
+      }
+    });
+  }
+
+  window.prepareWardAccordion = prepareWardAccordion;
+
+  document.addEventListener('DOMContentLoaded', ()=>{
+    setTimeout(prepareWardAccordion, 500);
+    setTimeout(prepareWardAccordion, 1400);
+
+    const root = document.getElementById('nkDeliveryManager');
+    if(root){
+      const obs = new MutationObserver(()=>{
+        clearTimeout(window.__nkWardAccordionTimer);
+        window.__nkWardAccordionTimer = setTimeout(prepareWardAccordion, 40);
+      });
+      obs.observe(root, {childList:true, subtree:true});
+    }
+  });
+
+  // Bắt các lần render dashboard sau filter/search/realtime.
+  const oldRender = window.renderSmartDelivery;
+  if(typeof oldRender === 'function'){
+    window.renderSmartDelivery = function(...args){
+      const r = oldRender.apply(this,args);
+      setTimeout(prepareWardAccordion,20);
+      return r;
+    };
+  }
+})();
+</script>
+
+
+
+<style id="nk-reference-dashboard-v6-css">
+/* Ẩn khu Nạp đơn khỏi trang Quản lý đơn: Nạp đơn đã có trong Menu */
+#sectionOrders > .section-title,
+#sectionOrders > div:first-of-type,
+#sectionOrders #depositMultipleForm{
+  display:none!important;
+}
+#sectionOrders{padding-top:0!important}
+#sectionOrders .nkx-wrap{gap:13px}
+.nkx-date-btn{
+  border:1px solid #fed4c7;background:#fff;color:#334155;border-radius:999px;
+  padding:8px 12px;font-weight:900;font-size:11px;cursor:pointer;white-space:nowrap
+}
+.nkx-date-pop{
+  position:absolute;right:0;top:42px;z-index:50;width:175px;padding:7px;
+  border:1px solid #e2e8f0;border-radius:14px;background:#fff;
+  box-shadow:0 12px 30px rgba(15,23,42,.14)
+}
+.nkx-date-pop button{
+  width:100%;border:0;background:transparent;text-align:left;padding:10px 11px;
+  border-radius:9px;font-size:11px;font-weight:800;color:#334155
+}
+.nkx-date-pop button:hover,.nkx-date-pop button.active{background:#fff2ed;color:#e65032}
+.nkx-date-pop input{width:100%;box-sizing:border-box;border:1px solid #e2e8f0;border-radius:9px;padding:8px;font-size:11px}
+.nkx-hero{position:relative}
+.nkx-group-head{min-height:50px}
+.nkx-group.collapsed .nkx-chevron{transform:rotate(-90deg)}
+@media(max-width:600px){
+  #sectionOrders{padding-left:0!important;padding-right:0!important;background:transparent!important;box-shadow:none!important;border:0!important}
+  .nkx-wrap{padding:0 2px}
+  .nkx-hero{border-radius:17px}
+}
+</style>
+
+<script id="nk-reference-dashboard-v6-js">
+(function(){
+ const S=v=>String(v==null?'':v).trim();
+ const H=v=>typeof escapeHtml==='function'?escapeHtml(String(v??'')):String(v??'').replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));
+ let view='area', q='', dayOffset=0, customDate='', dateOpen=false;
+ const opened=new Set();
+
+ function data(){return Array.isArray(window.cachedOrders)?window.cachedOrders:(typeof cachedOrders!=='undefined'&&Array.isArray(cachedOrders)?cachedOrders:[])}
+ function track(o){for(const v of [o?.tracking?.tracking_code,o?.tracking_code,o?.trackingCode,o?.spx_tracking_code,o?.waybill,o?.waybill_no])if(S(v))return S(v).toUpperCase();return ''}
+ function st(o){return S(o?.tracking?.tracking_status||o?.tracking_status||o?.tracking?.status_text||o?.tracking?.milestone||o?.status)}
+ function norm(x){return S(x).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'')}
+ function isDelivered(o){const x=norm(st(o));return x.includes('giao hang thanh cong')||x.includes('da giao thanh cong')||x==='da giao'||x.includes('delivered')}
+ function isCancelled(o){if(isDelivered(o))return false;const x=norm(st(o));return x.includes('da huy')||x.includes('bi huy')||x.includes('cancel')}
+ function active(o){return !!track(o)&&!isDelivered(o)&&!isCancelled(o)}
+ function carrier(o){
+   const c=track(o); if(c.startsWith('SPXVN'))return 'SPX';
+   const x=S(o?.tracking?.carrier||o?.tracking?.carrier_code||o?.carrier||o?.carrier_code).toUpperCase();
+   if(x.includes('GHN'))return 'GHN';
+   if(typeof window.isGhnCode==='function'&&window.isGhnCode(c))return 'GHN';
+   if(c&&!c.startsWith('SPXVN')&&S(o?.recipient_phone).replace(/\D/g,'').length>=4)return 'GHN';
+   return 'MVD';
+ }
+ function ward(o){return S(o?.shipping_ward)||'Chưa có địa chỉ'}
+ function person(o){return S(o?.recipient_name)||'Chưa có tên người nhận'}
+ function eventDate(o){
+   const raw=o?.tracking?.last_event_at||o?.last_event_at||o?.delivered_at||o?.tracking?.updated_at||o?.updated_at||o?.created_at;
+   const d=raw?new Date(raw):null; return d&&!isNaN(d)?d:null;
+ }
+ function ymd(d){const p=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Ho_Chi_Minh',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(d);const m=Object.fromEntries(p.map(x=>[x.type,x.value]));return `${m.year}-${m.month}-${m.day}`}
+ function targetYmd(){
+   if(customDate)return customDate;
+   const d=new Date(); d.setDate(d.getDate()+dayOffset); return ymd(d);
+ }
+ function dateLabel(){
+   if(customDate){const [y,m,d]=customDate.split('-');return `${d}/${m}/${y}`}
+   return dayOffset===0?'Hôm nay':dayOffset===-1?'Hôm qua':'Ngày đã chọn'
+ }
+ function dayOrders(all){
+   // Hôm nay = trạng thái đang giao hiện tại, để đơn cũ đang giao không bị mất.
+   if(!customDate&&dayOffset===0)return all.filter(active);
+   const t=targetYmd();
+   return all.filter(o=>active(o)&&eventDate(o)&&ymd(eventDate(o))===t);
+ }
+ function groupKey(o){
+   if(view==='carrier')return carrier(o);
+   if(view==='status')return st(o)||'Chưa có trạng thái';
+   if(view==='all')return 'Tất cả đơn';
+   return ward(o);
+ }
+ function icon(){return view==='area'?'📍':view==='carrier'?'🚚':view==='status'?'◷':'▦'}
+ function row(o){
+   const c=carrier(o), cls=c==='GHN'?'ghn':c==='SPX'?'spx':'other';
+   return `<div class="nkx-order" onclick="showNkOrderDetail(${Number(o.id)})">
+    <div class="nkx-logo ${cls}">${H(c)}</div>
+    <div style="min-width:0"><div class="nkx-label">Mã vận đơn</div><div class="nkx-code">${H(track(o))}</div><div class="nkx-detail">${H(st(o)||'Đang vận chuyển')}</div></div>
+    <div class="nkx-divider"></div>
+    <div class="nkx-person"><div class="nkx-label">👤 Người nhận</div><div class="nkx-person-name">${H(person(o))}</div></div>
+    <div class="nkx-go">›</div>
+   </div>`
+ }
+ function render(){
+   const root=document.getElementById('nkDeliveryManager'); if(!root)return;
+   const all=data(), selected=dayOrders(all);
+   const shown=selected.filter(o=>!q||[track(o),person(o),ward(o),S(o.product_name)].join(' ').toLowerCase().includes(q.toLowerCase()));
+   const ghn=selected.filter(o=>carrier(o)==='GHN').length, spx=selected.filter(o=>carrier(o)==='SPX').length;
+   const groups=new Map(); shown.forEach(o=>{const k=groupKey(o);if(!groups.has(k))groups.set(k,[]);groups.get(k).push(o)});
+   const groupHtml=[...groups.entries()].sort((a,b)=>b[1].length-a[1].length).map(([k,arr],i)=>{
+      const key=view+'|'+k, isOpen=opened.has(key);
+      return `<section class="nkx-group ${isOpen?'':'collapsed'}">
+       <button class="nkx-group-head" onclick="nkDashToggle('${encodeURIComponent(key)}')">
+        <span class="nkx-pin">${k==='Chưa có địa chỉ'?'⚠️':icon()}</span>
+        <span class="nkx-group-name">${H(k)}</span><span class="nkx-count">${arr.length} đơn</span><span class="nkx-chevron">⌃</span>
+       </button><div class="nkx-group-body">${arr.map(row).join('')}</div>
+      </section>`
+   }).join('');
+   root.innerHTML=`<div class="nkx-wrap">
+    <section class="nkx-hero">
+      <div class="nkx-truck">🚚</div>
+      <div><div class="nkx-hero-title">Giao ${dateLabel().toLowerCase()}</div><div class="nkx-hero-sub">Tổng số đơn hàng đang giao</div></div>
+      <div class="nkx-hero-stats"><div class="nkx-stat"><b>${selected.length}</b><span>Tổng đơn</span></div><div class="nkx-stat ghn"><b>${ghn}</b><span>GHN</span></div><div class="nkx-stat spx"><b>${spx}</b><span>SPX</span></div></div>
+      <div style="position:absolute;right:12px;bottom:-43px;z-index:20">
+       <button class="nkx-date-btn" onclick="nkDashDateMenu(event)">${H(dateLabel())} ▾</button>
+       ${dateOpen?`<div class="nkx-date-pop" onclick="event.stopPropagation()">
+        <button class="${!customDate&&dayOffset===0?'active':''}" onclick="nkDashSetDay(0)">Hôm nay</button>
+        <button class="${!customDate&&dayOffset===-1?'active':''}" onclick="nkDashSetDay(-1)">Hôm qua</button>
+        <div style="padding:6px 5px 3px;font-size:9px;color:#94a3b8;font-weight:800">CHỌN NGÀY KHÁC</div>
+        <input type="date" value="${H(customDate)}" onchange="nkDashCustomDay(this.value)">
+       </div>`:''}
+      </div>
+    </section>
+    <nav class="nkx-tabs" style="margin-top:31px">
+      <button class="nkx-tab ${view==='area'?'active':''}" onclick="nkDashMode('area')">📍 Theo Phường/Xã</button>
+      <button class="nkx-tab ${view==='carrier'?'active':''}" onclick="nkDashMode('carrier')">🚚 Theo Hãng</button>
+      <button class="nkx-tab ${view==='status'?'active':''}" onclick="nkDashMode('status')">◷ Theo Trạng Thái</button>
+      <button class="nkx-tab ${view==='all'?'active':''}" onclick="nkDashMode('all')">▦ Tất cả</button>
+    </nav>
+    <div class="nkx-groups">${groupHtml||'<div style="text-align:center;padding:28px 10px;color:#94a3b8">Không có vận đơn đang giao trong ngày này.</div>'}</div>
+    <section class="nkx-overview"><div class="nkx-overview-title">📊 Thống kê tổng quan</div><div class="nkx-overview-grid">
+      <div class="nkx-overview-item"><b style="color:#2563eb">${all.filter(active).length}</b><span>Đang vận chuyển</span></div>
+      <div class="nkx-overview-item"><b style="color:#16a34a">${all.filter(isDelivered).length}</b><span>Đã giao</span></div>
+      <div class="nkx-overview-item"><b style="color:#dc2626">${all.filter(isCancelled).length}</b><span>Đơn bị hủy</span></div>
+      <div class="nkx-overview-item"><b style="color:#7c3aed">${all.filter(o=>!track(o)&&!isDelivered(o)&&!isCancelled(o)).length}</b><span>Chờ lấy hàng</span></div>
+    </div></section>
+    <div class="nkx-tools"><label class="nkx-search">🔍<input value="${H(q)}" oninput="nkDashSearch(this.value)" placeholder="Tìm kiếm đơn hàng..."></label>
+    <button class="nkx-scan" onclick="nkDashScan()">📷 Quét Trạng Thái Vận Đơn</button></div>
+   </div>`;
+ }
+ window.nkDashMode=x=>{view=x;opened.clear();render()};
+ window.nkDashSearch=x=>{q=x;render()};
+ window.nkDashToggle=enc=>{const k=decodeURIComponent(enc); if(opened.has(k))opened.delete(k);else{opened.clear();opened.add(k)} render()};
+ window.nkDashDateMenu=e=>{e.stopPropagation();dateOpen=!dateOpen;render()};
+ window.nkDashSetDay=n=>{dayOffset=n;customDate='';dateOpen=false;opened.clear();render()};
+ window.nkDashCustomDay=v=>{customDate=v;dateOpen=false;opened.clear();render()};
+ window.nkDashScan=()=>{
+   for(const n of ['scanAllTracking','scanTrackingStatuses','checkAllTracking','scanAllSPX'])if(typeof window[n]==='function'){window[n]();return}
+   const b=document.getElementById('btnScanTracking'); if(b)b.click();
+ };
+ document.addEventListener('click',()=>{if(dateOpen){dateOpen=false;render()}});
+ window.renderSmartDelivery=render;
+ setTimeout(render,250);setTimeout(render,1000);setTimeout(render,2200);
+})();
+</script>
+
+</body>
+</html>
