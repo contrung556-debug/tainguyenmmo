@@ -7021,5 +7021,199 @@ html,body{max-width:100%;overflow-x:hidden!important}
 })();
 </script>
 
-</body>
-</html>
+
+
+<style>
+/* ===== FINAL COMPACT MOBILE NAV ===== */
+html,body{width:100%;max-width:100%;overflow-x:hidden!important}
+.main-nav-bar{
+  display:grid!important;
+  grid-template-columns:repeat(4,minmax(0,1fr))!important;
+  gap:6px!important;
+  width:100%!important;
+  overflow:visible!important;
+  padding:8px 10px!important;
+}
+.main-nav-btn{
+  min-width:0!important;max-width:none!important;width:100%!important;
+  padding:10px 3px!important;font-size:11px!important;line-height:1.2!important;
+  white-space:normal!important;border-radius:11px!important;
+}
+#navBtnDeposit,#navBtnTracking{display:none!important}
+#navBtnMore{display:block!important}
+.nk-mobile-menu-overlay{
+  display:none;position:fixed;inset:0;background:rgba(15,23,42,.35);z-index:9998;
+}
+.nk-mobile-menu{
+  position:fixed;right:12px;top:118px;width:min(300px,calc(100vw - 24px));
+  background:#fff;border-radius:18px;padding:10px;z-index:9999;
+  box-shadow:0 18px 55px rgba(15,23,42,.24);border:1px solid #edf0f4;
+  transform:translateY(-8px);opacity:0;pointer-events:none;transition:.18s ease;
+}
+.nk-mobile-menu.open{transform:none;opacity:1;pointer-events:auto}
+.nk-mobile-menu-overlay.open{display:block}
+.nk-menu-head{padding:10px 10px 12px;border-bottom:1px solid #edf0f4;margin-bottom:5px}
+.nk-menu-head b{font-size:15px;color:#24364b}
+.nk-menu-item{
+  width:100%;border:0;background:#fff;text-align:left;padding:13px 12px;
+  border-radius:11px;font-size:14px;font-weight:750;color:#344054;cursor:pointer;
+}
+.nk-menu-item:active{background:#fff3ef}
+.nk-menu-sep{height:1px;background:#edf0f4;margin:5px 6px}
+@media(min-width:760px){
+  .main-nav-bar{display:flex!important}
+  .main-nav-btn{font-size:12px!important;padding:10px 8px!important}
+  #navBtnDeposit,#navBtnTracking{display:block!important}
+  #navBtnMore{display:none!important}
+}
+</style>
+
+<script>
+(function(){
+  function closeNkMenu(){
+    document.getElementById('nkMobileMenu')?.classList.remove('open');
+    document.getElementById('nkMobileMenuOverlay')?.classList.remove('open');
+  }
+  window.closeNkMenu=closeNkMenu;
+
+  window.toggleNkMenu=function(){
+    document.getElementById('nkMobileMenu')?.classList.toggle('open');
+    document.getElementById('nkMobileMenuOverlay')?.classList.toggle('open');
+  };
+
+  function goNk(tab){
+    closeNkMenu();
+    if(typeof window.switchMainTab==='function') window.switchMainTab(tab);
+  }
+  window.goNk=goNk;
+
+  function buildCompactMenu(){
+    const nav=document.querySelector('.main-nav-bar');
+    if(!nav || document.getElementById('navBtnMore')) return;
+
+    const more=document.createElement('button');
+    more.className='main-nav-btn';
+    more.id='navBtnMore';
+    more.type='button';
+    more.innerHTML='☰<br>Menu';
+    more.onclick=window.toggleNkMenu;
+    nav.appendChild(more);
+
+    const overlay=document.createElement('div');
+    overlay.id='nkMobileMenuOverlay';
+    overlay.className='nk-mobile-menu-overlay';
+    overlay.onclick=closeNkMenu;
+
+    const menu=document.createElement('div');
+    menu.id='nkMobileMenu';
+    menu.className='nk-mobile-menu';
+    menu.innerHTML=`
+      <div class="nk-menu-head"><b>⚡ NK MMO</b></div>
+      <button class="nk-menu-item" onclick="goNk('deposit')">➕ &nbsp; Nạp Đơn</button>
+      <button class="nk-menu-item" onclick="goNk('tracking')">🚚 &nbsp; Tra Mã Đơn</button>
+      <div class="nk-menu-sep"></div>
+      <button class="nk-menu-item" onclick="closeNkMenu();loadDepositHistory()">📜 &nbsp; Lịch Sử Nạp Ví</button>
+      <button class="nk-menu-item" onclick="closeNkMenu();document.querySelector('#headerWalletBox button:last-child')?.click()">💰 &nbsp; Nạp Ví</button>
+    `;
+    document.body.appendChild(overlay);
+    document.body.appendChild(menu);
+
+    // Main three buttons use compact icon + label.
+    const labels={
+      navBtnMarket:'🛒<br>Chợ MMO',
+      navBtnOtp:'🔗<br>Lấy OTP',
+      navBtnOrders:'📊<br>Quản Lý Đơn'
+    };
+    Object.entries(labels).forEach(([id,html])=>{
+      const el=document.getElementById(id);
+      if(el) el.innerHTML=html;
+    });
+  }
+
+  function waitForDynamicPages(){
+    if(!document.getElementById('navBtnDeposit') || !document.getElementById('navBtnTracking')){
+      setTimeout(waitForDynamicPages,40); return;
+    }
+    buildCompactMenu();
+  }
+
+  if(document.readyState==='loading'){
+    document.addEventListener('DOMContentLoaded',waitForDynamicPages);
+  }else waitForDynamicPages();
+})();
+</script>
+
+
+
+<style>
+/* ===== RECIPIENT + ADDRESS OCR ===== */
+.nk-recipient-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.nk-recipient-grid input{width:100%;min-width:0}
+@media(max-width:600px){.nk-recipient-grid{grid-template-columns:1fr}}
+</style>
+
+<script>
+(function(){
+    function clean(v){ return String(v == null ? '' : v).replace(/\s+/g,' ').trim(); }
+
+    function extractFullPhone(text, lines){
+        const src = [String(text||''), ...(lines||[])].join('\n');
+        const matches = src.match(/(?:\+?84|0)(?:[\s.\-]?\d){9,10}/g) || [];
+        for(const m of matches){
+            let d=m.replace(/\D/g,'');
+            if(d.startsWith('84')) d='0'+d.slice(2);
+            if(/^0\d{9}$/.test(d)) return d;
+        }
+        return '';
+    }
+
+    function extractRecipientBlock(text, lines){
+        const arr=(lines||String(text||'').split('\n')).map(clean).filter(Boolean);
+        const result={
+            recipientName:'', recipientPhone:'', shippingAddress:'',
+            shippingDetail:'', shippingWard:'', shippingDistrict:'', shippingProvince:''
+        };
+
+        let idx=arr.findIndex(x=>/địa\s*chỉ\s*nhận\s*hàng|dia\s*chi\s*nhan\s*hang/i.test(x));
+        const phone=extractFullPhone(text,arr);
+        result.recipientPhone=phone;
+
+        let nameLine='';
+        if(idx>=0){
+            for(let j=idx+1;j<=Math.min(idx+3,arr.length-1);j++){
+                if(/(?:\+?84|0)(?:[\s.\-]?\d){9,10}/.test(arr[j])){ nameLine=arr[j]; break; }
+            }
+            if(!nameLine && arr[idx+1]) nameLine=arr[idx+1];
+
+            const addressLines=[];
+            let started=false;
+            for(let j=idx+1;j<=Math.min(idx+6,arr.length-1);j++){
+                const line=arr[j];
+                if(line===nameLine){ started=true; continue; }
+                if(!started && /(?:\+?84|0)(?:[\s.\-]?\d){9,10}/.test(line)){ started=true; continue; }
+                if(/^(cập nhật|thông tin|yêu thích|bạn cần hỗ trợ|liên hệ shop|trung tâm hỗ trợ|mã đơn hàng|thành tiền)/i.test(line)) break;
+                if(line.length>=5) addressLines.push(line);
+                if(addressLines.length>=2) break;
+            }
+            result.shippingAddress=clean(addressLines.join(', '));
+        }
+
+        if(nameLine){
+            let n=nameLine
+              .replace(/(?:\+?84|0)(?:[\s.\-]?\d){9,10}/g,'')
+              .replace(/[()]/g,' ')
+              .replace(/^[\s:,\-]+|[\s:,\-]+$/g,'');
+            result.recipientName=clean(n);
+        }
+
+        // Fallback: line immediately before a detected phone.
+        if(!result.recipientName && phone){
+            const pi=arr.findIndex(x=>x.replace(/\D/g,'').includes(phone.replace(/\D/g,'')));
+            if(pi>=0){
+                const n=arr[pi].replace(/(?:\+?84|0)(?:[\s.\-]?\d){9,10}/g,'').replace(/[()]/g,' ');
+                if(clean(n).length>=2) result.recipientName=clean(n);
+            }
+        }
+
+        const parts=result.shippingAddress.split(',').map(clean).filter(Boolean);
+        for(const p of parts){
