@@ -8094,7 +8094,8 @@ html,body{width:100%;max-width:100%;overflow-x:hidden!important}
      'sap giao','cho giao','dang giao','di giao','giao hang',
      'tai xe','shipper','delivery hub','delivery station',
      'buu cuc giao','tram giao','kho giao','last mile',
-     'out for delivery','arrived at delivery'
+     'out for delivery','arrived at delivery',
+     'den tram giao','da den tram giao','den kho giao','da den kho giao'
    ].some(k=>x.includes(k)) &&
    ![
      'roi kho phan loai','dang trung chuyen','trung chuyen',
@@ -8163,7 +8164,7 @@ html,body{width:100%;max-width:100%;overflow-x:hidden!important}
    root.innerHTML=`<div class="nkx-wrap">
     <section class="nkx-hero">
       <div class="nkx-truck">🚚</div>
-      <div><div class="nkx-hero-title">Giao ${dateLabel().toLowerCase()}</div><div class="nkx-hero-sub">Đến trạm cuối / đang giao / đã giao trong ngày</div></div>
+      <div><div class="nkx-hero-title">Giao ${dateLabel().toLowerCase()}</div><div class="nkx-hero-sub">Đến trạm giao cuối + giao thành công</div></div>
       <div class="nkx-hero-stats"><div class="nkx-stat"><b>${selected.length}</b><span>Tổng đơn</span></div><div class="nkx-stat ghn"><b>${ghn}</b><span>GHN</span></div><div class="nkx-stat spx"><b>${spx}</b><span>SPX</span></div></div>
       <div style="position:absolute;right:12px;bottom:-43px;z-index:20">
        <button class="nkx-date-btn" onclick="nkDashDateMenu(event)">${H(dateLabel())} ▾</button>
