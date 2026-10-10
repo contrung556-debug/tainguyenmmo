@@ -8682,5 +8682,370 @@ html,body{width:100%;max-width:100%;overflow-x:hidden!important}
  })
 })();
 </script>
+
+<!-- ================================================================
+     NK MMO V28 - GIAO DIỆN CHUẨN THEO ẢNH MOCKUP (KHÔNG TRÀN BỐ CỤC)
+     Chỉ thay đổi giao diện, giữ nguyên toàn bộ logic V26/V27.
+================================================================= -->
+<style id="nk-v28-mockup-css">
+/* ---------- chống tràn toàn trang ---------- */
+html,body{width:100%;max-width:100%;overflow-x:hidden!important}
+*,*::before,*::after{box-sizing:border-box}
+body{background:#f5f6fa!important}
+.container,.section-box,#marketList,#myAccList{min-width:0!important;max-width:100%!important}
+.container{padding:12px 12px 36px!important}
+.section-box{padding:14px!important;border-radius:24px!important;border:1px solid #f0f1f5!important;
+  box-shadow:0 8px 28px rgba(30,41,59,.07)!important;overflow:hidden}
+#myAccList *{max-width:100%;overflow-wrap:anywhere;word-break:break-word}
+
+/* ---------- HEADER ---------- */
+.store-header{
+  background:linear-gradient(135deg,#f23d2d 0%,#ff6a38 60%,#ff7d33 100%)!important;
+  padding:calc(env(safe-area-inset-top,0px) + 14px) 12px 14px!important;
+  border-radius:0 0 28px 28px!important;
+  box-shadow:0 10px 26px rgba(238,77,45,.25)!important;
+  overflow:hidden;
+}
+.store-header .store-title-area{display:flex!important;flex-wrap:nowrap!important;align-items:center!important;
+  justify-content:space-between!important;gap:8px!important;margin-bottom:10px!important;min-width:0}
+.store-header .store-name{display:flex!important;align-items:center!important;gap:6px!important;flex:1 1 auto;min-width:0;
+  font-size:inherit!important;letter-spacing:0!important}
+.nkv-bolt{flex:0 0 auto;display:flex}
+.nkv-bolt svg{width:26px;height:34px;display:block}
+.nkv-brand-text{min-width:0;display:flex;flex-direction:column;line-height:1.15}
+.nkv-brand-text b{font-size:clamp(15px,5.1vw,21px);font-weight:900;letter-spacing:-.2px;color:#fff;white-space:nowrap;
+  text-shadow:0 2px 6px rgba(120,20,5,.25)}
+.nkv-brand-text small{font-size:clamp(9px,2.9vw,12px);font-weight:600;color:rgba(255,255,255,.92);white-space:nowrap;
+  overflow:hidden;text-overflow:ellipsis}
+.nkv-cart{flex:0 0 auto;display:flex;opacity:.95}
+.nkv-cart svg{width:24px;height:24px}
+
+.store-header .user-top-actions{flex:0 1 auto!important;min-width:0;display:flex!important;align-items:center!important;gap:6px!important}
+.nkv-user{display:flex;align-items:center;gap:6px;min-width:0}
+.nkv-ava{flex:0 0 auto;width:34px;height:34px;border-radius:50%;display:grid;place-items:center;
+  background:linear-gradient(135deg,#ffb3d1,#ff8fb8);color:#fff;font-weight:900;font-size:16px;
+  box-shadow:0 3px 8px rgba(120,20,5,.2)}
+.nkv-uname{display:flex;flex-direction:column;min-width:0;line-height:1.2;max-width:84px}
+.nkv-uname b{font-size:13px;font-weight:800;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.nkv-uname small{font-size:10.5px;color:#ffe9c2;font-weight:600;display:flex;align-items:center;gap:3px;white-space:nowrap}
+.nkv-uname small svg{width:11px;height:11px;flex:0 0 auto}
+.nkv-out{flex:0 0 auto;display:flex;align-items:center;gap:5px;border:1px solid rgba(255,255,255,.38);
+  background:rgba(255,255,255,.14);color:#fff;font-weight:800;font-size:12px;padding:7px 10px;border-radius:16px;cursor:pointer}
+.nkv-out svg{width:14px;height:14px}
+/* trạng thái chưa đăng nhập vẫn gọn */
+.store-header .user-top-actions .top-btn{white-space:nowrap}
+
+.store-header .wallet-box{
+  display:flex!important;flex-wrap:wrap!important;align-items:center!important;justify-content:space-between!important;
+  gap:8px!important;margin-top:0!important;padding:10px!important;border-radius:20px!important;
+  background:rgba(130,25,12,.26)!important;border:1px solid rgba(255,255,255,.12)!important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.1)!important;min-width:0;
+}
+.nkv-wal{display:flex;align-items:center;gap:8px;min-width:0;flex:1 1 auto}
+.nkv-wico svg{width:34px;height:30px;display:block}
+.nkv-bal{display:flex;flex-direction:column;line-height:1.15;min-width:0}
+.nkv-bal small{font-size:11px;font-weight:600;color:rgba(255,255,255,.9)}
+.nkv-bal b{font-size:clamp(17px,5.4vw,22px)!important;font-weight:900;color:#fff!important;white-space:nowrap}
+.nkv-refresh{flex:0 0 auto;width:28px;height:28px;border-radius:50%;border:0;display:grid;place-items:center;
+  background:rgba(255,255,255,.2);color:#fff;cursor:pointer;padding:0}
+.nkv-refresh svg{width:15px;height:15px}
+.nkv-refresh.spin svg{animation:nkvspin .8s linear infinite}
+@keyframes nkvspin{to{transform:rotate(360deg)}}
+.nkv-wbtns{display:flex;gap:7px;flex:0 0 auto;margin-left:auto}
+.nkv-wbtns button{display:flex;align-items:center;gap:5px;border:0;border-radius:14px;padding:10px 11px;
+  font-size:12.5px;font-weight:800;cursor:pointer;white-space:nowrap}
+.nkv-wbtns svg{width:15px;height:15px;flex:0 0 auto}
+.nkv-hist{background:#fde4d2;color:#5b2814}
+.nkv-dep{background:linear-gradient(135deg,#1fbf75,#12a35e);color:#fff;box-shadow:0 4px 10px rgba(18,163,94,.3)}
+
+/* ---------- THANH ĐIỀU HƯỚNG 4 NÚT ---------- */
+.main-nav-bar{
+  display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:7px!important;
+  width:100%!important;overflow:visible!important;
+  padding:10px max(10px,calc((100vw - 680px)/2))!important;
+  background:#fff!important;border-bottom:1px solid #f3e3dd!important;
+}
+.main-nav-bar .main-nav-btn,.main-nav-bar #navBtnMore{
+  display:flex!important;flex-direction:column;align-items:center;justify-content:center;gap:4px;
+  min-width:0!important;max-width:none!important;width:100%!important;min-height:58px!important;
+  padding:8px 2px!important;border-radius:15px!important;background:#fffaf8!important;
+  border:1px solid #f4dcd4!important;color:#4b5563!important;font-size:clamp(10.5px,3.3vw,13px)!important;
+  font-weight:800!important;line-height:1.15!important;white-space:nowrap!important;box-shadow:none!important;
+}
+.main-nav-bar .main-nav-btn.active{
+  background:linear-gradient(135deg,#f6532f,#ee3d2d)!important;color:#fff!important;border-color:transparent!important;
+  box-shadow:0 8px 18px rgba(238,77,45,.3)!important}
+.main-nav-bar #navBtnDeposit,.main-nav-bar #navBtnTracking{display:none!important}
+.nkv-ni{display:flex}
+.nkv-ni svg{width:22px;height:22px;display:block}
+.main-nav-btn:not(.active) #nkvBars,.main-nav-btn:not(.active) .nkv-bars{color:#1f9d6a}
+.main-nav-btn:not(.active) .nkv-link{color:#6b7280}
+.nkv-nl{max-width:100%;overflow:hidden;text-overflow:ellipsis}
+
+/* ---------- KHỐI CHỢ ---------- */
+#sectionMarket>.section-title{display:block!important;margin:0 0 12px!important;padding:0;font-size:inherit!important;letter-spacing:0!important}
+.nkv-mh{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px}
+.nkv-mh-l{display:flex;align-items:center;gap:8px;flex:1 1 190px;min-width:0}
+.nkv-mh-ico svg{width:34px;height:34px;display:block}
+.nkv-mh-t{min-width:0}
+.nkv-mh-t b{display:block;font-size:clamp(16px,5.2vw,21px);font-weight:900;color:#d9302c;line-height:1.2;letter-spacing:-.2px}
+.nkv-mh-t small{display:block;font-size:11.5px;font-weight:500;color:#6b7280;line-height:1.35;margin-top:2px}
+.nkv-badge{display:flex;align-items:center;gap:7px;flex:0 0 auto;padding:7px 10px;border-radius:14px;
+  background:#e9f8ef;color:#167a45}
+.nkv-badge svg{width:26px;height:28px;flex:0 0 auto}
+.nkv-badge div{display:flex;flex-direction:column;line-height:1.25}
+.nkv-badge b{font-size:11.5px;font-weight:800;color:#1a7f48;white-space:nowrap}
+.nkv-badge small{font-size:10.5px;color:#4b8f6a;font-weight:500;white-space:nowrap}
+
+/* tab con: lưới 3 cột trên điện thoại (không tràn), 1 hàng trên màn rộng */
+#sectionMarket .sub-tab-container{
+  display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:5px!important;
+  padding:6px!important;border-radius:16px!important;background:#fff6f3!important;
+  border:1px solid #f6dcd3!important;overflow:visible!important;margin-bottom:12px!important}
+#sectionMarket .sub-tab-btn{
+  display:flex!important;align-items:center;justify-content:center;gap:5px;min-width:0!important;
+  padding:9px 4px!important;border-radius:12px!important;font-size:12.5px!important;font-weight:800!important;
+  color:#2b3447!important;background:transparent!important;white-space:nowrap!important;box-shadow:none!important}
+#sectionMarket .sub-tab-btn.active{
+  background:linear-gradient(135deg,#f6532f,#ee3d2d)!important;color:#fff!important;
+  box-shadow:0 6px 14px rgba(238,77,45,.28)!important}
+.nkv-ti{display:flex;flex:0 0 auto}
+.nkv-ti svg{width:17px;height:17px;display:block}
+.nkv-ti-label{overflow:hidden;text-overflow:ellipsis}
+@media(min-width:480px){
+  #sectionMarket .sub-tab-container{grid-template-columns:repeat(6,minmax(0,1fr))!important}
+}
+
+/* ---------- THẺ SẢN PHẨM ---------- */
+#marketList .store-product-card{
+  background:#fff;border:1px solid #f6d9d0;border-radius:20px;padding:12px;margin-bottom:12px;
+  box-shadow:0 6px 20px rgba(30,41,59,.05);max-width:100%;min-width:0;overflow:hidden}
+#marketList .store-product-header{display:flex;align-items:flex-start;gap:10px;margin-bottom:8px;min-width:0}
+#marketList .store-product-badge{
+  width:34px;height:34px;border-radius:10px;font-size:16px;font-weight:900;color:#fff;flex:0 0 auto;
+  background:linear-gradient(135deg,#f65a38,#e8362a);box-shadow:0 4px 10px rgba(232,54,42,.28)}
+#marketList .store-product-info{flex:1 1 auto;min-width:0}
+#marketList .store-product-name{
+  font-size:clamp(14.5px,4.4vw,17px);font-weight:900;color:#1d2a4a;line-height:1.3;margin-bottom:5px;
+  overflow-wrap:anywhere}
+#marketList .store-product-meta{
+  display:flex;flex-wrap:wrap;align-items:center;gap:4px 10px;font-size:13px;color:#4b5563}
+.nkv-m{display:flex;align-items:center;gap:5px;white-space:nowrap}
+.nkv-m svg{width:16px;height:16px;flex:0 0 auto}
+.nkv-price{color:#e5352b;font-size:14.5px;font-weight:900}
+.nkv-stock{color:#19a35a;font-weight:900}
+.nkv-stock.nkv-out{color:#e74c3c}
+.nkv-sep{width:1px;height:16px;background:#e5d6d1}
+
+#marketList .store-product-desc.nkv-desc{
+  display:grid;grid-template-columns:minmax(0,1fr) 84px;align-items:center;gap:8px;
+  background:#fff4f0;border:0;border-radius:16px;padding:11px 10px 11px 12px;margin:0 0 12px;white-space:normal}
+.nkv-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:7px;min-width:0}
+.nkv-list li{display:flex;align-items:flex-start;gap:8px;font-size:13px;line-height:1.35;color:#3b4252;min-width:0}
+.nkv-list li svg{width:18px;height:18px;flex:0 0 auto;margin-top:0}
+.nkv-list li span{min-width:0;overflow-wrap:anywhere}
+.nkv-art{display:flex;flex-direction:column;align-items:center;gap:6px;min-width:0}
+.nkv-art>svg{width:64px;height:64px;display:block;filter:drop-shadow(0 6px 8px rgba(238,77,45,.28))}
+.nkv-art em{display:flex;align-items:center;gap:3px;font-style:normal;font-size:10px;font-weight:700;color:#c47a1d;
+  background:#fde5cf;border-radius:999px;padding:3px 7px;white-space:nowrap}
+.nkv-art em svg{width:10px;height:10px}
+@media(max-width:340px){
+  #marketList .store-product-desc.nkv-desc{grid-template-columns:minmax(0,1fr)}
+  .nkv-art{display:none}
+}
+
+#marketList .store-product-action{display:flex;align-items:center;gap:10px;min-width:0}
+.nkv-qty{display:flex;align-items:center;flex:0 0 auto;height:46px;border:1px solid #f1cfc5;border-radius:14px;
+  background:#fff;overflow:hidden}
+.nkv-qty button{width:34px;height:100%;border:0;background:#fff7f4;color:#e5352b;font-size:22px;font-weight:700;
+  cursor:pointer;line-height:1;padding:0}
+#marketList .store-qty-input{
+  width:38px!important;height:100%!important;padding:0!important;margin:0!important;border:0!important;
+  border-radius:0!important;background:#fff!important;text-align:center;font-size:16px!important;font-weight:900;
+  color:#1d2a4a;-moz-appearance:textfield;appearance:textfield}
+#marketList .store-qty-input::-webkit-outer-spin-button,
+#marketList .store-qty-input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+#marketList .store-buy-btn{
+  flex:1 1 auto;min-width:0;height:46px;display:flex;align-items:center;justify-content:center;gap:8px;
+  border:0;border-radius:14px;padding:0 10px;font-size:16px;font-weight:900;color:#fff;
+  background:linear-gradient(135deg,#f65a38,#e8362a);box-shadow:0 8px 18px rgba(232,54,42,.28)}
+#marketList .store-buy-btn svg{width:22px;height:22px;flex:0 0 auto}
+#marketList .store-buy-btn.out-of-stock,#marketList .store-buy-btn:disabled{background:#bdc3c7!important;box-shadow:none}
+</style>
+
+<script id="nk-v28-mockup-js">
+(function(){
+'use strict';
+var $=function(s,r){return (r||document).querySelector(s)};
+var esc=function(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})};
+
+var I={
+ bolt:'<svg viewBox="0 0 26 34"><defs><linearGradient id="nkvb" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffe45c"/><stop offset="1" stop-color="#ffa81c"/></linearGradient></defs><path d="M16 1 3 19h7l-3 14 16-20h-8z" fill="url(#nkvb)" stroke="#fff3b0" stroke-width="1" stroke-linejoin="round"/></svg>',
+ cartW:'<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h3l2.6 12.4a1.6 1.6 0 0 0 1.6 1.3h8.2a1.6 1.6 0 0 0 1.6-1.2L21 7H6"/><circle cx="9.5" cy="20.5" r="1.4" fill="#fff"/><circle cx="17.5" cy="20.5" r="1.4" fill="#fff"/></svg>',
+ cartG:'<svg viewBox="0 0 34 34" fill="none" stroke="#6b7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5h4l3.6 17.4a2 2 0 0 0 2 1.6h11a2 2 0 0 0 2-1.5L28 10H8.5"/><path d="M12 14h14M13 18h12" stroke-width="1.6"/><circle cx="14" cy="29" r="2" fill="#6b7280"/><circle cx="25" cy="29" r="2" fill="#6b7280"/></svg>',
+ crown:'<svg viewBox="0 0 24 24"><path d="M3 8l4.5 4L12 5l4.5 7L21 8l-2 11H5z" fill="#ffc933"/></svg>',
+ exit:'<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4h5a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1h-5"/><path d="M4 12h10M10 8l4 4-4 4"/></svg>',
+ wallet:'<svg viewBox="0 0 34 30"><rect x="2" y="5" width="28" height="23" rx="6" fill="#f0a63a"/><path d="M4 9a5 5 0 0 1 5-5h16a4 4 0 0 1 4 4v3H4z" fill="#ffd27a"/><rect x="19" y="13" width="14" height="9" rx="4.5" fill="#e8892a"/><circle cx="25" cy="17.5" r="1.9" fill="#fff"/></svg>',
+ refresh:'<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 11a8 8 0 1 0-2.3 6"/><path d="M20 4v7h-7"/></svg>',
+ hist:'<svg viewBox="0 0 24 24" fill="none" stroke="#e5602f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h9l4 4v14H6z"/><path d="M9 11h7M9 15h7M9 7h3"/></svg>',
+ plus:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="none" stroke="#fff" stroke-width="2"/><path d="M12 7v10M7 12h10" stroke="#fff" stroke-width="2.4" stroke-linecap="round"/></svg>',
+ shield:'<svg viewBox="0 0 26 28"><path d="M13 1 2 5v8c0 7 4.6 12 11 14 6.4-2 11-7 11-14V5z" fill="#2dbb6f"/><path d="M8 14l3.6 3.6L18.5 10" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+ tag:'<svg viewBox="0 0 24 24"><path d="M3 12V4h8l10 10-8 8z" fill="#ee4d2d"/><circle cx="7.5" cy="8.5" r="1.8" fill="#fff"/></svg>',
+ layers:'<svg viewBox="0 0 24 24" fill="none" stroke="#2f7de1" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"><path d="M12 3 3 8l9 5 9-5z" fill="#2f7de1"/><path d="M3 13l9 5 9-5"/><path d="M3 17.5l9 5 9-5" opacity=".6"/></svg>',
+ check:'<svg viewBox="0 0 20 20"><circle cx="10" cy="10" r="9" fill="#f0553a"/><path d="M5.8 10.4l2.9 2.9 5.5-6" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+ /* icon tab nhỏ */
+ shopee:'<svg viewBox="0 0 20 20"><rect x="3" y="5" width="14" height="13" rx="2.5" fill="#ee4d2d"/><path d="M7 7V5.5a3 3 0 0 1 6 0V7" fill="none" stroke="#ee4d2d" stroke-width="1.5"/><text x="10" y="15.5" text-anchor="middle" font-size="9" font-weight="900" fill="#fff" font-family="Arial">S</text></svg>',
+ facebook:'<svg viewBox="0 0 20 20"><circle cx="10" cy="10" r="9" fill="#1877f2"/><path d="M11 18v-6h2l.4-2.4H11V8.3c0-.7.3-1.2 1.3-1.2h1.2V5a14 14 0 0 0-1.8-.1c-1.8 0-3 1.1-3 3.1v1.6H6.6V12h2.1v6z" fill="#fff"/></svg>',
+ gmail:'<svg viewBox="0 0 20 20" fill="none" stroke-linejoin="round"><path d="M3 5v10M17 5v10" stroke="#d93025" stroke-width="2.6"/><path d="M3 5l7 5.6L17 5" stroke="#ea4335" stroke-width="2.6"/></svg>',
+ icloud:'<svg viewBox="0 0 20 20"><path d="M5.6 16A3.6 3.6 0 0 1 5 8.9 5 5 0 0 1 14.7 8 4 4 0 0 1 15 16z" fill="#3b9bff"/></svg>',
+ tiktok:'<svg viewBox="0 0 20 20" fill="none" stroke-linecap="round"><path d="M11 3v9.4a2.6 2.6 0 1 1-2.6-2.6" stroke="#25f4ee" stroke-width="2.2" transform="translate(-.9 .7)"/><path d="M11 3v9.4a2.6 2.6 0 1 1-2.6-2.6" stroke="#fe2c55" stroke-width="2.2" transform="translate(.9 -.5)"/><path d="M11 3v9.4a2.6 2.6 0 1 1-2.6-2.6M11 3c.4 2.2 1.8 3.6 4 3.8" stroke="#111" stroke-width="2.2"/></svg>',
+ box:'<svg viewBox="0 0 20 20"><path d="M10 2l7 3.5v8L10 17l-7-3.5v-8z" fill="#c98b4d"/><path d="M10 9.5V17M3 5.5l7 4 7-4" stroke="#8a5a2b" stroke-width="1.2" fill="none"/></svg>',
+ /* icon điều hướng */
+ nCart:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h3l2.6 12.4a1.6 1.6 0 0 0 1.6 1.3h8.2a1.6 1.6 0 0 0 1.6-1.2L21 7H6"/><path d="M8 11h11" stroke-width="1.6"/><circle cx="9.5" cy="20.5" r="1.4" fill="currentColor"/><circle cx="17.5" cy="20.5" r="1.4" fill="currentColor"/></svg>',
+ nLink:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 14a4.5 4.5 0 0 0 6.4 0l3-3a4.5 4.5 0 0 0-6.4-6.4l-1 1"/><path d="M14 10a4.5 4.5 0 0 0-6.4 0l-3 3a4.5 4.5 0 0 0 6.4 6.4l1-1"/></svg>',
+ nBars:'<svg viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="12" width="4.5" height="9" rx="1.2"/><rect x="9.8" y="4" width="4.5" height="17" rx="1.2"/><rect x="16.5" y="9" width="4.5" height="12" rx="1.2"/></svg>',
+ nMenu:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>'
+};
+var BIG={
+ shopee:'<svg viewBox="0 0 64 64"><defs><linearGradient id="nkvg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ff7a3d"/><stop offset="1" stop-color="#ee3d1a"/></linearGradient></defs><path d="M20 22v-3a12 12 0 0 1 24 0v3" fill="none" stroke="#f26a2e" stroke-width="4" stroke-linecap="round"/><path d="M10 22h44l-3 34a4 4 0 0 1-4 3.6H17a4 4 0 0 1-4-3.6z" fill="url(#nkvg)"/><text x="32" y="50" text-anchor="middle" font-size="30" font-weight="900" fill="#fff" font-family="Arial">S</text></svg>'
+};
+['facebook','gmail','icloud','tiktok','box'].forEach(function(k){BIG[k]=I[k]});
+
+var TABS={tabShopee:['shopee','Shopee'],tabFacebook:['facebook','Facebook'],tabGmail:['gmail','Gmail'],
+          tabICloud:['icloud','iCloud'],tabTiktok:['tiktok','TikTok'],tabMyAcc:['box','Đã mua']};
+
+/* ---- thương hiệu ---- */
+function brand(){
+  var n=$('.store-header .store-name'); if(!n||n.dataset.nkv) return; n.dataset.nkv='1';
+  n.innerHTML='<span class="nkv-bolt">'+I.bolt+'</span><span class="nkv-brand-text"><b>NK MMO Store</b><small>Công cụ &amp; Dịch vụ Online</small></span><span class="nkv-cart">'+I.cartW+'</span>';
+}
+
+/* ---- user + thoát ---- */
+function user(){
+  var ua=document.getElementById('headerUserActions'); if(!ua||ua.querySelector('.nkv-user')) return;
+  var out=ua.querySelector('button[onclick*="logout"]'), sp=ua.querySelector('span');
+  if(!out||!sp) return;
+  var name=sp.textContent.trim(), fn=out.getAttribute('onclick');
+  ua.innerHTML='<div class="nkv-user"><div class="nkv-ava">'+esc((name.charAt(0)||'?').toUpperCase())+'</div>'+
+    '<div class="nkv-uname"><b>'+esc(name)+'</b><small>'+I.crown+'Thành viên</small></div>'+
+    '<button type="button" class="nkv-out">'+I.exit+'<span>Thoát</span></button></div>';
+  ua.querySelector('.nkv-out').setAttribute('onclick',fn);
+}
+
+/* ---- ví ---- */
+function wallet(){
+  var wb=document.getElementById('headerWalletBox'); if(!wb||wb.querySelector('.nkv-wal')) return;
+  var btns=wb.querySelectorAll('button'), bal=wb.querySelector('b');
+  if(btns.length<2||!bal) return;
+  var hist=btns[0].getAttribute('onclick'), dep=btns[btns.length-1].getAttribute('onclick');
+  wb.innerHTML='<div class="nkv-wal"><span class="nkv-wico">'+I.wallet+'</span>'+
+    '<div class="nkv-bal"><small>Số dư Ví</small><b>'+esc(bal.textContent.trim())+'</b></div>'+
+    '<button type="button" class="nkv-refresh" aria-label="Làm mới số dư">'+I.refresh+'</button><i hidden></i></div>'+
+    '<div class="nkv-wbtns"><button type="button" class="nkv-hist">'+I.hist+'<span>Lịch sử</span></button>'+
+    '<button type="button" class="nkv-dep">'+I.plus+'<span>Nạp Ví</span></button></div>';
+  wb.querySelector('.nkv-hist').setAttribute('onclick',hist);
+  wb.querySelector('.nkv-dep').setAttribute('onclick',dep);
+  var rf=wb.querySelector('.nkv-refresh');
+  rf.addEventListener('click',function(){rf.classList.add('spin'); try{ if(typeof updateAuthUI==='function') updateAuthUI(); }catch(e){} });
+}
+
+/* ---- tiêu đề chợ ---- */
+function marketHead(){
+  var t=$('#sectionMarket>.section-title'); if(!t||t.dataset.nkv) return; t.dataset.nkv='1';
+  t.innerHTML='<div class="nkv-mh"><div class="nkv-mh-l"><span class="nkv-mh-ico">'+I.cartG+'</span>'+
+    '<div class="nkv-mh-t"><b>Chợ Tài Khoản MMO</b><small>Mua tài khoản chất lượng - Giá tốt - Giao nhanh</small></div></div>'+
+    '<div class="nkv-badge">'+I.shield+'<div><b>Uy tín - Tự động</b><small>Hỗ trợ 24/7</small></div></div></div>';
+}
+
+/* ---- tab con ---- */
+function tabs(){
+  Object.keys(TABS).forEach(function(id){
+    var b=document.getElementById(id); if(!b||b.dataset.nkv) return; b.dataset.nkv='1';
+    b.innerHTML='<span class="nkv-ti">'+I[TABS[id][0]]+'</span><span class="nkv-ti-label">'+TABS[id][1]+'</span>';
+  });
+}
+
+/* ---- thẻ sản phẩm ---- */
+function platformKey(){
+  var a=$('#sectionMarket .sub-tab-container .sub-tab-btn.active');
+  return (a&&TABS[a.id])?TABS[a.id][0]:'shopee';
+}
+function cards(){
+  var list=document.getElementById('marketList'); if(!list) return;
+  var key=platformKey();
+  list.querySelectorAll('.store-product-card:not([data-nkv])').forEach(function(c){
+    c.setAttribute('data-nkv','1');
+
+    var meta=$('.store-product-meta',c);
+    if(meta){
+      var bs=meta.querySelectorAll('b');
+      if(bs.length>=2){
+        var price=bs[0].textContent.trim(), stock=bs[1].textContent.trim(), out=parseInt(stock,10)===0;
+        meta.innerHTML='<span class="nkv-m">'+I.tag+'<span>Giá:</span><b class="nkv-price">'+esc(price)+'</b></span><span class="nkv-sep"></span>'+
+          '<span class="nkv-m">'+I.layers+'<span>Kho:</span><b class="nkv-stock'+(out?' nkv-out':'')+'">'+esc(stock)+'</b></span>';
+      }
+    }
+
+    var d=$('.store-product-desc',c);
+    if(d){
+      var lines=d.textContent.split(/\r?\n/).map(function(s){return s.trim()}).filter(Boolean);
+      var ul=document.createElement('ul'); ul.className='nkv-list';
+      lines.forEach(function(l){
+        var li=document.createElement('li'); li.innerHTML=I.check;
+        var sp=document.createElement('span'); sp.textContent=l; li.appendChild(sp); ul.appendChild(li);
+      });
+      var art=document.createElement('div'); art.className='nkv-art';
+      art.innerHTML=(BIG[key]||BIG.shopee)+'<em>'+I.crown+'Tài khoản mới</em>';
+      d.textContent=''; d.classList.add('nkv-desc'); d.appendChild(ul); d.appendChild(art);
+    }
+
+    var inp=$('.store-qty-input',c), act=$('.store-product-action',c);
+    if(inp&&act){
+      var w=document.createElement('div'); w.className='nkv-qty';
+      var m=document.createElement('button'); m.type='button'; m.textContent='−'; m.setAttribute('aria-label','Giảm');
+      var p=document.createElement('button'); p.type='button'; p.textContent='+'; p.setAttribute('aria-label','Tăng');
+      act.insertBefore(w,inp); w.appendChild(m); w.appendChild(inp); w.appendChild(p);
+      var step=function(dl){
+        var v=parseInt(inp.value,10)||1, mx=parseInt(inp.max,10)||1e9, mn=parseInt(inp.min,10)||1;
+        inp.value=Math.min(mx,Math.max(mn,v+dl));
+      };
+      m.addEventListener('click',function(){step(-1)});
+      p.addEventListener('click',function(){step(1)});
+    }
+
+    var bb=$('.store-buy-btn',c);
+    if(bb) bb.innerHTML=I.cartW+'<span>Mua Ngay</span>';
+  });
+}
+
+/* ---- icon thanh điều hướng (chờ nút Menu được tạo) ---- */
+function nav(){
+  var map={navBtnMarket:['nCart','Chợ MMO',''],navBtnOtp:['nLink','Lấy OTP','nkv-link'],
+           navBtnOrders:['nBars','Quản Lý Đơn','nkv-bars'],navBtnMore:['nMenu','Menu','']};
+  for(var id in map){ if(!document.getElementById(id)) return false; }
+  for(var id2 in map){
+    var el=document.getElementById(id2); if(el.dataset.nkv) continue; el.dataset.nkv='1';
+    el.innerHTML='<span class="nkv-ni '+map[id2][2]+'">'+I[map[id2][0]]+'</span><span class="nkv-nl">'+map[id2][1]+'</span>';
+  }
+  return true;
+}
+
+function watch(id,fn){
+  var el=document.getElementById(id); if(!el) return;
+  new MutationObserver(function(){fn()}).observe(el,{childList:true});
+  fn();
+}
+
+function init(){
+  brand(); marketHead(); tabs();
+  watch('headerUserActions',user);
+  watch('headerWalletBox',wallet);
+  watch('marketList',cards);
+  var tries=0;(function t(){ if(!nav() && tries++<150) setTimeout(t,80); })();
+}
+if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',init); else init();
+})();
+</script>
+
 </body>
 </html>
