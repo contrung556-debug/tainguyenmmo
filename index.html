@@ -8328,7 +8328,8 @@ if(typeof Tesseract==='undefined'){showModal('Lỗi OCR','Không tải được 
        </button><div class="nkx-group-body">${arr.map(row).join('')}</div>
       </section>`
    }).join('');
-   root.innerHTML=`<div class="nkx-wrap">
+   if(!root.__nkSet)root.__nkSet=function(h){if(root.__nkLast===h&&root.firstChild)return;root.__nkLast=h;root.innerHTML=h};
+ root.__nkSet(`<div class="nkx-wrap">
     <section class="nkx-hero">
       <div class="nkx-truck">🚚</div>
       <div><div class="nkx-hero-title">Giao ${dateLabel().toLowerCase()}</div><div class="nkx-hero-sub">Đến trạm giao cuối + giao thành công</div></div>
@@ -8358,7 +8359,7 @@ if(typeof Tesseract==='undefined'){showModal('Lỗi OCR','Không tải được 
     </div></section>
     <div class="nkx-tools"><label class="nkx-search">🔍<input value="${H(q)}" oninput="nkDashSearch(this.value)" placeholder="Tìm kiếm đơn hàng..."></label>
     <button class="nkx-scan" onclick="nkDashScan()">📷 Quét Trạng Thái Vận Đơn</button></div>
-   </div>`;
+   </div>`);
  }
  window.nkDashMode=x=>{view=x;opened.clear();render()};
  window.nkDashSearch=x=>{q=x;render()};
@@ -9827,7 +9828,7 @@ function enhance(){
         (total&&going===0?'<div class="g2" data-v36-list="done"><b>\u0110\u1ee7 &#10003;</b><span>\u0110\u00e3 giao h\u1ebft</span></div>':'<div class="'+(going>0?'r':'b')+'" data-v36-list="miss"><b>'+going+'</b><span>C\u00f2n s\u00f3t</span></div>')
         :'<div class="g" data-v36-list="done"><b>'+done+'</b><span>\u0110\u00e3 giao</span></div>')+'</div>'+
       (carry>0?'<div class="v36-far" data-v36-list="carry" style="color:#e8262e;font-weight:700">C\u00f2n '+carry+' \u0111\u01a1n c\u00f3 l\u1ecbch giao t\u1eeb h\u00f4m tr\u01b0\u1edbc ch\u01b0a giao</div>':'')+
-      (isToday&&far>0?'<div class="v36-far" data-v36-list="far">C\u00f2n '+far+' \u0111\u01a1n \u0111ang tr\u00ean \u0111\u01b0\u1eddng, ch\u01b0a c\u00f3 l\u1ecbch giao</div>':'')+'<div class="v36-hint">B\u1ea5m v\u00e0o t\u1eebng \u00f4 \u0111\u1ec3 xem l\u00e0 \u0111\u01a1n n\u00e0o</div>';
+      (isToday&&far>0?'<div class="v36-far" data-v36-list="far">C\u00f2n '+far+' \u0111\u01a1n \u0111ang tr\u00ean \u0111\u01b0\u1eddng, ch\u01b0a c\u00f3 l\u1ecbch giao</div>':'')+'<div class="v36-hint">B\u1ea5m v\u00e0o t\u1eebng \u00f4 \u0111\u1ec3 xem l\u00e0 \u0111\u01a1n n\u00e0o &middot; b\u1ea3n 36.5</div>';
     Array.prototype.forEach.call(hero.children,function(c){ if(!/position:\s*absolute/.test(c.getAttribute('style')||'')) c.classList.add('v36-x'); });
     hero.classList.add('v36h');
     hero.insertAdjacentHTML('afterbegin',html);
@@ -9910,7 +9911,7 @@ document.addEventListener('click',function(e){
 
 // Nhóm Phường/Xã - Hãng - Trạng thái: bấm dòng thì mở, bấm lại thì thu (đổi ngay trên giao diện, không phụ thuộc việc app vẽ lại)
 var GROUPS={};
-function tabKey(){var a=document.querySelector('#nkDeliveryManager .nkx-tab.active'); return a?a.textContent.trim():'';}
+function tabKey(){var a=document.querySelector('#nkDeliveryManager .nkx-tab.active'); return a?String(Array.prototype.indexOf.call(document.querySelectorAll('#nkDeliveryManager .nkx-tab'),a)):'';}
 function gkey(sec){var n=sec.querySelector('.nkx-group-name'); return tabKey()+'|'+(n?n.textContent.trim():'');}
 function applyGroups(){
   document.querySelectorAll('#nkDeliveryManager .nkx-group').forEach(function(sec){
@@ -10031,6 +10032,14 @@ if(document.readyState==='loading') document.addEventListener('DOMContentLoaded'
 #v36-detail .v36-rs{font-size:11px;color:#3a4170;margin-top:2px}
 #v36-detail .v36-rst{font-size:10.5px;color:#7b8798;margin-top:1px}
 #v36-detail .v36-empty{padding:16px;text-align:center;color:#94a3b8;font-size:12px}
+</style>
+
+<style id="nk-v36f-css">
+#nkDeliveryManager .nkx-group-head{gap:6px}
+#nkDeliveryManager .nkx-pin{flex:none;margin-right:2px!important}
+#nkDeliveryManager .nkx-group-name{flex:0 1 auto;min-width:0;overflow-wrap:anywhere;line-height:1.25;text-align:left}
+#nkDeliveryManager .nkx-count{flex:none;white-space:nowrap;margin-left:4px!important}
+#nkDeliveryManager .nkx-chevron{flex:none}
 </style>
 </body>
 </html>
