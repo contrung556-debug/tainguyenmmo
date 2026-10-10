@@ -7892,5 +7892,375 @@ html,body{width:100%;max-width:100%;overflow-x:hidden!important}
 })();
 </script>
 
+
+
+<style id="nk-compact-order-cards-css">
+/* ===== Compact order list ===== */
+#orderList{display:grid!important;gap:10px!important}
+#orderList .order-card{
+  margin:0!important;padding:12px!important;border-radius:15px!important;
+  border:1px solid #e5eaf0!important;border-left:4px solid #f59e0b!important;
+  box-shadow:0 3px 12px rgba(15,23,42,.045)!important;background:#fff!important;
+}
+#orderList .order-card.nk-spx{border-left-color:#ef4444!important}
+#orderList .order-card.nk-ghn{border-left-color:#f97316!important}
+#orderList .order-card.nk-delivered{border-left-color:#22c55e!important}
+#orderList .order-card.nk-cancelled{border-left-color:#94a3b8!important}
+.nk-card-top{display:flex;align-items:flex-start;justify-content:space-between;gap:8px}
+.nk-card-code{font-size:15px;font-weight:900;color:#26364a;min-width:0}
+.nk-card-code small{display:block;margin-top:2px;font-size:9px;font-weight:700;color:#94a3b8}
+.nk-status-pill{flex:0 0 auto;border-radius:999px;padding:5px 8px;font-size:9px;font-weight:900;background:#fff7ed;color:#c2410c}
+.nk-card-track{
+  margin-top:9px;padding:9px 10px;border-radius:11px;background:#f8fafc;border:1px solid #e7edf4;
+  display:flex;align-items:center;gap:8px;min-width:0
+}
+.nk-mini-carrier{flex:0 0 auto;color:#fff;font-size:9px;font-weight:900;border-radius:6px;padding:5px 6px}
+.nk-mini-carrier.spx{background:#ef4444}.nk-mini-carrier.ghn{background:#f97316}.nk-mini-carrier.none{background:#94a3b8}
+.nk-mini-track{min-width:0;flex:1;font-size:12px;font-weight:900;color:#1d4ed8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.nk-card-meta{margin-top:9px;display:grid;gap:5px;font-size:11px;color:#475569}
+.nk-card-meta-line{display:flex;gap:6px;align-items:flex-start;min-width:0}
+.nk-card-meta-line b{color:#334155}
+.nk-ellipsis{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.nk-card-actions{display:grid;grid-template-columns:1fr 1fr auto;gap:7px;margin-top:10px}
+.nk-card-actions button{
+  min-height:36px!important;margin:0!important;border:0!important;border-radius:9px!important;
+  padding:7px 8px!important;font-size:11px!important;font-weight:900!important
+}
+.nk-btn-track{background:#7c3aed!important;color:#fff!important}
+.nk-btn-edit{background:#3b82f6!important;color:#fff!important}
+.nk-btn-more{width:38px;background:#f1f5f9!important;color:#475569!important;font-size:18px!important}
+.nk-card-menu{display:none;margin-top:7px;padding:8px;background:#f8fafc;border:1px solid #e5eaf0;border-radius:10px}
+.nk-card-menu.open{display:flex;gap:7px}
+.nk-card-menu button{flex:1;border:0;border-radius:8px;padding:8px;font-size:10px;font-weight:900}
+.nk-delete-mini{background:#fee2e2;color:#b91c1c}
+.nk-check-mini{background:#fef3c7;color:#92400e}
+@media(max-width:390px){
+ #orderList .order-card{padding:10px!important}
+ .nk-card-code{font-size:14px}
+}
+</style>
+
+<script id="nk-compact-order-cards-js">
+(function(){
+  const h=v=>typeof escapeHtml==='function'?escapeHtml(String(v??'')):String(v??'').replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));
+  const txt=v=>String(v??'').trim();
+
+  function nkCarrier(code){
+    code=txt(code).toUpperCase();
+    if(/^SPXVN[A-Z0-9]+$/.test(code)) return 'SPX';
+    if(typeof window.isGhnCode==='function' && window.isGhnCode(code)) return 'GHN';
+    return '';
+  }
+  function statusText(o){
+    const t=txt(o?.tracking?.tracking_status);
+    return t || txt(o?.status) || 'Đang chờ';
+  }
+  function statusClass(o){
+    if(typeof nkIsDelivered==='function' && nkIsDelivered(o)) return 'nk-delivered';
+    if(typeof nkIsCancelled==='function' && nkIsCancelled(o)) return 'nk-cancelled';
+    const c=nkCarrier(o?.tracking?.tracking_code);
+    return c==='SPX'?'nk-spx':c==='GHN'?'nk-ghn':'';
+  }
+  function followLabel(c){return c?`🔎 Theo dõi ${c}`:'➕ Thêm vận đơn'}
+
+  function compactHtml(o){
+    const id=Number(o.id);
+    const code=txt(o?.tracking?.tracking_code).toUpperCase();
+    const c=nkCarrier(code);
+    const carrierClass=c?c.toLowerCase():'none';
+    const recipient=txt(o.recipient_name)||'Chưa có tên người nhận';
+    const ward=txt(o.shipping_ward)||'Chưa có Phường/Xã';
+    const product=txt(o.product_name)||'Chưa có tên sản phẩm';
+    const email=txt(o.email);
+    const trackStatus=txt(o?.tracking?.tracking_status);
+    const next=txt(o?.tracking?.next_location);
+    return `
+      <div class="nk-card-top">
+        <div class="nk-card-code">#${h(o.order_code)}<small>${h(recipient)} · ${h(ward)}</small></div>
+        <span class="nk-status-pill">${h(statusText(o))}</span>
+      </div>
+
+      <div class="nk-card-track">
+        <span class="nk-mini-carrier ${carrierClass}">${h(c||'MVD')}</span>
+        <span class="nk-mini-track">${h(code||'Chưa có mã vận đơn')}</span>
+      </div>
+
+      <div class="nk-card-meta">
+        <div class="nk-card-meta-line"><span>📦</span><span class="nk-ellipsis"><b>Sản phẩm:</b> ${h(product)}</span></div>
+        ${email?`<div class="nk-card-meta-line"><span>✉️</span><span class="nk-ellipsis">${h(email)}</span></div>`:''}
+        ${trackStatus?`<div class="nk-card-meta-line"><span>📍</span><span class="nk-ellipsis">${h(trackStatus)}</span></div>`:''}
+        ${next?`<div class="nk-card-meta-line"><span>➡️</span><span class="nk-ellipsis">${h(next)}</span></div>`:''}
+      </div>
+
+      <div class="nk-card-actions">
+        <button class="nk-btn-track" type="button" onclick="${code?`showNkOrderDetail(${id})`:`nkEditOrder(${id})`}">${followLabel(c)}</button>
+        <button class="nk-btn-edit" type="button" onclick="nkEditOrder(${id})">✏️ Sửa</button>
+        <button class="nk-btn-more" type="button" onclick="nkToggleCardMenu(${id})">⋯</button>
+      </div>
+      <div class="nk-card-menu" id="nkMenu_${id}">
+        <button class="nk-check-mini" type="button" onclick="nkCheckOneOrder(${id})">🔄 Check trạng thái</button>
+        <button class="nk-delete-mini" type="button" onclick="nkDeleteOrder(${id})">🗑️ Xóa</button>
+      </div>`;
+  }
+
+  window.nkToggleCardMenu=function(id){
+    document.getElementById('nkMenu_'+id)?.classList.toggle('open');
+  };
+
+  function installCompactCards(){
+    const list=document.getElementById('orderList');
+    if(!list || !Array.isArray(window.cachedOrders)) return;
+    const cards=[...list.querySelectorAll('.order-card')];
+    if(!cards.length) return;
+
+    // Ghép card hiện hữu với đơn theo mã đơn; không đụng logic lọc/phân trang của app.
+    cards.forEach(card=>{
+      const text=card.textContent||'';
+      const o=window.cachedOrders.find(x=>text.includes(String(x.order_code||'')));
+      if(!o) return;
+      card.className='order-card '+statusClass(o);
+      card.innerHTML=compactHtml(o);
+    });
+  }
+  window.installCompactCards=installCompactCards;
+
+  // Theo dõi thay đổi do filter/search/realtime rồi compact lại.
+  const obs=new MutationObserver(()=>{
+    clearTimeout(window.__nkCompactTimer);
+    window.__nkCompactTimer=setTimeout(installCompactCards,40);
+  });
+  document.addEventListener('DOMContentLoaded',()=>{
+    const list=document.getElementById('orderList');
+    if(list) obs.observe(list,{childList:true});
+    setTimeout(installCompactCards,500);
+  });
+
+  // Sau load DB cũng chạy lại.
+  const prev=window.loadOrdersFromSupabase;
+  if(typeof prev==='function'){
+    window.loadOrdersFromSupabase=async function(...args){
+      const r=await prev.apply(this,args);
+      setTimeout(installCompactCards,20);
+      return r;
+    };
+  }
+})();
+</script>
+
+
+
+<style id="nk-dashboard-v3-fix-css">
+/* Giữ đúng layout design: Giao hôm nay -> hãng -> khu vực -> tổng quan */
+#nkDeliveryManager .nk-today-card{margin-top:0}
+.nk-unknown-area{color:#b45309!important}
+</style>
+
+<script id="nk-dashboard-v3-fix">
+(function(){
+  const clean=v=>String(v==null?'':v).trim();
+  const esc=v=>typeof escapeHtml==='function'
+    ? escapeHtml(String(v??''))
+    : String(v??'').replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));
+
+  function getTrackingCode(o){
+    // Hỗ trợ cả cấu trúc mới lẫn dữ liệu/card cũ.
+    const candidates=[
+      o?.tracking?.tracking_code,
+      o?.tracking_code,
+      o?.trackingCode,
+      o?.spx_tracking_code,
+      o?.waybill,
+      o?.waybill_no
+    ];
+    for(const x of candidates){
+      const v=clean(x).toUpperCase();
+      if(v) return v;
+    }
+    return '';
+  }
+
+  function getTrackingStatus(o){
+    return clean(
+      o?.tracking?.tracking_status ||
+      o?.tracking_status ||
+      o?.tracking?.status_text ||
+      o?.status
+    );
+  }
+
+  function getCarrier(code,o){
+    code=clean(code).toUpperCase();
+
+    // Yêu cầu: SPX là mã bắt đầu SPXVN.
+    if(code.startsWith('SPXVN')) return 'SPX';
+
+    const explicit=clean(
+      o?.tracking?.carrier ||
+      o?.tracking?.carrier_code ||
+      o?.carrier ||
+      o?.carrier_code
+    ).toUpperCase();
+    if(explicit.includes('GHN')) return 'GHN';
+
+    if(typeof window.isGhnCode==='function' && window.isGhnCode(code)) return 'GHN';
+
+    // GHN thường cần phone4 để check; nếu hệ thống đã lưu mã không-SPX cùng phone thì nhận GHN.
+    const phone=clean(o?.recipient_phone || o?.phone || '');
+    if(code && !code.startsWith('SPXVN') && phone.replace(/\D/g,'').length>=4) return 'GHN';
+
+    return '';
+  }
+
+  function isCancelled(o){
+    const s=getTrackingStatus(o).toLowerCase();
+    return /hủy|huy|cancel/.test(s);
+  }
+
+  function isDelivered(o){
+    const s=getTrackingStatus(o).toLowerCase();
+    return /đã giao|da giao|delivered|giao thành công|giao thanh cong/.test(s);
+  }
+
+  function isActiveShipping(o){
+    const code=getTrackingCode(o);
+    if(!code || isCancelled(o) || isDelivered(o)) return false;
+
+    const s=getTrackingStatus(o).toLowerCase();
+
+    // Có mã vận đơn + trạng thái giao/vận chuyển/chờ giao đều được tính.
+    if(/đang vận chuyển|dang van chuyen|vận chuyển|van chuyen|đang giao|dang giao|sắp giao|sap giao|tài xế|tai xe|chờ giao|cho giao|in_transit|out_for_delivery/.test(s)){
+      return true;
+    }
+
+    // Dữ liệu cũ có mã vận đơn nhưng trạng thái tracking thiếu:
+    // vẫn đưa vào dashboard thay vì làm mất đơn.
+    return true;
+  }
+
+  function areaOf(o){
+    return clean(o?.shipping_ward) ||
+           clean(o?.shipping_address) ||
+           clean(o?.shipping_detail) ||
+           'Chưa có địa chỉ';
+  }
+
+  function renderFixedDashboard(){
+    const root=document.getElementById('nkDeliveryManager');
+    if(!root) return;
+
+    const orders=Array.isArray(window.cachedOrders) ? window.cachedOrders :
+                 (typeof cachedOrders!=='undefined' && Array.isArray(cachedOrders) ? cachedOrders : []);
+
+    // Quan trọng: đọc mã trực tiếp từ dữ liệu đơn/tracking, KHÔNG phụ thuộc địa chỉ.
+    const active=orders
+      .map(o=>{
+        const code=getTrackingCode(o);
+        return {o,code,c:getCarrier(code,o)};
+      })
+      .filter(x=>x.code && isActiveShipping(x.o));
+
+    const spx=active.filter(x=>x.c==='SPX');
+    const ghn=active.filter(x=>x.c==='GHN');
+    const unknown=active.filter(x=>!x.c);
+
+    const groups=new Map();
+    active.forEach(x=>{
+      const area=areaOf(x.o);
+      if(!groups.has(area)) groups.set(area,[]);
+      groups.get(area).push(x);
+    });
+
+    const groupHtml=[...groups.entries()]
+      .sort((a,b)=>{
+        if(a[0]==='Chưa có địa chỉ') return 1;
+        if(b[0]==='Chưa có địa chỉ') return -1;
+        return b[1].length-a[1].length || a[0].localeCompare(b[0],'vi');
+      })
+      .map(([area,items])=>`
+        <div class="nk-area-group">
+          <div class="nk-area-name ${area==='Chưa có địa chỉ'?'nk-unknown-area':''}">
+            ${area==='Chưa có địa chỉ'?'⚠️':'📍'} ${esc(area)}
+            <span class="nk-area-count">${items.length} đơn</span>
+          </div>
+          ${items.map(({o,code,c})=>{
+            const who=clean(o?.recipient_name)||'Chưa có tên người nhận';
+            const badge=c || 'MVD';
+            return `<button type="button" class="nk-delivery-line" onclick="showNkOrderDetail(${Number(o.id)})">
+              <span class="nk-carrier-badge ${(c||'').toLowerCase()}">${esc(badge)}</span>
+              <span style="min-width:0">
+                <div class="nk-track-code">${esc(code)}</div>
+                <div class="nk-recipient-mini">${esc(who)}</div>
+              </span>
+              <span class="nk-arrow">›</span>
+            </button>`;
+          }).join('')}
+        </div>`).join('');
+
+    const delivered=orders.filter(isDelivered).length;
+    const cancelled=orders.filter(isCancelled).length;
+
+    root.innerHTML=`
+      <div class="nk-today-card">
+        <div class="nk-today-top">
+          <div>
+            <div class="nk-today-title">🛵 Giao hôm nay</div>
+            <div class="nk-today-sub">Các đơn có mã vận đơn đang chờ giao / vận chuyển / đang giao</div>
+          </div>
+          <div style="font-size:11px;font-weight:800;background:#fff;border:1px solid #fed7c8;border-radius:999px;padding:7px 10px;">Hôm nay</div>
+        </div>
+
+        <div class="nk-carrier-stats">
+          <div class="nk-carrier-stat"><span>🚚 Tổng</span><b style="color:#15803d">${active.length}</b></div>
+          <div class="nk-carrier-stat"><span>🟠 GHN</span><b style="color:#ea580c">${ghn.length}</b></div>
+          <div class="nk-carrier-stat"><span>🔴 SPX</span><b style="color:#dc2626">${spx.length}</b></div>
+        </div>
+        ${unknown.length?`<div style="margin-top:8px;font-size:10px;color:#92400e;text-align:center">⚠️ ${unknown.length} mã vận đơn chưa xác định hãng</div>`:''}
+      </div>
+
+      <div class="nk-area-panel">
+        <div class="nk-area-head">
+          <b>📍 Theo Phường/Xã</b>
+          <span style="font-size:10px;color:#64748b">${active.length} vận đơn</span>
+        </div>
+        ${groupHtml || '<div style="padding:14px 4px;text-align:center;color:#94a3b8;font-size:12px;">Chưa có vận đơn đang giao.</div>'}
+      </div>
+
+      <div class="nk-overview-mini">
+        <div class="nk-overview-box"><b style="color:#2563eb">${active.length}</b><span>Đang giao/vận chuyển</span></div>
+        <div class="nk-overview-box"><b style="color:#16a34a">${delivered}</b><span>Đã giao</span></div>
+        <div class="nk-overview-box"><b style="color:#dc2626">${cancelled}</b><span>Đã hủy</span></div>
+        <div class="nk-overview-box"><b style="color:#7c3aed">${orders.length}</b><span>Tổng đơn</span></div>
+      </div>`;
+  }
+
+  window.renderSmartDelivery=renderFixedDashboard;
+
+  // Sau khi app render/load/realtime, cập nhật dashboard lại.
+  const oldLoad=window.loadOrdersFromSupabase;
+  if(typeof oldLoad==='function'){
+    window.loadOrdersFromSupabase=async function(...args){
+      const r=await oldLoad.apply(this,args);
+      setTimeout(renderFixedDashboard,30);
+      return r;
+    };
+  }
+
+  document.addEventListener('DOMContentLoaded',()=>{
+    setTimeout(renderFixedDashboard,300);
+    setTimeout(renderFixedDashboard,1000);
+  });
+
+  // Theo dõi dữ liệu/card được render trễ.
+  const obs=new MutationObserver(()=>{
+    clearTimeout(window.__nkDashFixTimer);
+    window.__nkDashFixTimer=setTimeout(renderFixedDashboard,80);
+  });
+  document.addEventListener('DOMContentLoaded',()=>{
+    const list=document.getElementById('orderList');
+    if(list) obs.observe(list,{childList:true,subtree:false});
+  });
+})();
+</script>
+
 </body>
 </html>
