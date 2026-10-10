@@ -9845,6 +9845,37 @@ body:has(#sectionOrders.active-section){padding-top:env(safe-area-inset-top,0px)
 .nkt-note b{display:block;color:#1f6fe0}
 .nkt-note ul{margin:2px 0 0;padding-left:18px}.nkt-note li::marker{color:#1f6fe0}
 #manualTrackingResult:not(:empty){margin-top:14px}
+
+/* ===== V32: chữ nhóm nhỏ ở mọi tab (trừ Theo Hãng) + chống tràn ngang ===== */
+.nkx-group-name{font-size:clamp(12px,3.4vw,14.5px)!important;font-weight:800;line-height:1.35}
+.nkx-group-head{min-height:0;padding:11px 12px!important}
+.nkx-count{font-size:11.5px!important;padding:5px 10px!important}
+.nkx-chevron{width:34px;height:34px;font-size:15px!important}
+.nkx-wrap:has(.nkx-tabs .nkx-tab:nth-child(2).active) .nkx-group-name{font-size:clamp(20px,6vw,26px)!important}
+.nkx-wrap:has(.nkx-tabs .nkx-tab:nth-child(2).active) .nkx-group-head{padding:14px!important;min-height:64px}
+.nkx-wrap:has(.nkx-tabs .nkx-tab:nth-child(2).active) .nkx-count{font-size:clamp(12px,3.6vw,15px)!important;padding:7px 14px!important}
+.nkx-wrap:has(.nkx-tabs .nkx-tab:nth-child(2).active) .nkx-chevron{width:42px;height:42px;font-size:18px!important}
+/* 4 tab: một hàng, vuốt ngang nếu thiếu chỗ (không làm rộng cả trang) */
+.nkx-tabs{display:flex!important;overflow-x:auto;gap:7px!important;padding:2px 2px 8px;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+.nkx-tabs::-webkit-scrollbar{display:none}
+.nkx-tab{flex:0 0 auto;padding:10px 13px!important;font-size:12.5px!important}
+.nkx-overview-grid{grid-template-columns:repeat(4,minmax(0,1fr))!important}
+.nkx-tools{grid-template-columns:minmax(0,1fr) minmax(0,1.15fr)!important}
+.nkx-search input{min-width:0}
+.nkx-wrap{width:100%;max-width:100%;overflow-x:clip}
+.v29-st{min-width:44px;padding:0 7px}
+html,body{max-width:100vw;overflow-x:hidden!important}
+
+/* ===== V33: ép chữ nhóm nhỏ (độ ưu tiên cao) ===== */
+#nkDeliveryManager .nkx-group-head .nkx-group-name{font-size:13px!important;font-weight:800!important;line-height:1.35!important;letter-spacing:0!important}
+#nkDeliveryManager .nkx-group-head .nkx-count{font-size:11px!important;padding:4px 9px!important;margin-left:6px!important}
+#nkDeliveryManager .nkx-group-head{padding:10px 12px!important;min-height:0!important}
+#nkDeliveryManager .nkx-group-head .nkx-chevron{width:30px;height:30px;font-size:14px!important}
+#nkDeliveryManager .nkx-group-head .nkx-pin{font-size:16px!important;margin-right:6px!important}
+#nkDeliveryManager .nkx-wrap:has(.nkx-tabs .nkx-tab:nth-child(2).active) .nkx-group-head .nkx-group-name{font-size:20px!important}
+#nkDeliveryManager{width:100%;max-width:100%;overflow-x:clip}
+/* nhãn phiên bản để kiểm tra đã tải đúng file */
+body::after{content:"V33";position:fixed;left:6px;bottom:3px;font-size:9px;color:#94a3b8;opacity:.6;pointer-events:none;z-index:5}
 </style>
 
 <script id="nk-v30-js">
