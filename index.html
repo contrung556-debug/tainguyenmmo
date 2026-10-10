@@ -8238,29 +8238,4 @@ html,body{width:100%;max-width:100%;overflow-x:hidden!important}
   // Sau khi app render/load/realtime, cập nhật dashboard lại.
   const oldLoad=window.loadOrdersFromSupabase;
   if(typeof oldLoad==='function'){
-    window.loadOrdersFromSupabase=async function(...args){
-      const r=await oldLoad.apply(this,args);
-      setTimeout(renderFixedDashboard,30);
-      return r;
-    };
-  }
-
-  document.addEventListener('DOMContentLoaded',()=>{
-    setTimeout(renderFixedDashboard,300);
-    setTimeout(renderFixedDashboard,1000);
-  });
-
-  // Theo dõi dữ liệu/card được render trễ.
-  const obs=new MutationObserver(()=>{
-    clearTimeout(window.__nkDashFixTimer);
-    window.__nkDashFixTimer=setTimeout(renderFixedDashboard,80);
-  });
-  document.addEventListener('DOMContentLoaded',()=>{
-    const list=document.getElementById('orderList');
-    if(list) obs.observe(list,{childList:true,subtree:false});
-  });
-})();
-</script>
-
-</body>
-</html>
+    window.loadOrdersFromSupabase=async
