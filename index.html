@@ -9765,7 +9765,25 @@ window.addEventListener('scroll',function(){top.classList.toggle('show',window.s
 <!-- ===== NK MMO V30: trang Tra vận đơn + header gọn + icon menu theo mockup ===== -->
 <style id="nk-v30-css">
 /* status bar iPhone: chừa chỗ trên cùng */
-body:has(#sectionOrders.active-section) .main-nav-bar{padding-top:calc(env(safe-area-inset-top,0px) + 8px)!important}
+/* thanh menu dính dưới thanh trạng thái iPhone, không bị cắt */
+.main-nav-bar{top:env(safe-area-inset-top,0px)!important}
+body:has(#sectionOrders.active-section){padding-top:env(safe-area-inset-top,0px)}
+
+/* chống tràn ngang trang Quản lý đơn (địa chỉ dài) */
+#sectionOrders.active-section{overflow-x:clip!important}
+.container{overflow-x:clip!important}
+.nkx-wrap,.nkx-groups{grid-template-columns:minmax(0,1fr)!important}
+.nkx-wrap>*,.nkx-groups>*{min-width:0;max-width:100%}
+.nkx-group-head{gap:6px;min-width:0}
+.nkx-group-name{flex:1 1 auto;min-width:0;overflow-wrap:anywhere;font-size:clamp(16px,4.8vw,22px)!important}
+.nkx-count{flex:0 0 auto;white-space:nowrap;margin-left:8px!important}
+.nkx-chevron,.nkx-pin,.v29-clogo{flex:0 0 auto}
+.v29-brand{overflow:hidden}
+/* tab Theo Phường/Xã: địa chỉ chữ nhỏ */
+.nkx-wrap:has(.nkx-tabs .nkx-tab:first-child.active) .nkx-group-name{font-size:clamp(12px,3.4vw,14.5px)!important;font-weight:800;line-height:1.35}
+.nkx-wrap:has(.nkx-tabs .nkx-tab:first-child.active) .nkx-group-head{min-height:0;padding:11px 12px!important}
+.nkx-wrap:has(.nkx-tabs .nkx-tab:first-child.active) .nkx-count{font-size:11.5px!important;padding:5px 10px!important}
+.nkx-wrap:has(.nkx-tabs .nkx-tab:first-child.active) .nkx-chevron{width:34px;height:34px;font-size:15px!important}
 
 /* header gọn: không rớt dòng, không đè chữ */
 @media(max-width:600px){
@@ -9885,10 +9903,11 @@ function build(){
     code.placeholder='Nhập mã vận đơn '+c;
     h1.textContent=c==='SPX'?'Ví dụ: SPXVN048320175983':'Ví dụ: GYRANEQB';
     ph.placeholder='4 số cuối SĐT (nếu tra GHN)'; h2.textContent='Ví dụ: 1234';
+    $('#nktF2',card).style.display=c==='GHN'?'flex':'none';
     sync();
   }
   card.querySelectorAll('.nkt-opt').forEach(function(b){b.addEventListener('click',function(){setCarrier(b.dataset.c)})});
-  code.addEventListener('input',sync); ph.addEventListener('input',sync);
+  code.addEventListener('input',function(){var v=code.value.trim(); if(v.length>=3) setCarrier(/^SPX/i.test(v)?'SPX':'GHN'); sync();}); ph.addEventListener('input',sync);
   [code,ph].forEach(function(el){el.addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();window.manualCheckTracking()}})});
   $('#nktGo',card).addEventListener('click',function(){window.manualCheckTracking()});
   setCarrier('SPX');
