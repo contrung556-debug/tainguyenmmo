@@ -574,6 +574,93 @@ body.nk-links-route #nkQuickLinksPage .nkql-stats{margin-top:0}
  .nkls-main{padding:12px}.nkls-title{font-size:21px}.nkls-auto{display:none}
 }
 </style>
+
+<style id="nk-v27-premium-mobile-ui">
+/* V27 visual refresh - giữ nguyên toàn bộ logic V26 */
+:root{
+ --primary-color:#f0442f;--primary-hover:#d93423;--primary-light:#fff3ef;
+ --border-light:#f5d8cf;--text-main:#202a3b;--text-sub:#697386;
+ --bg-body:#f4f7fb;--radius-main:22px;
+ --shadow-sm:0 8px 26px rgba(26,39,64,.07);
+ --shadow-md:0 14px 34px rgba(238,77,45,.20);
+}
+body{background:linear-gradient(180deg,#fff 0,#f4f7fb 360px);color:var(--text-main)}
+.store-header{
+ background:linear-gradient(135deg,#f0442f 0%,#ff6840 100%)!important;
+ padding:20px 18px 22px!important;border-radius:0 0 34px 34px!important;
+ box-shadow:0 12px 30px rgba(238,77,45,.22)!important;
+}
+.store-name{font-size:25px!important;font-weight:950!important;letter-spacing:-.4px!important}
+.user-top-actions{align-items:center!important}
+.top-btn{padding:8px 14px!important;border-radius:18px!important;background:rgba(255,255,255,.13)!important;
+ border:1px solid rgba(255,255,255,.42)!important;font-size:13px!important}
+.wallet-box{
+ margin-top:15px!important;padding:15px 16px!important;border-radius:20px!important;
+ background:rgba(142,37,19,.28)!important;border:1px solid rgba(255,255,255,.09)!important;
+ box-shadow:inset 0 1px 0 rgba(255,255,255,.08);
+}
+.wallet-box>div:first-child{font-size:15px!important}
+.wallet-box button{border-radius:16px!important;font-weight:850!important;padding:10px 15px!important}
+.main-nav-bar{
+ top:0!important;padding:10px 12px!important;gap:9px!important;background:rgba(255,255,255,.96)!important;
+ backdrop-filter:blur(16px);box-shadow:0 8px 22px rgba(31,41,55,.07)!important
+}
+.main-nav-btn{
+ min-height:64px!important;border-radius:17px!important;background:#fffaf8!important;
+ border:1px solid #f3d9d2!important;color:#596170!important;font-size:12px!important;font-weight:850!important;
+ box-shadow:0 4px 12px rgba(31,41,55,.035)
+}
+.main-nav-btn.active{
+ background:linear-gradient(135deg,#f45135,#f0442f)!important;color:#fff!important;
+ border-color:transparent!important;box-shadow:0 9px 20px rgba(238,77,45,.25)!important
+}
+.container{max-width:680px!important;padding:18px 14px 40px!important}
+.section-box{
+ border:1px solid #edf0f5!important;border-radius:26px!important;padding:20px!important;
+ box-shadow:0 10px 30px rgba(26,39,64,.065)!important
+}
+.section-title{font-size:22px!important;font-weight:950!important;letter-spacing:-.3px!important;margin-bottom:18px!important}
+.sub-tab-container{
+ padding:7px!important;background:#fff8f5!important;border:1px solid #f5d8cf!important;
+ border-radius:18px!important;gap:5px!important;overflow-x:auto!important;display:flex!important
+}
+.sub-tab-btn{
+ white-space:nowrap!important;border-radius:13px!important;padding:10px 14px!important;
+ font-weight:850!important;background:transparent!important
+}
+.sub-tab-btn.active{
+ background:linear-gradient(135deg,#f45135,#f0442f)!important;color:#fff!important;
+ box-shadow:0 6px 14px rgba(238,77,45,.22)!important
+}
+/* cards sản phẩm */
+.product-card,.market-item,.account-card{
+ border-radius:22px!important;border:1px solid #f0e1dc!important;
+ box-shadow:0 8px 24px rgba(30,41,59,.055)!important
+}
+.btn-main,.buy-btn{
+ border-radius:15px!important;background:linear-gradient(135deg,#f65a38,#ee3d2d)!important;
+ box-shadow:0 8px 18px rgba(238,77,45,.18)!important;font-weight:900!important
+}
+input,textarea,select{border-radius:14px!important;background:#fbfcfe!important;border-color:#e5eaf1!important}
+.nk-mobile-menu{border-radius:22px!important;box-shadow:0 24px 60px rgba(15,23,42,.25)!important}
+.nk-menu-item{border-radius:14px!important}
+
+/* Desktop links page also follows same visual language */
+.nkls-side,.nkls-main{border-radius:22px!important;box-shadow:0 10px 30px rgba(26,39,64,.065)!important}
+.nkql-head,.nkql-row,.nkql-search,.nkql-reset{border-radius:16px!important}
+
+@media(max-width:600px){
+ .store-header{padding:18px 16px 20px!important;border-radius:0 0 30px 30px!important}
+ .store-name{font-size:24px!important}
+ .wallet-box{padding:14px!important}
+ .main-nav-bar{padding:9px 10px!important;gap:7px!important}
+ .main-nav-btn{min-height:66px!important;padding:9px 4px!important;font-size:11px!important}
+ .container{padding:16px 12px 34px!important}
+ .section-box{padding:16px!important;border-radius:24px!important}
+ .section-title{font-size:20px!important}
+}
+</style>
+
 </head>
 
 <body>
