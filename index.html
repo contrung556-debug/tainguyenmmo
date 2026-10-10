@@ -8864,97 +8864,6 @@ html,body{width:100%;max-width:100%;overflow-x:hidden!important}
 .nkx-empty-detail{text-align:center;padding:18px;color:#94a3b8;font-size:11px}
 </style>
 
-<script id="nk-stats-click-v9-js">
-(function(){
- let selectedState = null;
-
- function S(v){ return String(v == null ? '' : v).trim(); }
- function orders(){
-   /* cachedOrders của code gốc được khai báo bằng let/const nên không nằm trên window.
-      Đọc trực tiếp biến lexical trước, rồi mới fallback sang window. */
-   try {
-     if (typeof cachedOrders !== 'undefined' && Array.isArray(cachedOrders)) return cachedOrders;
-   } catch(e) {}
-   return Array.isArray(window.cachedOrders) ? window.cachedOrders : [];
- }
- function tracking(o){
-   for(const v of [o?.tracking?.tracking_code,o?.tracking_code,o?.trackingCode,o?.spx_tracking_code,o?.waybill,o?.waybill_no]){
-     if(S(v)) return S(v).toUpperCase();
-   }
-   return '';
- }
- function orderCode(o){ return S(o?.order_code || o?.order_id || o?.code || o?.shopee_order_code) || ('Đơn #' + S(o?.id)); }
- function state(o){
-   if(typeof window.nkOrderState === 'function') return window.nkOrderState(o);
-   return tracking(o) ? 'active' : 'waiting';
- }
- function name(o){ return S(o?.recipient_name) || S(o?.product_name) || 'Chưa có thông tin'; }
- function label(k){
-   return {active:'Đang vận chuyển',delivered:'Đã giao',cancelled:'Đơn bị hủy',waiting:'Chờ lấy hàng'}[k] || k;
- }
- function icon(k){
-   return {active:'📦',delivered:'✅',cancelled:'❌',waiting:'🟣'}[k] || '📦';
- }
-
- function detailHtml(k){
-   const buckets = window.__nkDashboardBuckets || {};
-   const list = Array.isArray(buckets[k]) ? buckets[k] : orders().filter(o=>state(o)===k);
-   return `<div id="nkx-status-detail">
-     <div class="nkx-status-detail-head"><div>${icon(k)} ${label(k)}</div><span>${list.length} đơn</span></div>
-     ${list.length ? list.map(o=>{
-       const code = tracking(o) || orderCode(o);
-       const type = tracking(o) ? 'Mã vận đơn' : 'Mã đơn Shopee';
-       return `<div class="nkx-status-row" onclick="if(typeof showNkOrderDetail==='function')showNkOrderDetail(${Number(o.id)})">
-         <div class="nkx-status-badge">${tracking(o)?'🚚':'🧾'}</div>
-         <div style="min-width:0"><div class="nkx-status-code">${code.replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]))}</div>
-         <div class="nkx-status-sub">${type} · ${name(o).replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]))}</div></div>
-         <div class="nkx-status-arrow">›</div>
-       </div>`;
-     }).join('') : `<div class="nkx-empty-detail">Không có đơn ở trạng thái này.</div>`}
-   </div>`;
- }
-
- function bind(){
-   const grid=document.querySelector('#nkDeliveryManager .nkx-overview-grid');
-   if(!grid) return;
-   const cards=[...grid.querySelectorAll('.nkx-overview-item')];
-   const keys=['active','delivered','cancelled','waiting'];
-
-   cards.forEach((card,i)=>{
-     if(!keys[i]) return;
-     card.dataset.nkState=keys[i];
-     card.onclick=function(){
-       selectedState = selectedState===keys[i] ? null : keys[i];
-       cards.forEach(c=>c.classList.toggle('nkx-stat-selected',c.dataset.nkState===selectedState));
-       let old=document.getElementById('nkx-status-detail');
-       if(old) old.remove();
-       if(selectedState){
-         grid.insertAdjacentHTML('afterend',detailHtml(selectedState));
-       }
-     };
-     card.classList.toggle('nkx-stat-selected',card.dataset.nkState===selectedState);
-   });
-
-   const old=document.getElementById('nkx-status-detail');
-   if(selectedState && !old) grid.insertAdjacentHTML('afterend',detailHtml(selectedState));
- }
-
- const observer=new MutationObserver(()=>{
-   clearTimeout(window.__nkStatsBind);
-   window.__nkStatsBind=setTimeout(bind,30);
- });
- document.addEventListener('DOMContentLoaded',()=>{
-   const root=document.getElementById('nkDeliveryManager');
-   if(root) observer.observe(root,{childList:true,subtree:true});
-   setTimeout(bind,300);
-   setTimeout(bind,1200);
- });
- setTimeout(bind,100);
-})();
-</script>
-
-
-
 <script id="nk-v12-sync-status">
 (function(){
   function syncDashboard(){
@@ -8981,36 +8890,131 @@ html,body{width:100%;max-width:100%;overflow-x:hidden!important}
 .nkx-overview-item{cursor:pointer}
 .nkx-overview-item.nkx-stat-selected{outline:2px solid #fb6a4a;box-shadow:0 5px 16px rgba(251,106,74,.14)}
 </style>
-<script id="nk-v14-stat-direct-js">
+
+
+<script id="nk-v15-single-status-and-click">
 (function(){
- const esc=v=>String(v??'').replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));
- const S=v=>String(v??'').trim();
- function tcode(o){for(const v of [o?.tracking?.tracking_code,o?.tracking_code,o?.trackingCode,o?.spx_tracking_code,o?.waybill,o?.waybill_no])if(S(v))return S(v).toUpperCase();return''}
- function ocode(o){return S(o?.order_code||o?.shopee_order_code||o?.code||o?.order_id)||('Đơn #'+S(o?.id))}
- function title(k){return {active:'📦 Đang vận chuyển',delivered:'✅ Đã giao',cancelled:'❌ Đơn bị hủy',waiting:'🟣 Chờ lấy hàng'}[k]}
- let openKey='';
- window.nkStatOpen=function(k,el){
-   const grid=el.closest('.nkx-overview-grid');
-   if(!grid)return;
-   const old=document.getElementById('nkx-status-detail');
-   if(old)old.remove();
-   document.querySelectorAll('.nkx-overview-item').forEach(x=>x.classList.remove('nkx-stat-selected'));
-   if(openKey===k){openKey='';return}
-   openKey=k; el.classList.add('nkx-stat-selected');
-   const buckets=window.__nkDashboardBuckets||{};
-   const list=Array.isArray(buckets[k])?buckets[k]:[];
-   const rows=list.length?list.map(o=>{
-      const tc=tcode(o), code=tc||ocode(o);
-      const sub=tc?'Mã vận đơn':'Mã đơn Shopee';
-      return `<div class="nkx-status-row">
+  const LOCK_KEY='nk_delivered_terminal_v15';
+  let locks={};
+  try{ locks=JSON.parse(localStorage.getItem(LOCK_KEY)||'{}')||{} }catch(e){locks={}}
+
+  const S=v=>String(v==null?'':v).trim();
+  const N=v=>S(v).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/đ/g,'d');
+  function track(o){
+    for(const v of [o?.tracking?.tracking_code,o?.tracking_code,o?.trackingCode,o?.spx_tracking_code,o?.waybill,o?.waybill_no])
+      if(S(v)) return S(v).toUpperCase();
+    return '';
+  }
+  function key(o){ return track(o) || S(o?.order_code||o?.shopee_order_code||o?.id); }
+  function raw(o){
+    return [o?.tracking?.tracking_status,o?.tracking_status,o?.tracking?.status_text,o?.tracking?.milestone,o?.status]
+      .filter(Boolean).join(' | ');
+  }
+  function saveLock(o){
+    const k=key(o); if(!k)return;
+    locks[k]=1;
+    try{localStorage.setItem(LOCK_KEY,JSON.stringify(locks))}catch(e){}
+  }
+
+  // Một classifier duy nhất + khóa terminal "đã giao".
+  window.nkOrderState=function(o){
+    const k=key(o), x=N(raw(o));
+    if(k && locks[k]) return 'delivered';
+
+    const delivered =
+      o?.tracking?.delivered===true || o?.delivered===true ||
+      !!o?.delivered_at || !!o?.tracking?.delivered_at ||
+      x.includes('giao hang thanh cong') ||
+      x.includes('da giao thanh cong') ||
+      x.includes('giao thanh cong') ||
+      x==='da giao' || x.includes('delivered');
+
+    if(delivered){ saveLock(o); return 'delivered'; }
+
+    if(x.includes('da huy')||x.includes('bi huy')||x.includes('don huy')||x.includes('cancelled')||x.includes('canceled'))
+      return 'cancelled';
+
+    return track(o)?'active':'waiting';
+  };
+
+  function data(){
+    try{ if(typeof cachedOrders!=='undefined' && Array.isArray(cachedOrders)) return cachedOrders }catch(e){}
+    return Array.isArray(window.cachedOrders)?window.cachedOrders:[];
+  }
+  function buckets(){
+    const b={active:[],delivered:[],cancelled:[],waiting:[]};
+    data().forEach(o=>b[window.nkOrderState(o)].push(o));
+    return b;
+  }
+  const esc=v=>S(v).replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));
+  function orderCode(o){return S(o?.order_code||o?.shopee_order_code||o?.code||o?.order_id)||('Đơn #'+S(o?.id))}
+  function recipient(o){return S(o?.recipient_name)||S(o?.product_name)||'Chưa có thông tin'}
+  const labels={
+    active:['📦','Đang vận chuyển'],
+    delivered:['✅','Đã giao'],
+    cancelled:['❌','Đơn bị hủy'],
+    waiting:['🟣','Chờ lấy hàng']
+  };
+  let opened='';
+
+  function openList(k,card){
+    document.getElementById('nkx-status-detail')?.remove();
+    document.querySelectorAll('#nkDeliveryManager .nkx-overview-item').forEach(x=>x.classList.remove('nkx-stat-selected'));
+    if(opened===k){opened='';return}
+    opened=k; card.classList.add('nkx-stat-selected');
+
+    const list=buckets()[k]||[], meta=labels[k];
+    const rows=list.length?list.map(o=>{
+      const tc=track(o), code=tc||orderCode(o);
+      return `<div class="nkx-status-row" data-order-id="${Number(o.id)||0}">
         <div class="nkx-status-badge">${tc?'🚚':'🧾'}</div>
-        <div style="min-width:0;flex:1"><div class="nkx-status-code">${esc(code)}</div>
-        <div class="nkx-status-sub">${sub}${S(o?.recipient_name)?' · '+esc(o.recipient_name):''}</div></div>
+        <div style="min-width:0;flex:1">
+          <div class="nkx-status-code">${esc(code)}</div>
+          <div class="nkx-status-sub">${tc?'Mã vận đơn':'Mã đơn Shopee'} · ${esc(recipient(o))}</div>
+        </div><div class="nkx-status-arrow">›</div>
       </div>`;
-   }).join(''):`<div class="nkx-empty-detail">Không có đơn ở trạng thái này.</div>`;
-   grid.insertAdjacentHTML('afterend',`<div id="nkx-status-detail">
-      <div class="nkx-status-detail-head"><div>${title(k)}</div><span>${list.length} đơn</span></div>${rows}</div>`);
- };
+    }).join(''):`<div class="nkx-empty-detail">Không có đơn ở trạng thái này.</div>`;
+
+    card.closest('.nkx-overview-grid').insertAdjacentHTML('afterend',
+      `<div id="nkx-status-detail"><div class="nkx-status-detail-head"><div>${meta[0]} ${meta[1]}</div><span>${list.length} đơn</span></div>${rows}</div>`);
+  }
+
+  // Event delegation: render/realtime bao nhiêu lần cũng không mất click.
+  document.addEventListener('click',function(e){
+    const card=e.target.closest('#nkDeliveryManager .nkx-overview-item');
+    if(card){
+      e.preventDefault(); e.stopImmediatePropagation();
+      const cards=[...card.parentElement.querySelectorAll('.nkx-overview-item')];
+      const idx=cards.indexOf(card);
+      const k=['active','delivered','cancelled','waiting'][idx];
+      if(k) openList(k,card);
+      return;
+    }
+    const row=e.target.closest('#nkx-status-detail .nkx-status-row');
+    if(row){
+      const id=Number(row.dataset.orderId);
+      if(id && typeof window.showNkOrderDetail==='function') window.showNkOrderDetail(id);
+    }
+  },true);
+
+  // Đồng bộ số trên 4 ô với chính classifier đang dùng cho danh sách.
+  function syncCounts(){
+    const grid=document.querySelector('#nkDeliveryManager .nkx-overview-grid');
+    if(!grid)return;
+    const b=buckets(), cards=[...grid.querySelectorAll('.nkx-overview-item')];
+    const keys=['active','delivered','cancelled','waiting'];
+    cards.forEach((c,i)=>{
+      const n=c.querySelector('b');
+      if(n && keys[i]) n.textContent=b[keys[i]].length;
+    });
+  }
+  const obs=new MutationObserver(()=>{clearTimeout(window.__nkV15);window.__nkV15=setTimeout(syncCounts,20)});
+  document.addEventListener('DOMContentLoaded',()=>{
+    const r=document.getElementById('nkDeliveryManager');
+    if(r)obs.observe(r,{childList:true,subtree:true});
+    setTimeout(syncCounts,300);
+  });
+  setInterval(syncCounts,5000);
 })();
 </script>
 
