@@ -7,6 +7,26 @@
     {
       "source": "/api/order",
       "destination": "https://script.google.com/macros/s/AKfycbwfh7SpDpYultxLSJnjwLts6FFf1bKUJxkUllXptCWUDNaPB99Rdp8qktyVlsEwa0liDA/exec"
+    },
+    {
+      "source": "/cho-mmo",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/lay-otp",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/quan-ly-don",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/nap-don",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/tra-ma-don",
+      "destination": "/index.html"
     }
   ]
 }
