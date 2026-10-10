@@ -8476,5 +8476,68 @@ html,body{width:100%;max-width:100%;overflow-x:hidden!important}
 
 
 
+
+<style id="nk-links-v22-css">
+#nkQuickLinksPage{display:none}.nkql-wrap{max-width:900px;margin:auto;padding:4px 0 25px}
+.nkql-head{background:linear-gradient(135deg,#fff4ef,#fff);border:1px solid #ffd5c8;border-radius:18px;padding:16px;margin-bottom:12px}
+.nkql-title{font-size:20px;font-weight:950;color:#172033}.nkql-sub{font-size:11px;color:#64748b;margin-top:4px}
+.nkql-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:13px}.nkql-stat{background:#fff;border:1px solid #e5eaf0;border-radius:12px;padding:10px;text-align:center}
+.nkql-stat b{display:block;font-size:20px}.nkql-stat span{font-size:9px;font-weight:900;color:#718096}
+.nkql-tools{display:flex;gap:8px;margin-bottom:10px}.nkql-search{flex:1;border:1px solid #dfe6ee;border-radius:13px;padding:11px;font-size:12px}
+.nkql-reset{border:1px solid #ffd0c4;background:#fff5f1;color:#e64b2e;border-radius:13px;padding:0 13px;font-weight:900;font-size:10px}
+.nkql-list{display:grid;gap:7px}.nkql-row{display:grid;grid-template-columns:45px minmax(0,1fr) 80px;gap:9px;align-items:center;background:#fff;border:1px solid #e3e9f0;border-radius:13px;padding:9px 10px}
+.nkql-row.opened{background:#f4fff7;border-color:#cdebd7}.nkql-no{width:36px;height:36px;border-radius:10px;background:#fff1ec;color:#ef4d2d;display:flex;align-items:center;justify-content:center;font-weight:950}
+.nkql-row.opened .nkql-no{background:#e8f8ee;color:#159447}.nkql-name{font-size:12px;font-weight:900;color:#172033}.nkql-state{font-size:9px;color:#94a3b8;margin-top:3px}
+.nkql-row.opened .nkql-state{color:#159447;font-weight:800}.nkql-open{border:0;border-radius:10px;background:linear-gradient(135deg,#ff6545,#ee4d2d);color:#fff;font-size:10px;font-weight:950;padding:10px 6px}
+.nkql-row.opened .nkql-open{background:#22a45d}
+</style>
+<section id="nkQuickLinksPage"><div class="nkql-wrap">
+<div class="nkql-head"><div class="nkql-title">🔗 Link sản phẩm Shopee</div><div class="nkql-sub">100 sản phẩm · Mở link sẽ tự đánh dấu · Sang ngày mới tự reset</div>
+<div class="nkql-stats"><div class="nkql-stat"><b id="nkqlTotal">100</b><span>Tổng link</span></div><div class="nkql-stat"><b id="nkqlOpened">0</b><span>Đã mở</span></div><div class="nkql-stat"><b id="nkqlLeft">100</b><span>Còn lại</span></div></div></div>
+<div class="nkql-tools"><input id="nkqlSearch" class="nkql-search" placeholder="🔍 Tìm số thứ tự..." inputmode="numeric"><button class="nkql-reset" onclick="nkqlReset()">↻ Reset</button></div>
+<div id="nkqlList" class="nkql-list"></div></div></section>
+<script id="nk-links-v22-js">
+(function(){
+ const LINKS=["https://shopee.vn/product/137264191/44053409336", "https://shopee.vn/product/188181120/50212417220", "https://shopee.vn/product/1271392484/43408496228", "https://shopee.vn/product/195544432/3562799477", "https://shopee.vn/product/137264191/40153409460", "https://shopee.vn/product/1528249353/46066754871", "https://shopee.vn/product/1569836253/41020872737", "https://shopee.vn/product/1447682035/48362644592", "https://shopee.vn/product/1175586038/41406407851", "https://shopee.vn/product/137264191/42303409349", "https://shopee.vn/product/30782516/22653874121", "https://shopee.vn/product/137264191/40153415046", "https://shopee.vn/product/1080579265/24914389989", "https://shopee.vn/product/707514376/55910916546", "https://shopee.vn/product/1493647305/27285135801", "https://shopee.vn/product/195544432/7033222548", "https://shopee.vn/product/1891608128/50814529230", "https://shopee.vn/product/45146706/17189205931", "https://shopee.vn/product/137264191/40703399205", "https://shopee.vn/product/1381654787/26764043278", "https://shopee.vn/product/1493647305/28434939212", "https://shopee.vn/product/5050086/4918446715", "https://shopee.vn/product/305659310/51800122370", "https://shopee.vn/product/1084138094/25673476087", "https://shopee.vn/product/1770723391/47857166205", "https://shopee.vn/product/1795693406/45515838999", "https://shopee.vn/product/1726971949/49007595256", "https://shopee.vn/product/1770723391/56013469691", "https://shopee.vn/product/1084138094/22358501566", "https://shopee.vn/product/1720562659/49514868596", "https://shopee.vn/product/1516579099/54211186419", "https://shopee.vn/product/1378488375/27642617460", "https://shopee.vn/product/338249163/25289319099", "https://shopee.vn/product/1175586038/40125778288", "https://shopee.vn/product/422029272/12908850797", "https://shopee.vn/product/302180994/7351580127", "https://shopee.vn/product/279559531/25095830782", "https://shopee.vn/product/12779472/49800118231", "https://shopee.vn/product/353214286/24908555719", "https://shopee.vn/product/1386903809/27520822387", "https://shopee.vn/product/1499333438/42267306735", "https://shopee.vn/product/1215116261/46464584281", "https://shopee.vn/product/50292524/41580414284", "https://shopee.vn/product/225780133/25263673716", "https://shopee.vn/product/1770723391/52711217342", "https://shopee.vn/product/944077215/42527540229", "https://shopee.vn/product/1902443179/49214974258", "https://shopee.vn/product/1840136047/54311394937", "https://shopee.vn/product/9081121/21681735272", "https://shopee.vn/product/1686897320/43227460013", "https://shopee.vn/product/1548298810/54307852471", "https://shopee.vn/product/1238468066/44264130755", "https://shopee.vn/product/1857849635/48462308339", "https://shopee.vn/product/11203448/19249162947", "https://shopee.vn/product/1072036335/43722997108", "https://shopee.vn/product/1201493369/25070933960", "https://shopee.vn/product/950508831/21978798124", "https://shopee.vn/product/5050086/3257824739", "https://shopee.vn/product/950508831/23139656814", "https://shopee.vn/product/986256723/22477957828", "https://shopee.vn/product/950508831/20990622744", "https://shopee.vn/product/224776818/4817990237", "https://shopee.vn/product/5050086/5957684778", "https://shopee.vn/product/137608378/2675064106", "https://shopee.vn/product/69987000/6120456669", "https://shopee.vn/product/178461450/2827292905", "https://shopee.vn/product/345425357/8267401749", "https://shopee.vn/product/38337971/23875070914", "https://shopee.vn/product/94073576/19191388420", "https://shopee.vn/product/96449736/19019815300", "https://shopee.vn/product/155886241/21883165593", "https://shopee.vn/product/137264191/41203404273", "https://shopee.vn/product/950508831/18778804968", "https://shopee.vn/product/137264191/41703399807", "https://shopee.vn/product/206085901/25621191068", "https://shopee.vn/product/1777179682/45013686844", "https://shopee.vn/product/707514376/46253437187", "https://shopee.vn/product/48061175/28554850788", "https://shopee.vn/product/1119957843/25051535172", "https://shopee.vn/product/287312012/26254376366", "https://shopee.vn/product/206085901/27203595895", "https://shopee.vn/product/1777179682/57463667136", "https://shopee.vn/product/950065991/22186488904", "https://shopee.vn/product/826837009/42556911358", "https://shopee.vn/product/117591088/43882415106", "https://shopee.vn/product/222917597/22186349586", "https://shopee.vn/product/43014709/21487463881", "https://shopee.vn/product/1703967215/51513020422", "https://shopee.vn/product/1789403264/49063689574", "https://shopee.vn/product/137608378/4838445095", "https://shopee.vn/product/9081121/12999583317", "https://shopee.vn/product/137264191/27337270413", "https://shopee.vn/product/1571252974/40411055993", "https://shopee.vn/product/20840955/23285917389", "https://shopee.vn/product/11203448/15893664803", "https://shopee.vn/product/950508831/18278815520", "https://shopee.vn/product/449047668/23788254164", "https://shopee.vn/product/1886271932/42483998909", "https://shopee.vn/product/1142205032/25607174216", "https://shopee.vn/product/1068470754/22279898850"];
+ const K='nk_shopee_opened_v22',D='nk_shopee_day_v22';
+ const day=()=>new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Ho_Chi_Minh'}).format(new Date());
+ function load(){if(localStorage.getItem(D)!==day()){localStorage.setItem(D,day());localStorage.setItem(K,'[]')}try{return new Set(JSON.parse(localStorage.getItem(K)||'[]'))}catch(e){return new Set()}}
+ let opened=load(),q='';
+ const INFO_KEY='nk_shopee_product_info_v23';
+ let info={}; try{info=JSON.parse(localStorage.getItem(INFO_KEY)||'{}')||{}}catch(e){info={}}
+ const money=v=>Number.isFinite(Number(v))?new Intl.NumberFormat('vi-VN').format(Number(v))+'đ':'Đang lấy giá…';
+ async function fetchInfo(n){
+   if(info[n] && Date.now()-(info[n].ts||0)<21600000) return;
+   const url=LINKS[n-1]; if(!url)return;
+   try{
+     const r=await fetch('/api/product-info?url='+encodeURIComponent(url));
+     const j=await r.json();
+     if(r.ok&&j.success){
+       info[n]={name:j.name||('Sản phẩm '+String(n).padStart(2,'0')),price:j.price,image:j.image||'',ts:Date.now()};
+       localStorage.setItem(INFO_KEY,JSON.stringify(info)); render();
+     }else{
+       info[n]={name:'Sản phẩm '+String(n).padStart(2,'0'),price:null,error:true,ts:Date.now()};
+       localStorage.setItem(INFO_KEY,JSON.stringify(info)); render();
+     }
+   }catch(e){}
+ }
+ function loadVisibleInfo(){
+   const nums=LINKS.map((_,i)=>i+1).filter(n=>!q||String(n).includes(q)).slice(0,100);
+   let i=0, workers=Math.min(5,nums.length);
+   async function worker(){while(i<nums.length){const n=nums[i++];await fetchInfo(n)}}
+   for(let w=0;w<workers;w++)worker();
+ }
+ function save(){localStorage.setItem(D,day());localStorage.setItem(K,JSON.stringify([...opened]))}
+ function render(){opened=load();const box=document.getElementById('nkqlList');if(!box)return;const a=LINKS.map((url,i)=>({url,n:i+1})).filter(x=>!q||String(x.n).includes(q));
+ box.innerHTML=a.map(x=>{const d=opened.has(x.n),p=info[x.n]||{};return `<div class="nkql-row ${d?'opened':''}"><div class="nkql-no">${String(x.n).padStart(2,'0')}</div><div><div class="nkql-name">${p.name||('Sản phẩm '+String(x.n).padStart(2,'0'))}</div><div style="font-size:13px;font-weight:950;color:#ee4d2d;margin-top:3px">${p.error?'Chưa lấy được giá':money(p.price)}</div><div class="nkql-state">${d?'✓ Đã mở hôm nay':'Chưa mở'}</div></div><button class="nkql-open" onclick="nkqlOpen(${x.n})">${d?'Mở lại':'Mở ngay'}</button></div>`}).join('');
+ document.getElementById('nkqlOpened').textContent=opened.size;document.getElementById('nkqlLeft').textContent=LINKS.length-opened.size;setTimeout(loadVisibleInfo,30)}
+ window.nkqlOpen=n=>{const u=LINKS[n-1];if(!u)return;opened.add(n);save();render();window.open(u,'_blank','noopener,noreferrer')};
+ window.nkqlReset=()=>{if(confirm('Reset toàn bộ dấu Đã mở hôm nay?')){opened.clear();save();render()}};
+ window.nkOpenQuickLinks=()=>{document.querySelectorAll('main > section,.main-content > section,#content > section').forEach(x=>{if(x.id!=='nkQuickLinksPage')x.style.display='none'});const p=document.getElementById('nkQuickLinksPage');if(p){p.style.display='block';render();scrollTo(0,0)}};
+ document.addEventListener('DOMContentLoaded',()=>{const i=document.getElementById('nkqlSearch');if(i)i.oninput=e=>{q=e.target.value.trim();render()};render();
+ const hosts=[...document.querySelectorAll('nav,.menu,.sidebar,#menu,.dropdown-content')];const h=hosts.find(x=>(x.textContent||'').includes('Nạp đơn'))||hosts[0];
+ if(h&&!document.getElementById('nkQuickLinksMenuBtn')){const b=document.createElement('button');b.id='nkQuickLinksMenuBtn';b.type='button';b.innerHTML='🔗 Link sản phẩm';b.onclick=window.nkOpenQuickLinks;const sm=h.querySelector('button,a');if(sm)b.className=sm.className;h.appendChild(b)}})
+})();
+</script>
 </body>
 </html>
