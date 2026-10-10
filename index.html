@@ -8615,6 +8615,12 @@ html,body{width:100%;max-width:100%;overflow-x:hidden!important}
  function render(){
    const root=document.getElementById('nkDeliveryManager'); if(!root)return;
    const all=data(), selected=dayOrders(all);
+   window.__nkDashboardBuckets = {
+     active: all.filter(active),
+     delivered: all.filter(isDelivered),
+     cancelled: all.filter(isCancelled),
+     waiting: all.filter(o=>!track(o)&&!isDelivered(o)&&!isCancelled(o))
+   };
    const shown=selected.filter(o=>!q||[track(o),person(o),ward(o),S(o.product_name)].join(' ').toLowerCase().includes(q.toLowerCase()));
    const ghn=selected.filter(o=>carrier(o)==='GHN').length, spx=selected.filter(o=>carrier(o)==='SPX').length;
    const groups=new Map(); shown.forEach(o=>{const k=groupKey(o);if(!groups.has(k))groups.set(k,[]);groups.get(k).push(o)});
@@ -8855,7 +8861,14 @@ html,body{width:100%;max-width:100%;overflow-x:hidden!important}
  let selectedState = null;
 
  function S(v){ return String(v == null ? '' : v).trim(); }
- function orders(){ return Array.isArray(window.cachedOrders) ? window.cachedOrders : []; }
+ function orders(){
+   /* cachedOrders của code gốc được khai báo bằng let/const nên không nằm trên window.
+      Đọc trực tiếp biến lexical trước, rồi mới fallback sang window. */
+   try {
+     if (typeof cachedOrders !== 'undefined' && Array.isArray(cachedOrders)) return cachedOrders;
+   } catch(e) {}
+   return Array.isArray(window.cachedOrders) ? window.cachedOrders : [];
+ }
  function tracking(o){
    for(const v of [o?.tracking?.tracking_code,o?.tracking_code,o?.trackingCode,o?.spx_tracking_code,o?.waybill,o?.waybill_no]){
      if(S(v)) return S(v).toUpperCase();
@@ -8876,7 +8889,8 @@ html,body{width:100%;max-width:100%;overflow-x:hidden!important}
  }
 
  function detailHtml(k){
-   const list=orders().filter(o=>state(o)===k);
+   const buckets = window.__nkDashboardBuckets || {};
+   const list = Array.isArray(buckets[k]) ? buckets[k] : orders().filter(o=>state(o)===k);
    return `<div id="nkx-status-detail">
      <div class="nkx-status-detail-head"><div>${icon(k)} ${label(k)}</div><span>${list.length} đơn</span></div>
      ${list.length ? list.map(o=>{
