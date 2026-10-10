@@ -5659,6 +5659,7 @@ function deleteOrder(id) {
             delivered: data.delivered === true,
             last_event_at: eventTime,
             last_checked_at: now,
+...((window.nkAssignedAt&&window.nkAssignedAt(data.events))?{driver_assigned_at:window.nkAssignedAt(data.events)}:{}),
             updated_at: now
         }, { onConflict: 'order_id' });
 
@@ -6592,7 +6593,7 @@ function deleteOrder(id) {
         const delivered=d.isTerminal===true || /DELIVERED|ĐÃ GIAO|DA GIAO/i.test(String(d.status||'')+' '+String(d.statusText||''));
         let eventIso=null; const ts=Number(latest.timestamp||0); if(ts>0) eventIso=new Date(ts>1e12?ts:ts*1000).toISOString();
         const now=new Date().toISOString();
-        const {error}=await _supabase.from('shopee_tracking').upsert({order_id:Number(orderId),user_id:currentUser.id,tracking_code:String(code).toUpperCase(),tracking_status:d.statusText||latest.statusText||latest.description||d.status||'',tracking_status_code:d.status||latest.status||'',milestone:latest.description||latest.statusText||'',current_location:loc,next_location:'',delivered,last_event_at:eventIso,last_checked_at:now,updated_at:now},{onConflict:'order_id'});
+        const {error}=await _supabase.from('shopee_tracking').upsert({order_id:Number(orderId),user_id:currentUser.id,tracking_code:String(code).toUpperCase(),tracking_status:d.statusText||latest.statusText||latest.description||d.status||'',tracking_status_code:d.status||latest.status||'',milestone:latest.description||latest.statusText||'',current_location:loc,next_location:'',delivered,last_event_at:eventIso,last_checked_at:now,updated_at:now,...((window.nkAssignedAt&&window.nkAssignedAt(events))?{driver_assigned_at:window.nkAssignedAt(events)}:{})},{onConflict:'order_id'});
         if(error) throw error;
         if(delivered){ await _supabase.from('shopee_orders').update({status:'Đã giao',delivered_at:eventIso||now}).eq('id',Number(orderId)).eq('user_id',currentUser.id); }
     };
@@ -8275,6 +8276,27 @@ html,body{width:100%;max-width:100%;overflow-x:hidden!important}
    };
    const shown=lowerOrders.filter(o=>!q||[track(o),person(o),ward(o),S(o.product_name)].join(' ').toLowerCase().includes(q.toLowerCase()));
    const ghn=selected.filter(o=>carrier(o)==='GHN').length, spx=selected.filter(o=>carrier(o)==='SPX').length;
+    (function(){
+     const t=targetYmd(), today=!customDate&&dayOffset===0;
+     const hasDriver=o=>{const x=norm([st(o),o?.tracking?.milestone,o?.tracking?.current_location,o?.current_location,o?.tracking?.next_location,o?.next_location].filter(Boolean).join(' | '));return x.includes('trong vong 12 gio tiep theo')||x.includes('sap xep tai xe')};
+     // Sự kiện sau 20:00 (giờ VN) coi như giao vào ngày hôm sau
+     const dayOf=d=>{const h=Number(new Intl.DateTimeFormat('en-GB',{timeZone:'Asia/Ho_Chi_Minh',hour:'2-digit',hour12:false}).format(d));return ymd(h>=20?new Date(d.getTime()+86400000):d)};
+     const asgAt=o=>{const v=o?.tracking?.driver_assigned_at;const d=v?new Date(v):null;return d&&!isNaN(d)?d:null};
+     // A = đơn được xếp tài xế đúng ngày đó (Supabase) + đơn đã giao trong ngày + (hôm nay) đơn đang ở trạng thái xếp tài xế nhưng chưa có mốc thời gian (dữ liệu cũ)
+     const A=new Set(), carry=[];
+     all.forEach(o=>{
+       const ad=asgAt(o);
+       if(ad&&dayOf(ad)===t) A.add(o);
+       else if(deliveredOn(o,t)) A.add(o);
+       else if(!ad&&today&&active(o)&&hasDriver(o)) A.add(o);
+       else if(ad&&today&&dayOf(ad)<t&&active(o)&&hasDriver(o)) carry.push(o);
+     });
+     const arr=[...A], doneL=arr.filter(isDelivered);
+     const cnt=(l,c)=>l.filter(o=>carrier(o)===c).length;
+     window.__nkToday={today,done:doneL.length,assigned:arr.length-doneL.length,total:arr.length,carry:carry.length,
+       spx:cnt(arr,'SPX'),ghn:cnt(arr,'GHN'),active:all.filter(active).length,
+       far:today?all.filter(o=>active(o)&&!A.has(o)&&!carry.includes(o)).length:0};
+    })();
    const groups=new Map(); shown.forEach(o=>{const k=groupKey(o);if(!groups.has(k))groups.set(k,[]);groups.get(k).push(o)});
    const groupHtml=[...groups.entries()].sort((a,b)=>b[1].length-a[1].length).map(([k,arr],i)=>{
       const key=view+'|'+k, isOpen=opened.has(key);
@@ -9759,14 +9781,35 @@ function enhance(){
   var hero=document.querySelector('#nkDeliveryManager .nkx-hero');
   if(hero&&!hero.dataset.v36){
     hero.dataset.v36='1';
-    var tr=hero.querySelector('.nkx-truck'); if(tr){tr.className='v36-logo'; tr.innerHTML=BOLT;}
-    var t=hero.querySelector('.nkx-hero-title'), s=hero.querySelector('.nkx-hero-sub');
-    if(t) t.innerHTML='NK MMO Store<span class="v36-ok">&#10003;</span>';
-    if(s){ var n=userName(); s.innerHTML='Công cụ &amp; Dịch vụ Online <span style="color:#f5a623">&#9819;</span>'+(n?'<br><span class="v36-chip">Xin chào, '+n.replace(/[<>&]/g,'')+'</span>':''); }
-    hero.querySelectorAll('.nkx-stat').forEach(function(st,i){
-      var sp=st.querySelector('span'); if(sp&&/^GHN$/i.test(sp.textContent.trim())) sp.textContent='G.HN';
-      if(ST[i]) st.insertAdjacentHTML('beforeend',ST[i]);
-    });
+    var num=function(el){return el?(parseInt(el.textContent,10)||0):0};
+    var sb=hero.querySelectorAll('.nkx-stat b');
+    var total=num(sb[0]), ghn=num(sb[1]), spx=num(sb[2]);
+    var T=window.__nkToday||{}, B=window.__nkDashboardBuckets||{};
+    if(T.total!==undefined){ total=T.total; ghn=T.ghn; spx=T.spx; }
+    var done=Math.min(T.done||0,total), going=total-done;
+    var db=hero.querySelector('.nkx-date-btn');
+    var lab=db?db.textContent.replace('\u25BE','').trim():'H\u00f4m nay';
+    var isToday=/^H\u00f4m nay$/i.test(lab);
+    var far=isToday?(T.far!==undefined?T.far:Math.max(0,((B.active||[]).length)-going)):null; var carry=T.carry||0;
+    var n=userName(); n=n.replace(/[<>&]/g,'');
+    var q=isToday?'H\u00f4m nay b\u1ea1n s\u1ebd nh\u1eadn':'\u0110\u01a1n giao '+lab;
+    var pct=total?Math.round(done*100/total):0;
+    var html='<div class="v36-top"><div class="v36-logo">'+BOLT+'</div>'+
+      '<div class="v36-brand"><div class="v36-name">NK MMO Store<span class="v36-ok">&#10003;</span></div><div class="v36-sub">C\u00f4ng c\u1ee5 &amp; D\u1ecbch v\u1ee5 Online <span style="color:#f5a623">&#9819;</span></div></div>'+
+      (n?'<span class="v36-chip">Xin ch\u00e0o, '+n+'</span>':'')+'</div>'+
+      '<div class="v36-today"><div class="v36-big'+(total>0&&going===0?' ok':'')+'"><b>'+total+'</b><span>\u0111\u01a1n</span></div>'+
+      '<div class="v36-q"><div class="v36-qt">'+q+'</div><div class="v36-note">'+(isToday?'S\u1ebd giao \u2212 \u0111\u00e3 giao = c\u00f2n s\u00f3t. B\u1eb1ng nhau l\u00e0 \u0111\u1ee7 \u0111\u01a1n.':'S\u1ebd giao \u2212 \u0111\u00e3 giao = c\u00f2n s\u00f3t. B\u1eb1ng nhau l\u00e0 \u0111\u1ee7 \u0111\u01a1n.')+'</div></div>'+
+      '<div class="v36-car"><span class="spx">SPX <b>'+spx+'</b></span><span class="ghn">G.HN <b>'+ghn+'</b></span></div></div>'+
+      (total?'<div class="v36-bar"><i style="width:'+pct+'%"></i></div>':'')+
+      '<div class="v36-leg">'+(T.total!==undefined||isToday?
+        '<div class="b"><b>'+total+'</b><span>S\u1ebd giao h\u00f4m nay</span></div><div class="g"><b>'+done+'</b><span>\u0110\u00e3 giao</span></div>'+
+        (total&&going===0?'<div class="g2"><b>\u0110\u1ee7 &#10003;</b><span>\u0110\u00e3 giao h\u1ebft</span></div>':'<div class="'+(going>0?'r':'b')+'"><b>'+going+'</b><span>C\u00f2n s\u00f3t</span></div>')
+        :'<div class="g"><b>'+done+'</b><span>\u0110\u00e3 giao</span></div>')+'</div>'+
+      (carry>0?'<div class="v36-far" style="color:#e8262e;font-weight:700">C\u00f2n '+carry+' \u0111\u01a1n c\u00f3 l\u1ecbch giao t\u1eeb h\u00f4m tr\u01b0\u1edbc ch\u01b0a giao</div>':'')+
+      (isToday&&far>0?'<div class="v36-far">C\u00f2n '+far+' \u0111\u01a1n \u0111ang tr\u00ean \u0111\u01b0\u1eddng, ch\u01b0a c\u00f3 l\u1ecbch giao</div>':'');
+    Array.prototype.forEach.call(hero.children,function(c){ if(!/position:\s*absolute/.test(c.getAttribute('style')||'')) c.classList.add('v36-x'); });
+    hero.classList.add('v36h');
+    hero.insertAdjacentHTML('afterbegin',html);
   }
   document.querySelectorAll('#nkDeliveryManager .nkx-tab').forEach(function(b,i){
     if(b.dataset.v36) return; b.dataset.v36='1';
@@ -9780,11 +9823,42 @@ function enhance(){
     else if(pin&&/GHN/i.test(nm)) pin.innerHTML=TRUCK('#f97316');
     var ch=h.querySelector('.nkx-chevron'); if(ch) ch.textContent='\u2303';
   });
-  document.querySelectorAll('.order-card').forEach(function(c){
-    if(c.dataset.v36) return; c.dataset.v36='1';
-    c.querySelectorAll('.order-item-row,.order-time').forEach(swap);
+  document.querySelectorAll('.order-card .order-item-row,.order-card .order-time').forEach(function(r){
+    if(r.dataset.v36) return; r.dataset.v36='1'; swap(r);
   });
+  wrapSearch();
 }
+function wrapSearch(){
+  var f=window.nkDashSearch; if(typeof f!=='function'||f.__v36) return;
+  var w=function(x){
+    var a=document.activeElement, pos=(a&&typeof a.selectionStart==='number')?a.selectionStart:null;
+    f(x);
+    var i=document.querySelector('#nkDeliveryManager .nkx-search input');
+    if(i){ i.focus(); if(pos!==null){ try{i.setSelectionRange(pos,pos)}catch(e){} } }
+  };
+  w.__v36=1; window.nkDashSearch=w;
+}
+
+window.nkAssignedAt=function(events){
+  try{
+    if(!Array.isArray(events)) return null;
+    // chỉ gửi cột này khi bảng đã có cột (tránh lỗi khi chưa chạy SQL)
+    var has=false;
+    try{ has=(typeof cachedOrders!=='undefined')&&cachedOrders.some(function(o){return o&&o.tracking&&('driver_assigned_at' in o.tracking)}); }catch(e){}
+    if(!has) return null;
+    var best=0;
+    events.forEach(function(ev){
+      var t=String(JSON.stringify(ev)||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+      if(t.indexOf('trong vong 12 gio tiep theo')<0 && t.indexOf('sap xep tai xe')<0) return;
+      var raw=(ev&&(ev.time!=null?ev.time:ev.timestamp!=null?ev.timestamp:ev.event_time!=null?ev.event_time:ev.created_at!=null?ev.created_at:ev.date));
+      var ms=0;
+      if(typeof raw==='number'||/^\d+$/.test(String(raw||''))){ var n=Number(raw); ms=n>1e12?n:n*1000; }
+      else if(raw){ var d=new Date(raw); ms=isNaN(d)?0:d.getTime(); }
+      if(ms>0&&(!best||ms<best)) best=ms;
+    });
+    return best?new Date(best).toISOString():null;
+  }catch(e){return null}
+};
 var pend=false;
 function schedule(){ if(pend) return; pend=true; requestAnimationFrame(function(){pend=false; enhance();}); }
 function boot(){
@@ -9828,5 +9902,44 @@ if(document.readyState==='loading') document.addEventListener('DOMContentLoaded'
 .top-btn[onclick^="changeOrderPage"]{background:#fff!important;color:#141b4d!important;border:0!important;border-radius:14px!important;padding:8px 14px!important;font-size:12px!important;font-weight:700!important;box-shadow:0 2px 8px rgba(60,60,140,.1)}
 </style>
 
+
+<style id="nk-v36c-css">
+#nkDeliveryManager .nkx-hero.v36h{display:block!important;padding:12px 13px 11px!important}
+#nkDeliveryManager .nkx-hero.v36h>.v36-x{display:none!important}
+#nkDeliveryManager .v36-top{display:flex;align-items:center;gap:9px}
+#nkDeliveryManager .v36-top .v36-logo{width:38px;height:38px;border-radius:11px}
+#nkDeliveryManager .v36-top .v36-logo svg{width:21px;height:21px}
+#nkDeliveryManager .v36-brand{flex:1;min-width:0}
+#nkDeliveryManager .v36-name{font-size:15px;font-weight:800;color:#141b4d;line-height:19px;white-space:nowrap}
+#nkDeliveryManager .v36-sub{font-size:10px;font-weight:500;color:#2a3166;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#nkDeliveryManager .v36-top .v36-chip{margin:0;flex:none}
+#nkDeliveryManager .v36-today{display:flex;align-items:center;gap:10px;margin-top:11px;padding-top:10px;border-top:1px solid #f0cfc8}
+#nkDeliveryManager .v36-big{display:flex;align-items:baseline;gap:4px;flex:none}
+#nkDeliveryManager .v36-big b{font-size:40px;line-height:1;font-weight:800;color:#e8262e}
+#nkDeliveryManager .v36-big span{font-size:12px;font-weight:700;color:#e8262e}
+#nkDeliveryManager .v36-q{flex:1;min-width:0}
+#nkDeliveryManager .v36-qt{font-size:13.5px;font-weight:800;color:#141b4d;line-height:17px}
+#nkDeliveryManager .v36-note{font-size:9.5px;color:#5a6090;line-height:12px;margin-top:2px}
+#nkDeliveryManager .v36-car{flex:none;display:flex;flex-direction:column;gap:4px}
+#nkDeliveryManager .v36-car span{font-size:10.5px;font-weight:700;padding:2px 9px;border-radius:9px;text-align:center;white-space:nowrap}
+#nkDeliveryManager .v36-car .spx{background:#ffe4e1;color:#e8262e}
+#nkDeliveryManager .v36-car .ghn{background:#fff0dc;color:#d9700f}
+#nkDeliveryManager .v36-bar{height:7px;border-radius:4px;background:#f1d9d2;margin-top:10px;overflow:hidden}
+#nkDeliveryManager .v36-bar i{display:block;height:100%;border-radius:4px;background:linear-gradient(90deg,#22b25c,#16a34a)}
+#nkDeliveryManager .v36-leg{display:flex;gap:7px;margin-top:9px}
+#nkDeliveryManager .v36-leg>div{flex:1;min-width:0;border-radius:10px;padding:5px 4px;text-align:center}
+#nkDeliveryManager .v36-leg b{display:block;font-size:16px;font-weight:800;line-height:18px}
+#nkDeliveryManager .v36-leg span{display:block;font-size:9.5px;font-weight:600;line-height:12px;color:#3a4170}
+#nkDeliveryManager .v36-leg .g{background:#e4f7ec}.v36-leg .g b{color:#12803f}
+#nkDeliveryManager .v36-leg .b{background:#e6f0ff}.v36-leg .b b{color:#1b4fb8}
+#nkDeliveryManager .v36-leg .p{background:#f1ecff}.v36-leg .p b{color:#5b21b6}
+</style>
+
+<style id="nk-v36d-css">
+#nkDeliveryManager .v36-big.ok b,#nkDeliveryManager .v36-big.ok span{color:#16a34a}
+#nkDeliveryManager .v36-leg .r{background:#ffe4e1}.v36-leg .r b{color:#e8262e}
+#nkDeliveryManager .v36-leg .g2{background:#d9f7e4}.v36-leg .g2 b{color:#12803f}
+#nkDeliveryManager .v36-far{margin-top:7px;font-size:9.5px;color:#5a6090;text-align:center}
+</style>
 </body>
 </html>
