@@ -9,7 +9,24 @@
     <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
 
     <!-- OCR chạy trực tiếp trên trình duyệt -->
-    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+<script>
+/* OCR (Tesseract) chỉ cần khi nạp đơn bằng ảnh: tải nền sau khi trang đã hiện, hoặc tải ngay lúc bấm OCR */
+window.nkLoadTesseract=function(){
+  if(window.Tesseract) return Promise.resolve();
+  if(window.__nkTessP) return window.__nkTessP;
+  window.__nkTessP=new Promise(function(res,rej){
+    var s=document.createElement('script');
+    s.src='https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
+    s.async=true; s.onload=function(){res()}; s.onerror=function(){window.__nkTessP=null;rej(new Error('tesseract'))};
+    document.head.appendChild(s);
+  });
+  return window.__nkTessP;
+};
+window.addEventListener('load',function(){
+  (window.requestIdleCallback||function(f){setTimeout(f,3000)})(function(){window.nkLoadTesseract().catch(function(){})},{timeout:6000});
+});
+</script>
 
     <style>
         :root {
@@ -5772,12 +5789,11 @@ function deleteOrder(id) {
 
     window.loadOrdersFromSupabase = async function () {
         if (!currentUser) return;
-        const { data: orders, error: orderError } = await _supabase.from('shopee_orders')
-            .select('*').eq('user_id', currentUser.id).order('created_at', { ascending:false });
+        const [{ data: orders, error: orderError }, { data: tracks, error: trackingError }] = await Promise.all([
+            _supabase.from('shopee_orders').select('*').eq('user_id', currentUser.id).order('created_at', { ascending:false }),
+            _supabase.from('shopee_tracking').select('*').eq('user_id', currentUser.id)
+        ]);
         if (orderError) { console.error('LOAD ORDERS:', orderError); return; }
-
-        const { data: tracks, error: trackingError } = await _supabase.from('shopee_tracking')
-            .select('*').eq('user_id', currentUser.id);
         if (trackingError) console.error('LOAD TRACKING:', trackingError);
 
         const map = new Map((tracks || []).map(t => [String(t.order_id), t]));
@@ -5946,7 +5962,8 @@ function deleteOrder(id) {
         const files = Array.from(input.files || []);
         if (!files.length) return;
         if (orderOcrRunning) { showModal('Thông báo','OCR đang xử lý ảnh. Vui lòng chờ.'); return; }
-        if (typeof Tesseract === 'undefined') { showModal('Lỗi OCR','Không tải được thư viện OCR. Hãy tải lại trang rồi thử lại.'); return; }
+        if (typeof Tesseract === 'undefined') { try { await window.nkLoadTesseract(); } catch (e) {} }
+if (typeof Tesseract === 'undefined') { showModal('Lỗi OCR','Không tải được thư viện OCR. Hãy tải lại trang rồi thử lại.'); return; }
 
         orderOcrRunning = true;
         const btn = document.getElementById('btnOrderOcr');
@@ -6522,7 +6539,7 @@ function deleteOrder(id) {
         /* Đăng nhập xong: check ngay một lần. */
         setTimeout(() => {
             if (currentUser) window.autoCheckAllOrdersSilent();
-        }, 800);
+        }, 3000);
 
         /* Sau đó tự check lại mỗi 5 phút khi còn đăng nhập và trang còn mở. */
         window.nkAutoCheckTimer = setInterval(() => {
@@ -7370,7 +7387,8 @@ html,body{width:100%;max-width:100%;overflow-x:hidden!important}
         const files=Array.from(input.files||[]);
         if(!files.length)return;
         if(orderOcrRunning){showModal('Thông báo','OCR đang xử lý ảnh. Vui lòng chờ.');return;}
-        if(typeof Tesseract==='undefined'){showModal('Lỗi OCR','Không tải được thư viện OCR.');return;}
+        if (typeof Tesseract === 'undefined') { try { await window.nkLoadTesseract(); } catch (e) {} }
+if(typeof Tesseract==='undefined'){showModal('Lỗi OCR','Không tải được thư viện OCR.');return;}
         orderOcrRunning=true;
         const btn=document.getElementById('btnOrderOcr'), status=document.getElementById('ocrStatus'), output=document.getElementById('inputMultipleLines');
         btn.disabled=true; btn.innerText='⏳ Đang chuẩn bị OCR...'; status.style.display='block';
@@ -7687,7 +7705,8 @@ html,body{width:100%;max-width:100%;overflow-x:hidden!important}
   window.handleOrderImages=async function(input){
     const files=Array.from(input.files||[]); if(!files.length)return;
     if(orderOcrRunning){showModal('Thông báo','OCR đang xử lý ảnh. Vui lòng chờ.');return;}
-    if(typeof Tesseract==='undefined'){showModal('Lỗi OCR','Không tải được thư viện OCR.');return;}
+    if (typeof Tesseract === 'undefined') { try { await window.nkLoadTesseract(); } catch (e) {} }
+if(typeof Tesseract==='undefined'){showModal('Lỗi OCR','Không tải được thư viện OCR.');return;}
     orderOcrRunning=true;
     const btn=document.getElementById('btnOrderOcr'),status=document.getElementById('ocrStatus');
     btn.disabled=true; status.style.display='block';
@@ -8611,7 +8630,7 @@ html,body{width:100%;max-width:100%;overflow-x:hidden!important}
   function hook(){const f=window.renderSmartDelivery;if(typeof f==='function'&&!f.__v16){const w=function(){const r=f.apply(this,arguments);setTimeout(sync,0);return r};w.__v16=1;window.renderSmartDelivery=w}}
   document.addEventListener('DOMContentLoaded',()=>{hook();setTimeout(sync,100);setTimeout(sync,600)});
   setTimeout(()=>{hook();sync()},1200);
-  setInterval(()=>{hook();sync()},1000);
+  setInterval(()=>{if(document.hidden)return;hook();sync()},3000);
 })();
 </script>
 
@@ -9829,7 +9848,7 @@ function enhance(){
   document.querySelectorAll('.order-card .order-item-row,.order-card .order-time').forEach(function(r){
     if(r.dataset.v36) return; r.dataset.v36='1'; swap(r);
   });
-  wrapSearch();
+  wrapSearch(); wrapGroupReset(); applyGroups();
 }
 function wrapSearch(){
   var f=window.nkDashSearch; if(typeof f!=='function'||f.__v36) return;
@@ -9887,11 +9906,37 @@ document.addEventListener('click',function(e){
   var r=e.target.closest&&e.target.closest('#v36-detail .v36-row');
   if(r){ var id=Number(r.getAttribute('data-order-id')); if(id&&typeof window.showNkOrderDetail==='function') window.showNkOrderDetail(id); }
 });
+
+
+// Nhóm Phường/Xã - Hãng - Trạng thái: bấm dòng thì mở, bấm lại thì thu (đổi ngay trên giao diện, không phụ thuộc việc app vẽ lại)
+var GROUPS={};
+function tabKey(){var a=document.querySelector('#nkDeliveryManager .nkx-tab.active'); return a?a.textContent.trim():'';}
+function gkey(sec){var n=sec.querySelector('.nkx-group-name'); return tabKey()+'|'+(n?n.textContent.trim():'');}
+function applyGroups(){
+  document.querySelectorAll('#nkDeliveryManager .nkx-group').forEach(function(sec){
+    var want=!GROUPS[gkey(sec)];
+    if(sec.classList.contains('collapsed')!==want) sec.classList.toggle('collapsed',want);
+  });
+}
+function wrapGroupReset(){
+  ['nkDashMode','nkDashSetDay','nkDashCustomDay'].forEach(function(n){
+    var f=window[n]; if(typeof f!=='function'||f.__v36g) return;
+    var w=function(){GROUPS={};return f.apply(this,arguments)}; w.__v36g=1; window[n]=w;
+  });
+}
+document.addEventListener('click',function(e){
+  var h=e.target.closest&&e.target.closest('#nkDeliveryManager .nkx-group-head'); if(!h) return;
+  e.stopImmediatePropagation(); e.preventDefault();
+  var sec=h.closest('.nkx-group'); if(!sec) return;
+  var k=gkey(sec), open=!GROUPS[k];
+  GROUPS={}; if(open) GROUPS[k]=true;
+  applyGroups();
+},true);
 var pend=false;
 function schedule(){ if(pend) return; pend=true; requestAnimationFrame(function(){pend=false; enhance();}); }
 function boot(){
   enhance();
-  new MutationObserver(schedule).observe(document.body,{childList:true,subtree:true});
+  new MutationObserver(schedule).observe(document.getElementById('sectionOrders')||document.body,{childList:true,subtree:true});
   var b=document.createElement('button'); b.id='v36-top'; b.type='button'; b.setAttribute('aria-label','Lên đầu trang');
   b.innerHTML='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2a3166" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m5 15 7-7 7 7"/></svg>';
   b.onclick=function(){window.scrollTo({top:0,behavior:'smooth'})};
