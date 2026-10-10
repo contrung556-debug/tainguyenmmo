@@ -8618,4 +8618,401 @@ html,body{width:100%;max-width:100%;overflow-x:hidden!important}
  function render(){
    const root=document.getElementById('nkDeliveryManager'); if(!root)return;
    const all=data(), selected=dayOrders(all);
-   window.__nkDashboardBucke
+   window.__nkDashboardBuckets = {
+     active: all.filter(active),
+     delivered: all.filter(isDelivered),
+     cancelled: all.filter(isCancelled),
+     waiting: all.filter(o=>!track(o)&&!isDelivered(o)&&!isCancelled(o))
+   };
+   const shown=selected.filter(o=>!q||[track(o),person(o),ward(o),S(o.product_name)].join(' ').toLowerCase().includes(q.toLowerCase()));
+   const ghn=selected.filter(o=>carrier(o)==='GHN').length, spx=selected.filter(o=>carrier(o)==='SPX').length;
+   const groups=new Map(); shown.forEach(o=>{const k=groupKey(o);if(!groups.has(k))groups.set(k,[]);groups.get(k).push(o)});
+   const groupHtml=[...groups.entries()].sort((a,b)=>b[1].length-a[1].length).map(([k,arr],i)=>{
+      const key=view+'|'+k, isOpen=opened.has(key);
+      return `<section class="nkx-group ${isOpen?'':'collapsed'}">
+       <button class="nkx-group-head" onclick="nkDashToggle('${encodeURIComponent(key)}')">
+        <span class="nkx-pin">${k==='Chưa có địa chỉ'?'⚠️':icon()}</span>
+        <span class="nkx-group-name">${H(k)}</span><span class="nkx-count">${arr.length} đơn</span><span class="nkx-chevron">⌃</span>
+       </button><div class="nkx-group-body">${arr.map(row).join('')}</div>
+      </section>`
+   }).join('');
+   root.innerHTML=`<div class="nkx-wrap">
+    <section class="nkx-hero">
+      <div class="nkx-truck">🚚</div>
+      <div><div class="nkx-hero-title">Giao ${dateLabel().toLowerCase()}</div><div class="nkx-hero-sub">Tổng số đơn hàng đang giao</div></div>
+      <div class="nkx-hero-stats"><div class="nkx-stat"><b>${selected.length}</b><span>Tổng đơn</span></div><div class="nkx-stat ghn"><b>${ghn}</b><span>GHN</span></div><div class="nkx-stat spx"><b>${spx}</b><span>SPX</span></div></div>
+      <div style="position:absolute;right:12px;bottom:-43px;z-index:20">
+       <button class="nkx-date-btn" onclick="nkDashDateMenu(event)">${H(dateLabel())} ▾</button>
+       ${dateOpen?`<div class="nkx-date-pop" onclick="event.stopPropagation()">
+        <button class="${!customDate&&dayOffset===0?'active':''}" onclick="nkDashSetDay(0)">Hôm nay</button>
+        <button class="${!customDate&&dayOffset===-1?'active':''}" onclick="nkDashSetDay(-1)">Hôm qua</button>
+        <div style="padding:6px 5px 3px;font-size:9px;color:#94a3b8;font-weight:800">CHỌN NGÀY KHÁC</div>
+        <input type="date" value="${H(customDate)}" onchange="nkDashCustomDay(this.value)">
+       </div>`:''}
+      </div>
+    </section>
+    <nav class="nkx-tabs" style="margin-top:31px">
+      <button class="nkx-tab ${view==='area'?'active':''}" onclick="nkDashMode('area')">📍 Theo Phường/Xã</button>
+      <button class="nkx-tab ${view==='carrier'?'active':''}" onclick="nkDashMode('carrier')">🚚 Theo Hãng</button>
+      <button class="nkx-tab ${view==='status'?'active':''}" onclick="nkDashMode('status')">◷ Theo Trạng Thái</button>
+      <button class="nkx-tab ${view==='all'?'active':''}" onclick="nkDashMode('all')">▦ Tất cả</button>
+    </nav>
+    <div class="nkx-groups">${groupHtml||'<div style="text-align:center;padding:28px 10px;color:#94a3b8">Không có vận đơn đang giao trong ngày này.</div>'}</div>
+    <section class="nkx-overview"><div class="nkx-overview-title">📊 Thống kê tổng quan</div><div class="nkx-overview-grid">
+      <div class="nkx-overview-item" onclick="nkStatOpen('active',this)"><b style="color:#2563eb">${all.filter(active).length}</b><span>Đang vận chuyển</span></div>
+      <div class="nkx-overview-item" onclick="nkStatOpen('delivered',this)"><b style="color:#16a34a">${all.filter(isDelivered).length}</b><span>Đã giao</span></div>
+      <div class="nkx-overview-item" onclick="nkStatOpen('cancelled',this)"><b style="color:#dc2626">${all.filter(isCancelled).length}</b><span>Đơn bị hủy</span></div>
+      <div class="nkx-overview-item" onclick="nkStatOpen('waiting',this)"><b style="color:#7c3aed">${all.filter(o=>!track(o)&&!isDelivered(o)&&!isCancelled(o)).length}</b><span>Chờ lấy hàng</span></div>
+    </div></section>
+    <div class="nkx-tools"><label class="nkx-search">🔍<input value="${H(q)}" oninput="nkDashSearch(this.value)" placeholder="Tìm kiếm đơn hàng..."></label>
+    <button class="nkx-scan" onclick="nkDashScan()">📷 Quét Trạng Thái Vận Đơn</button></div>
+   </div>`;
+ }
+ window.nkDashMode=x=>{view=x;opened.clear();render()};
+ window.nkDashSearch=x=>{q=x;render()};
+ window.nkDashToggle=enc=>{const k=decodeURIComponent(enc); if(opened.has(k))opened.delete(k);else{opened.clear();opened.add(k)} render()};
+ window.nkDashDateMenu=e=>{e.stopPropagation();dateOpen=!dateOpen;render()};
+ window.nkDashSetDay=n=>{dayOffset=n;customDate='';dateOpen=false;opened.clear();render()};
+ window.nkDashCustomDay=v=>{customDate=v;dateOpen=false;opened.clear();render()};
+ window.nkDashScan=()=>{
+   for(const n of ['scanAllTracking','scanTrackingStatuses','checkAllTracking','scanAllSPX'])if(typeof window[n]==='function'){window[n]();return}
+   const b=document.getElementById('btnScanTracking'); if(b)b.click();
+ };
+ document.addEventListener('click',()=>{if(dateOpen){dateOpen=false;render()}});
+ window.renderSmartDelivery=render;
+ setTimeout(render,250);setTimeout(render,1000);setTimeout(render,2200);
+})();
+</script>
+
+
+
+<style id="nk-remove-order-upload-card-v7">
+/* Khung giới thiệu Nạp đơn cũ nằm trực tiếp sau tiêu đề Quản lý đơn */
+#sectionOrders > .section-title + div {
+    display: none !important;
+}
+</style>
+
+<script id="nk-remove-order-upload-card-v7-js">
+(function () {
+    function removeOldDepositIntro() {
+        const orders = document.getElementById('sectionOrders');
+        if (!orders) return;
+
+        [...orders.children].forEach(el => {
+            const text = (el.textContent || '').replace(/\s+/g, ' ').trim();
+            if (
+                text.includes('Nạp đơn hàng') &&
+                text.includes('Chọn một hoặc nhiều ảnh Shopee') &&
+                !el.id
+            ) {
+                el.remove();
+            }
+        });
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        removeOldDepositIntro();
+        setTimeout(removeOldDepositIntro, 300);
+        setTimeout(removeOldDepositIntro, 1200);
+    });
+
+    setTimeout(removeOldDepositIntro, 50);
+})();
+</script>
+
+
+
+<style id="nk-dashboard-single-source-v8-css">
+/* Chỉ giữ bộ điều khiển của dashboard mới */
+#orderSearch,
+#btnScanReport,
+#btnScanTracking {
+  display:none !important;
+}
+</style>
+
+<script id="nk-dashboard-single-source-v8-js">
+(function(){
+  function txt(v){
+    return String(v == null ? "" : v)
+      .trim()
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g,"")
+      .replace(/đ/g,"d");
+  }
+
+  // Một nguồn phân loại trạng thái duy nhất.
+  window.nkOrderState = function(order){
+    const raw = [
+      order?.tracking?.tracking_status,
+      order?.tracking_status,
+      order?.tracking?.status_text,
+      order?.tracking?.milestone,
+      order?.status
+    ].filter(Boolean).join(" | ");
+
+    const s = txt(raw);
+
+    // Trạng thái giao thành công là trạng thái cuối: không cho Mail/check_all
+    // ghi "hủy" sau đó làm dashboard đổi ngược lại.
+    if (
+      order?.tracking?.delivered === true ||
+      order?.delivered === true ||
+      !!order?.delivered_at ||
+      !!order?.tracking?.delivered_at ||
+      s.includes("giao hang thanh cong") ||
+      s.includes("da giao thanh cong") ||
+      s.includes("giao thanh cong") ||
+      s === "da giao" ||
+      s.includes("delivered")
+    ) return "delivered";
+
+    if (
+      s.includes("da huy") ||
+      s.includes("bi huy") ||
+      s.includes("don huy") ||
+      s.includes("cancelled") ||
+      s.includes("canceled")
+    ) return "cancelled";
+
+    const hasTracking = !![
+      order?.tracking?.tracking_code,
+      order?.tracking_code,
+      order?.trackingCode,
+      order?.spx_tracking_code,
+      order?.waybill,
+      order?.waybill_no
+    ].find(v => String(v || "").trim());
+
+    return hasTracking ? "active" : "waiting";
+  };
+
+  function cleanLegacyControls(){
+    ["orderSearch","btnScanReport","btnScanTracking"].forEach(id=>{
+      const el=document.getElementById(id);
+      if(el) el.style.setProperty("display","none","important");
+    });
+
+    // Ẩn các nút/tìm kiếm legacy theo text, nhưng không đụng vào dashboard mới.
+    document.querySelectorAll("#sectionOrders button, #sectionOrders input").forEach(el=>{
+      if(el.closest("#nkDeliveryManager")) return;
+      const t=(el.textContent || el.placeholder || "").replace(/\s+/g," ").trim();
+      if (
+        /Quét Trạng Thái Đơn Báo Cáo/i.test(t) ||
+        /Quét Trạng Thái Vận Đơn/i.test(t) ||
+        /Tìm kiếm nhanh mã đơn hoặc tên sản phẩm/i.test(t)
+      ){
+        const box=el.closest("button, label, .form-group, .search-box") || el;
+        box.style.setProperty("display","none","important");
+      }
+    });
+  }
+
+  // Patch dashboard renderer predicates used by V6/V7.
+  // Re-render after cachedOrders changes so counters always come from the same state function.
+  function installStableRenderer(){
+    const old = window.renderSmartDelivery;
+    if(typeof old !== "function" || old.__nkV8) return;
+
+    const wrapped = function(){
+      const r = old.apply(this, arguments);
+      cleanLegacyControls();
+      return r;
+    };
+    wrapped.__nkV8 = true;
+    window.renderSmartDelivery = wrapped;
+  }
+
+  document.addEventListener("DOMContentLoaded", ()=>{
+    cleanLegacyControls();
+    installStableRenderer();
+
+    const root=document.getElementById("sectionOrders");
+    if(root){
+      const ob=new MutationObserver(()=>{
+        clearTimeout(window.__nkV8Clean);
+        window.__nkV8Clean=setTimeout(cleanLegacyControls,30);
+      });
+      ob.observe(root,{childList:true,subtree:true});
+    }
+  });
+
+  setTimeout(cleanLegacyControls,100);
+  setTimeout(cleanLegacyControls,800);
+  setTimeout(cleanLegacyControls,1800);
+})();
+</script>
+
+
+
+<style id="nk-stats-click-v9-css">
+.nkx-overview-item{cursor:pointer;transition:.18s ease;user-select:none}
+.nkx-overview-item:active{transform:scale(.98)}
+.nkx-overview-item.nkx-stat-selected{outline:2px solid #fb6a4a;box-shadow:0 5px 16px rgba(251,106,74,.13)}
+#nkx-status-detail{margin-top:10px;border:1px solid #dbe8f3;border-radius:14px;background:#fff;overflow:hidden}
+.nkx-status-detail-head{display:flex;align-items:center;padding:11px 13px;border-bottom:1px solid #edf2f7;font-weight:900;color:#1e293b;font-size:12px}
+.nkx-status-detail-head span:last-child{margin-left:auto;color:#64748b;font-size:10px}
+.nkx-status-row{display:flex;align-items:center;gap:9px;padding:11px 13px;border-bottom:1px solid #f0f3f7;cursor:pointer}
+.nkx-status-row:last-child{border-bottom:0}
+.nkx-status-row:hover{background:#f8fafc}
+.nkx-status-badge{width:36px;height:36px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:16px;background:#f1f5f9;flex:0 0 auto}
+.nkx-status-code{font-weight:950;color:#2544a5;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.nkx-status-sub{font-size:9px;color:#7b8798;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.nkx-status-arrow{margin-left:auto;color:#64748b;font-size:20px}
+.nkx-empty-detail{text-align:center;padding:18px;color:#94a3b8;font-size:11px}
+</style>
+
+<script id="nk-stats-click-v9-js">
+(function(){
+ let selectedState = null;
+
+ function S(v){ return String(v == null ? '' : v).trim(); }
+ function orders(){
+   /* cachedOrders của code gốc được khai báo bằng let/const nên không nằm trên window.
+      Đọc trực tiếp biến lexical trước, rồi mới fallback sang window. */
+   try {
+     if (typeof cachedOrders !== 'undefined' && Array.isArray(cachedOrders)) return cachedOrders;
+   } catch(e) {}
+   return Array.isArray(window.cachedOrders) ? window.cachedOrders : [];
+ }
+ function tracking(o){
+   for(const v of [o?.tracking?.tracking_code,o?.tracking_code,o?.trackingCode,o?.spx_tracking_code,o?.waybill,o?.waybill_no]){
+     if(S(v)) return S(v).toUpperCase();
+   }
+   return '';
+ }
+ function orderCode(o){ return S(o?.order_code || o?.order_id || o?.code || o?.shopee_order_code) || ('Đơn #' + S(o?.id)); }
+ function state(o){
+   if(typeof window.nkOrderState === 'function') return window.nkOrderState(o);
+   return tracking(o) ? 'active' : 'waiting';
+ }
+ function name(o){ return S(o?.recipient_name) || S(o?.product_name) || 'Chưa có thông tin'; }
+ function label(k){
+   return {active:'Đang vận chuyển',delivered:'Đã giao',cancelled:'Đơn bị hủy',waiting:'Chờ lấy hàng'}[k] || k;
+ }
+ function icon(k){
+   return {active:'📦',delivered:'✅',cancelled:'❌',waiting:'🟣'}[k] || '📦';
+ }
+
+ function detailHtml(k){
+   const buckets = window.__nkDashboardBuckets || {};
+   const list = Array.isArray(buckets[k]) ? buckets[k] : orders().filter(o=>state(o)===k);
+   return `<div id="nkx-status-detail">
+     <div class="nkx-status-detail-head"><div>${icon(k)} ${label(k)}</div><span>${list.length} đơn</span></div>
+     ${list.length ? list.map(o=>{
+       const code = tracking(o) || orderCode(o);
+       const type = tracking(o) ? 'Mã vận đơn' : 'Mã đơn Shopee';
+       return `<div class="nkx-status-row" onclick="if(typeof showNkOrderDetail==='function')showNkOrderDetail(${Number(o.id)})">
+         <div class="nkx-status-badge">${tracking(o)?'🚚':'🧾'}</div>
+         <div style="min-width:0"><div class="nkx-status-code">${code.replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]))}</div>
+         <div class="nkx-status-sub">${type} · ${name(o).replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]))}</div></div>
+         <div class="nkx-status-arrow">›</div>
+       </div>`;
+     }).join('') : `<div class="nkx-empty-detail">Không có đơn ở trạng thái này.</div>`}
+   </div>`;
+ }
+
+ function bind(){
+   const grid=document.querySelector('#nkDeliveryManager .nkx-overview-grid');
+   if(!grid) return;
+   const cards=[...grid.querySelectorAll('.nkx-overview-item')];
+   const keys=['active','delivered','cancelled','waiting'];
+
+   cards.forEach((card,i)=>{
+     if(!keys[i]) return;
+     card.dataset.nkState=keys[i];
+     card.onclick=function(){
+       selectedState = selectedState===keys[i] ? null : keys[i];
+       cards.forEach(c=>c.classList.toggle('nkx-stat-selected',c.dataset.nkState===selectedState));
+       let old=document.getElementById('nkx-status-detail');
+       if(old) old.remove();
+       if(selectedState){
+         grid.insertAdjacentHTML('afterend',detailHtml(selectedState));
+       }
+     };
+     card.classList.toggle('nkx-stat-selected',card.dataset.nkState===selectedState);
+   });
+
+   const old=document.getElementById('nkx-status-detail');
+   if(selectedState && !old) grid.insertAdjacentHTML('afterend',detailHtml(selectedState));
+ }
+
+ const observer=new MutationObserver(()=>{
+   clearTimeout(window.__nkStatsBind);
+   window.__nkStatsBind=setTimeout(bind,30);
+ });
+ document.addEventListener('DOMContentLoaded',()=>{
+   const root=document.getElementById('nkDeliveryManager');
+   if(root) observer.observe(root,{childList:true,subtree:true});
+   setTimeout(bind,300);
+   setTimeout(bind,1200);
+ });
+ setTimeout(bind,100);
+})();
+</script>
+
+
+
+<script id="nk-v12-sync-status">
+(function(){
+  function syncDashboard(){
+    try{
+      /* Sau khi nkOrderState đã được tạo, render lại dashboard để
+         số đếm và danh sách click cùng dùng một kết quả phân loại. */
+      if(typeof window.renderSmartDelivery === "function"){
+        window.renderSmartDelivery();
+      }
+    }catch(e){ console.warn("NK V12 sync:", e); }
+  }
+
+  document.addEventListener("DOMContentLoaded", function(){
+    setTimeout(syncDashboard, 500);
+    setTimeout(syncDashboard, 1400);
+  });
+  setTimeout(syncDashboard, 2200);
+})();
+</script>
+
+
+
+<style id="nk-v14-stat-direct-css">
+.nkx-overview-item{cursor:pointer}
+.nkx-overview-item.nkx-stat-selected{outline:2px solid #fb6a4a;box-shadow:0 5px 16px rgba(251,106,74,.14)}
+</style>
+<script id="nk-v14-stat-direct-js">
+(function(){
+ const esc=v=>String(v??'').replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));
+ const S=v=>String(v??'').trim();
+ function tcode(o){for(const v of [o?.tracking?.tracking_code,o?.tracking_code,o?.trackingCode,o?.spx_tracking_code,o?.waybill,o?.waybill_no])if(S(v))return S(v).toUpperCase();return''}
+ function ocode(o){return S(o?.order_code||o?.shopee_order_code||o?.code||o?.order_id)||('Đơn #'+S(o?.id))}
+ function title(k){return {active:'📦 Đang vận chuyển',delivered:'✅ Đã giao',cancelled:'❌ Đơn bị hủy',waiting:'🟣 Chờ lấy hàng'}[k]}
+ let openKey='';
+ window.nkStatOpen=function(k,el){
+   const grid=el.closest('.nkx-overview-grid');
+   if(!grid)return;
+   const old=document.getElementById('nkx-status-detail');
+   if(old)old.remove();
+   document.querySelectorAll('.nkx-overview-item').forEach(x=>x.classList.remove('nkx-stat-selected'));
+   if(openKey===k){openKey='';return}
+   openKey=k; el.classList.add('nkx-stat-selected');
+   const buckets=window.__nkDashboardBuckets||{};
+   const list=Array.isArray(buckets[k])?buckets[k]:[];
+   const rows=list.length?list.map(o=>{
+      const tc=tcode(o), code=tc||ocode(o);
+      const sub=tc?'Mã vận đơn':'Mã đơn Shopee';
+      return `<div class="nkx-status-row">
+        <div class="nkx-status-badge">${tc?'🚚':'🧾'}</div>
+        <div style="min-width:0;flex:1"><div class="nkx-status-code">${esc(code)}</div>
+        <div class="nkx-status-sub">${sub}${S(o?.recipient_name)?' · '+esc(o.recipient_name):''}</div></div>
+      </div>`;
+   }).join(''):`<div class="nkx-empty-detail">Không có đơn ở trạng thái này.</div>`;
+   grid.insertAdjacentHTML('afterend',`<div id="nkx-status-detail">
+      <div class="nkx-status-detail-head"><div>${title(k)}</div><span>${list.length} đơn</span></div>${rows}</div>`);
+ };
+})();
+</script>
+
+</body>
+</html>
