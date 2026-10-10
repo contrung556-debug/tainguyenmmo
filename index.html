@@ -7102,6 +7102,7 @@ html,body{width:100%;max-width:100%;overflow-x:hidden!important}
       <div class="nk-menu-head"><b>⚡ NK MMO</b></div>
       <button class="nk-menu-item" onclick="goNk('deposit')">➕ &nbsp; Nạp Đơn</button>
       <button class="nk-menu-item" onclick="goNk('tracking')">🚚 &nbsp; Tra Mã Đơn</button>
+      <button class="nk-menu-item" id="nkQuickLinksMenuBtnFixed" onclick="closeNkMenu();nkOpenQuickLinks()">🔗 &nbsp; Link sản phẩm</button>
       <div class="nk-menu-sep"></div>
       <button class="nk-menu-item" onclick="closeNkMenu();loadDepositHistory()">📜 &nbsp; Lịch Sử Nạp Ví</button>
       <button class="nk-menu-item" onclick="closeNkMenu();document.querySelector('#headerWalletBox button:last-child')?.click()">💰 &nbsp; Nạp Ví</button>
@@ -8535,8 +8536,7 @@ html,body{width:100%;max-width:100%;overflow-x:hidden!important}
  window.nkqlReset=()=>{if(confirm('Reset toàn bộ dấu Đã mở hôm nay?')){opened.clear();save();render()}};
  window.nkOpenQuickLinks=()=>{document.querySelectorAll('main > section,.main-content > section,#content > section').forEach(x=>{if(x.id!=='nkQuickLinksPage')x.style.display='none'});const p=document.getElementById('nkQuickLinksPage');if(p){p.style.display='block';render();scrollTo(0,0)}};
  document.addEventListener('DOMContentLoaded',()=>{const i=document.getElementById('nkqlSearch');if(i)i.oninput=e=>{q=e.target.value.trim();render()};render();
- const hosts=[...document.querySelectorAll('nav,.menu,.sidebar,#menu,.dropdown-content')];const h=hosts.find(x=>(x.textContent||'').includes('Nạp đơn'))||hosts[0];
- if(h&&!document.getElementById('nkQuickLinksMenuBtn')){const b=document.createElement('button');b.id='nkQuickLinksMenuBtn';b.type='button';b.innerHTML='🔗 Link sản phẩm';b.onclick=window.nkOpenQuickLinks;const sm=h.querySelector('button,a');if(sm)b.className=sm.className;h.appendChild(b)}})
+ })
 })();
 </script>
 </body>
