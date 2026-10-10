@@ -9047,5 +9047,283 @@ if(document.readyState==='loading') document.addEventListener('DOMContentLoaded'
 })();
 </script>
 
+
+<!-- ================= V28b: TAB LẤY OTP / LINK XÁC THỰC (theo ảnh mockup) ================= -->
+<style id="nk-v28b-otp-css">
+#sectionOtp{overflow:hidden}
+#sectionOtp>.section-title{display:block!important;margin:0 0 12px!important;padding:0;font-size:inherit!important;letter-spacing:0!important}
+.nkvo-head{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px}
+.nkvo-head-l{display:flex;align-items:center;gap:10px;flex:1 1 200px;min-width:0}
+.nkvo-mail{flex:0 0 auto;width:46px;height:46px;border-radius:14px;background:#fdecec;display:grid;place-items:center;
+  box-shadow:0 4px 10px rgba(232,54,42,.12)}
+.nkvo-mail svg{width:26px;height:26px}
+.nkvo-head-t{min-width:0}
+.nkvo-head-t b{display:block;font-size:clamp(17px,5.4vw,22px);font-weight:900;color:#d9302c;line-height:1.2;letter-spacing:-.2px}
+.nkvo-head-t small{display:block;font-size:11.5px;font-weight:500;color:#6b7280;line-height:1.35;margin-top:2px}
+
+.nkvo-info{display:flex;align-items:center;gap:12px;margin:0 0 14px;padding:12px;border-radius:16px;
+  background:#f6f7fb;border:1px solid #eceef5}
+.nkvo-info>svg{width:34px;height:34px;flex:0 0 auto}
+.nkvo-info div{min-width:0;line-height:1.4;font-size:12.5px;color:#2b6fd6;overflow-wrap:anywhere}
+.nkvo-info b{display:block;color:#1d2a4a;font-size:13.5px;font-weight:800}
+
+.nkvo-lab{display:block;font-size:14px;font-weight:800;color:#1d2a4a;margin:0 0 7px}
+.nkvo-field{position:relative;display:flex;align-items:center;height:52px;margin-bottom:12px;
+  border:1px solid #f0d3cb;border-radius:16px;background:#fff;overflow:hidden}
+.nkvo-field:focus-within{border-color:#ee4d2d;box-shadow:0 0 0 3px rgba(238,77,45,.12)}
+.nkvo-field .nkvo-fi{flex:0 0 auto;width:46px;display:grid;place-items:center}
+.nkvo-field .nkvo-fi svg{width:22px;height:22px}
+#sectionOtp .nkvo-field input{flex:1 1 auto;min-width:0;height:100%;margin:0!important;padding:0 6px 0 4px!important;
+  border:0!important;border-radius:0!important;background:transparent!important;font-size:15px!important;color:#1d2a4a;outline:none}
+.nkvo-clear{flex:0 0 auto;width:42px;height:100%;border:0;background:transparent;color:#8a94a6;cursor:pointer;display:none;
+  place-items:center;padding:0}
+.nkvo-clear.show{display:grid}
+.nkvo-clear svg{width:18px;height:18px}
+
+#sectionOtp #btnFetchOtp{
+  display:flex;align-items:center;justify-content:center;gap:10px;height:54px;margin:0 0 12px;border:0;border-radius:16px;
+  font-size:17px;font-weight:900;color:#fff;background:linear-gradient(135deg,#f65a38,#e8362a)!important;
+  box-shadow:0 10px 20px rgba(232,54,42,.28)!important}
+#sectionOtp #btnFetchOtp svg{width:26px;height:26px;flex:0 0 auto}
+#sectionOtp #btnFetchOtp:disabled{opacity:.7}
+
+#fetchResult{margin-top:0!important;font-size:inherit!important;min-width:0}
+.nkvo-loading{display:flex;align-items:center;justify-content:center;gap:10px;padding:14px;border-radius:16px;
+  background:#fff6ee;color:#c2620f;font-weight:800;font-size:14px}
+.nkvo-spin{width:20px;height:20px;border:3px solid #f6c9a6;border-top-color:#e8742a;border-radius:50%;animation:nkvospin .8s linear infinite}
+@keyframes nkvospin{to{transform:rotate(360deg)}}
+.nkvo-err{display:flex;align-items:flex-start;gap:10px;padding:13px;border-radius:16px;background:#fff1f0;border:1px solid #f7c9c4;
+  color:#c0392b;font-weight:700;font-size:13.5px;line-height:1.4;overflow-wrap:anywhere}
+.nkvo-err svg{width:22px;height:22px;flex:0 0 auto}
+
+.nkvo-res{padding:12px;border-radius:20px;background:#effaf4;border:1px solid #d3efe0;min-width:0}
+.nkvo-rh{display:flex;align-items:center;gap:10px;min-width:0}
+.nkvo-ok{flex:0 0 auto;width:46px;height:46px;border-radius:50%;background:#2fbd6f;display:grid;place-items:center;
+  box-shadow:0 6px 12px rgba(47,189,111,.3)}
+.nkvo-ok svg{width:26px;height:26px}
+.nkvo-rt{flex:1 1 auto;min-width:0;line-height:1.3}
+.nkvo-rt b{display:block;font-size:clamp(15px,4.6vw,18px);font-weight:900;color:#1d2a4a}
+.nkvo-rt small{display:block;font-size:12.5px;color:#6b7280;overflow-wrap:anywhere}
+.nkvo-valid{flex:0 0 auto;display:flex;align-items:center;gap:6px;padding:7px 9px;border-radius:12px;background:#fff;border:1px solid #f4d8d2}
+.nkvo-valid svg{width:22px;height:22px;flex:0 0 auto}
+.nkvo-valid div{display:flex;flex-direction:column;line-height:1.2;font-size:11px;color:#4b5563}
+.nkvo-valid b{font-size:12.5px;color:#e5352b;font-weight:900}
+
+.nkvo-sub{font-size:14.5px;font-weight:800;color:#1d2a4a;margin:14px 0 8px}
+.nkvo-code{display:flex;align-items:center;justify-content:space-around;flex-wrap:wrap;gap:2px 6px;padding:10px 8px;
+  border-radius:16px;background:#e2f6ea;border:1px solid #c8ebd8}
+.nkvo-code span{font-size:clamp(24px,8.4vw,34px);font-weight:900;color:#1c2d52;line-height:1.2;min-width:.7em;text-align:center}
+.nkvo-acts{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
+.nkvo-btn{display:flex;align-items:center;justify-content:center;gap:8px;min-width:0;height:48px;border-radius:14px;
+  border:1.5px solid #dfe3ea;background:#fff;color:#1d2a4a;font-size:15px;font-weight:800;cursor:pointer;padding:0 8px;
+  box-shadow:0 3px 8px rgba(30,41,59,.05)}
+.nkvo-btn svg{width:20px;height:20px;flex:0 0 auto}
+.nkvo-note{display:flex;align-items:flex-start;gap:8px;margin-top:12px;font-size:12.5px;line-height:1.45;color:#1a8a52}
+.nkvo-note svg{width:20px;height:20px;flex:0 0 auto;margin-top:1px}
+.nkvo-note.blue{color:#2b6fd6}
+
+.nkvo-link{margin-top:12px;padding:12px;border-radius:18px;background:#f0f6ff;border:1px solid #d6e5fb}
+.nkvo-lh{display:flex;align-items:center;gap:10px}
+.nkvo-li{flex:0 0 auto;width:44px;height:44px;border-radius:13px;background:#e0ecff;display:grid;place-items:center}
+.nkvo-li svg{width:26px;height:26px}
+.nkvo-lh div{min-width:0;line-height:1.35}
+.nkvo-lh b{display:block;font-size:15px;font-weight:900;color:#1d5fc4}
+.nkvo-lh small{font-size:12.5px;color:#2b6fd6}
+.nkvo-open{display:flex;align-items:center;justify-content:center;gap:9px;height:52px;margin-top:12px;border-radius:15px;
+  background:linear-gradient(135deg,#3b8cff,#2468e8);color:#fff!important;font-size:16px;font-weight:900;text-decoration:none;
+  box-shadow:0 8px 18px rgba(36,104,232,.3)}
+.nkvo-open svg{width:22px;height:22px}
+.nkvo-open.off{background:#c3cad6;box-shadow:none;pointer-events:none}
+.nkvo-det{margin-top:6px}
+.nkvo-det summary{list-style:none;display:flex;align-items:center;justify-content:space-between;padding:12px 6px 4px;
+  font-size:14px;font-weight:800;color:#1d2a4a;cursor:pointer}
+.nkvo-det summary::-webkit-details-marker{display:none}
+.nkvo-det summary svg{width:20px;height:20px;transition:transform .2s}
+.nkvo-det[open] summary svg{transform:rotate(180deg)}
+.nkvo-url{margin-top:6px;padding:10px;border-radius:12px;background:#fff;border:1px dashed #bcd2f5;font-size:12px;color:#334;
+  word-break:break-all;overflow-wrap:anywhere;max-height:120px;overflow:auto}
+.nkvo-det .nkvo-btn{margin-top:8px;width:100%}
+
+.nkvo-guide{display:flex;gap:12px;margin-top:14px;padding:14px 12px;border-radius:18px;background:#fff3ee;border:1px solid #fadcd2}
+.nkvo-bulb{flex:0 0 auto;width:44px;height:44px;border-radius:14px;background:#ffe9c9;display:grid;place-items:center;align-self:flex-start}
+.nkvo-bulb svg{width:26px;height:26px}
+.nkvo-guide>div{min-width:0}
+.nkvo-guide b{display:block;font-size:16px;font-weight:900;color:#e5352b;margin-bottom:6px}
+.nkvo-guide ul{margin:0;padding-left:16px;color:#4b5563;font-size:12.5px;line-height:1.55}
+.nkvo-guide li{margin-bottom:3px;overflow-wrap:anywhere}
+</style>
+
+<script id="nk-v28b-otp-js">
+(function(){
+'use strict';
+var $=function(s,r){return (r||document).querySelector(s)};
+var esc=function(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})};
+
+var I={
+ mail:'<svg viewBox="0 0 24 24" fill="none" stroke="#e5352b" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"><rect x="3" y="5" width="18" height="14" rx="3" fill="#e5352b"/><path d="M4 8l8 6 8-6" stroke="#fff" stroke-width="2"/></svg>',
+ mailO:'<svg viewBox="0 0 24 24" fill="none" stroke="#e5352b" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="M4 8l8 6 8-6"/></svg>',
+ x:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg>',
+ apple:'<svg viewBox="0 0 24 24"><path fill="#4b5563" d="M17.05 12.04c-.03-2.58 2.1-3.82 2.2-3.88-1.2-1.75-3.07-2-3.74-2.03-1.59-.16-3.1.94-3.91.94-.81 0-2.05-.92-3.37-.9-1.73.03-3.33 1.01-4.22 2.56-1.8 3.12-.46 7.74 1.29 10.27.86 1.24 1.88 2.63 3.22 2.58 1.29-.05 1.78-.84 3.34-.84 1.56 0 2 .84 3.36.81 1.39-.02 2.27-1.26 3.12-2.5.98-1.43 1.39-2.82 1.41-2.89-.03-.01-2.7-1.04-2.73-4.12z"/><path fill="#4b5563" d="M14.5 4.5c.7-.86 1.18-2.04 1.05-3.22-1.01.04-2.24.67-2.96 1.52-.65.75-1.22 1.96-1.07 3.11 1.13.09 2.27-.57 2.98-1.41z"/></svg>',
+ key:'<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="15" r="4.5" fill="#fff"/><path d="M11.3 11.7 20 3M16 7l3 3M13.5 9.5l2.5 2.5"/></svg>',
+ check:'<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>',
+ clock:'<svg viewBox="0 0 24 24" fill="none" stroke="#e5352b" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>',
+ copy:'<svg viewBox="0 0 24 24" fill="none" stroke="#1d2a4a" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"><rect x="8" y="3" width="11" height="14" rx="2"/><path d="M5 8v11a2 2 0 0 0 2 2h9"/></svg>',
+ redo:'<svg viewBox="0 0 24 24" fill="none" stroke="#1d2a4a" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 11a8 8 0 1 0-2.3 6"/><path d="M20 4v7h-7"/></svg>',
+ info:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="currentColor"/><path d="M12 11v6" stroke="#fff" stroke-width="2.4" stroke-linecap="round"/><circle cx="12" cy="7.5" r="1.4" fill="#fff"/></svg>',
+ link:'<svg viewBox="0 0 24 24" fill="none" stroke="#2468e8" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 14a4.5 4.5 0 0 0 6.4 0l3-3a4.5 4.5 0 0 0-6.4-6.4l-1 1"/><path d="M14 10a4.5 4.5 0 0 0-6.4 0l-3 3a4.5 4.5 0 0 0 6.4 6.4l1-1"/></svg>',
+ linkW:'<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 14a4.5 4.5 0 0 0 6.4 0l3-3a4.5 4.5 0 0 0-6.4-6.4l-1 1"/><path d="M14 10a4.5 4.5 0 0 0-6.4 0l-3 3a4.5 4.5 0 0 0 6.4 6.4l1-1"/></svg>',
+ ext:'<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6M10 14 21 3"/></svg>',
+ chev:'<svg viewBox="0 0 24 24" fill="none" stroke="#1d2a4a" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>',
+ warn:'<svg viewBox="0 0 24 24" fill="none" stroke="#e74c3c" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 2 20h20z"/><path d="M12 10v5M12 18v.5"/></svg>',
+ bulb:'<svg viewBox="0 0 24 24"><path d="M12 2a7 7 0 0 0-4 12.7V17h8v-2.3A7 7 0 0 0 12 2z" fill="#ffb81f"/><rect x="9" y="18" width="6" height="2.5" rx="1" fill="#c98b1a"/><path d="M10 21.5h4" stroke="#c98b1a" stroke-width="1.6" stroke-linecap="round"/></svg>'
+};
+
+var busy=false;
+
+function buildStatic(){
+  var sec=document.getElementById('sectionOtp'); if(!sec||sec.dataset.nkv) return; sec.dataset.nkv='1';
+
+  var t=$('.section-title',sec);
+  if(t) t.innerHTML='<div class="nkvo-head"><div class="nkvo-head-l"><span class="nkvo-mail">'+I.mail+'</span>'+
+    '<div class="nkvo-head-t"><b>Lấy OTP iCloud</b><small>Nhập địa chỉ Email iCloud để lấy mã OTP hoặc link xác thực</small></div></div>'+
+    '<div class="nkv-badge"><svg viewBox="0 0 26 28"><path d="M13 1 2 5v8c0 7 4.6 12 11 14 6.4-2 11-7 11-14V5z" fill="#2dbb6f"/><path d="M8 14l3.6 3.6L18.5 10" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>'+
+    '<div><b>An toàn - Bảo mật</b><small>Hỗ trợ 24/7</small></div></div></div>';
+
+  var inp=document.getElementById('fetchInputEmail'), btn=document.getElementById('btnFetchOtp'), res=document.getElementById('fetchResult');
+  if(!inp||!btn||!res) return;
+
+  var info=document.createElement('div'); info.className='nkvo-info';
+  info.innerHTML=I.apple+'<div><b>Chỉ hỗ trợ Email iCloud</b>Nhập đúng địa chỉ Email iCloud<br>(ví dụ: example@icloud.com)</div>';
+  var lab=document.createElement('label'); lab.className='nkvo-lab'; lab.textContent='Nhập Email iCloud'; lab.setAttribute('for','fetchInputEmail');
+
+  var field=document.createElement('div'); field.className='nkvo-field';
+  var fi=document.createElement('span'); fi.className='nkvo-fi'; fi.innerHTML=I.mailO;
+  var clr=document.createElement('button'); clr.type='button'; clr.className='nkvo-clear'; clr.setAttribute('aria-label','Xóa'); clr.innerHTML=I.x;
+
+  inp.parentNode.insertBefore(info,inp);
+  inp.parentNode.insertBefore(lab,inp);
+  inp.parentNode.insertBefore(field,inp);
+  field.appendChild(fi); field.appendChild(inp); field.appendChild(clr);
+  inp.placeholder='example@icloud.com';
+  inp.setAttribute('autocomplete','off'); inp.setAttribute('autocapitalize','off'); inp.setAttribute('spellcheck','false');
+  var sync=function(){clr.classList.toggle('show',!!inp.value)};
+  inp.addEventListener('input',sync); sync();
+  clr.addEventListener('click',function(){inp.value='';sync();inp.focus();res.innerHTML=''});
+  inp.addEventListener('keydown',function(e){ if(e.key==='Enter'){e.preventDefault();window.fetchOtpLink(btn)} });
+
+  btn.innerHTML=I.key+'<span>Lấy Mã OTP / Link</span>';
+
+  var g=document.createElement('div'); g.className='nkvo-guide';
+  g.innerHTML='<span class="nkvo-bulb">'+I.bulb+'</span><div><b>Hướng dẫn sử dụng</b><ul>'+
+    '<li>Nhập đúng địa chỉ Email iCloud (ví dụ: example@icloud.com)</li>'+
+    '<li>Bấm “Lấy Mã OTP / Link” để nhận thông tin mới nhất</li>'+
+    '<li>Mã OTP có hiệu lực trong vài phút</li>'+
+    '<li>Nhấn “Mở Link Xác Thực” để truy cập (nếu có link)</li>'+
+    '<li>Nếu không nhận được, thử lại sau ít phút</li></ul></div>';
+  res.parentNode.insertBefore(g,res.nextSibling);
+}
+
+function copyText(txt,btn,label){
+  var done=function(){
+    if(!btn) return; var old=btn.innerHTML;
+    btn.innerHTML=I.check.replace('#fff','#1a8a52')+'<span>Đã sao chép</span>';
+    setTimeout(function(){btn.innerHTML=old},1500);
+  };
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    navigator.clipboard.writeText(txt).then(done,function(){fallback()});
+  }else fallback();
+  function fallback(){
+    var ta=document.createElement('textarea'); ta.value=txt; ta.style.cssText='position:fixed;opacity:0;top:0;left:0';
+    document.body.appendChild(ta); ta.select(); try{document.execCommand('copy')}catch(e){} document.body.removeChild(ta); done();
+  }
+}
+
+function nowStr(){
+  var d=new Date(), p=function(n){return String(n).padStart(2,'0')};
+  return p(d.getHours())+':'+p(d.getMinutes())+':'+p(d.getSeconds());
+}
+
+function render(data,res){
+  var otp=String(data.otp==null?'':data.otp).trim();
+  var hasOtp=otp&&otp.toLowerCase()!=='không có';
+  var raw=String(data.link_xac_thuc_tai_day||'').trim(), low=raw.toLowerCase();
+  var hasLink=(low.indexOf('http://')===0||low.indexOf('https://')===0);
+  var email=data.hide_email_tin?String(data.hide_email_tin):'';
+
+  if(!hasOtp&&!hasLink){
+    res.innerHTML='<div class="nkvo-err">'+I.warn+'<span>Chưa có mã OTP hoặc link xác thực mới cho email này. Vui lòng thử lại sau ít phút.</span></div>';
+    return;
+  }
+  var title=hasOtp&&hasLink?'Đã nhận được OTP & link':(hasOtp?'Đã nhận được mã OTP':'Đã nhận được link xác thực');
+  var h='<div class="nkvo-res"><div class="nkvo-rh"><span class="nkvo-ok">'+I.check+'</span>'+
+    '<div class="nkvo-rt"><b>'+title+'</b><small>Thời gian: '+nowStr()+(email?' · '+esc(email):'')+'</small></div>';
+  if(hasOtp) h+='<div class="nkvo-valid">'+I.clock+'<div>Hiệu lực<b>5 phút</b></div></div>';
+  h+='</div>';
+
+  if(hasOtp){
+    h+='<div class="nkvo-sub">Mã OTP iCloud</div><div class="nkvo-code">'+
+      otp.split('').map(function(c){return c===' '?'':'<span>'+esc(c)+'</span>'}).join('')+'</div>'+
+      '<div class="nkvo-acts"><button type="button" class="nkvo-btn" data-a="copyotp">'+I.copy+'<span>Sao chép</span></button>'+
+      '<button type="button" class="nkvo-btn" data-a="retry">'+I.redo+'<span>Lấy lại OTP</span></button></div>'+
+      '<div class="nkvo-note" style="color:#1a8a52">'+I.info+'<span>Mã OTP có hiệu lực trong 5 phút. Vui lòng sử dụng ngay.</span></div>';
+  }
+  if(hasLink){
+    h+='<div class="nkvo-link"><div class="nkvo-lh"><span class="nkvo-li">'+I.link+'</span>'+
+      '<div><b>Link xác thực iCloud</b><small>Nhấn nút bên dưới để mở link (đã thu gọn)</small></div></div>'+
+      '<a class="nkvo-open" id="nkvoOpenLink" target="_blank" rel="noopener noreferrer">'+I.ext+'<span>Mở Link Xác Thực</span></a>'+
+      '<details class="nkvo-det"><summary><span>Xem chi tiết link</span>'+I.chev+'</summary>'+
+      '<div class="nkvo-url" id="nkvoUrl"></div>'+
+      '<button type="button" class="nkvo-btn" data-a="copylink">'+I.copy+'<span>Sao chép link</span></button></details>'+
+      '<div class="nkvo-note blue">'+I.info+'<span>Link có thể hết hạn sau vài phút. Vui lòng mở và xác thực ngay.</span></div></div>';
+    if(!hasOtp) h+='';
+  }
+  h+='</div>';
+  res.innerHTML=h;
+
+  if(hasLink){
+    var a=document.getElementById('nkvoOpenLink'); a.setAttribute('href',raw);
+    document.getElementById('nkvoUrl').textContent=raw;
+  }
+  res.querySelectorAll('[data-a]').forEach(function(b){
+    b.addEventListener('click',function(){
+      var act=b.getAttribute('data-a');
+      if(act==='copyotp') copyText(otp,b);
+      else if(act==='copylink') copyText(raw,b);
+      else if(act==='retry') window.fetchOtpLink(document.getElementById('btnFetchOtp'));
+    });
+  });
+}
+
+/* Ghi đè hàm lấy OTP: giữ nguyên API /api/otp?hide=... */
+window.fetchOtpLink=async function(btnEl){
+  var inp=document.getElementById('fetchInputEmail'), res=document.getElementById('fetchResult');
+  if(!inp||!res||busy) return;
+  var val=inp.value.trim();
+  if(!val){
+    if(typeof showModal==='function') showModal('Thông Báo','Vui lòng nhập tên hoặc email!');
+    return;
+  }
+  busy=true;
+  var btn=btnEl||document.getElementById('btnFetchOtp'), old=btn?btn.innerHTML:'';
+  if(btn){btn.disabled=true;btn.innerHTML='<span>Đang kết nối...</span>'}
+  res.innerHTML='<div class="nkvo-loading"><span class="nkvo-spin"></span><span>Đang kết nối...</span></div>';
+  try{
+    var r=await fetch('/api/otp?hide='+encodeURIComponent(val));
+    if(!r.ok) throw new Error('Lỗi server: '+r.status);
+    var data=await r.json();
+    if(data.status==='success') render(data,res);
+    else res.innerHTML='<div class="nkvo-err">'+I.warn+'<span>'+esc(data.message||'Không tìm thấy dữ liệu')+'</span></div>';
+  }catch(e){
+    res.innerHTML='<div class="nkvo-err">'+I.warn+'<span>Không thể kết nối server hoặc dữ liệu không hợp lệ.</span></div>';
+  }finally{
+    busy=false;
+    if(btn){btn.disabled=false;btn.innerHTML=I.key+'<span>Lấy Mã OTP / Link</span>'}
+  }
+};
+
+if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',buildStatic); else buildStatic();
+})();
+</script>
+
 </body>
 </html>
