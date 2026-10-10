@@ -527,6 +527,23 @@
             color:#fff;
         }
     </style>
+
+<style id="nk-ocr-editor-core-css">
+#nkOcrEditor{display:grid;gap:14px;margin:14px 0}
+#inputMultipleLines{display:none!important}
+.nk-ocr-card{background:#fff;border:1px solid #dce5ef;border-radius:16px;padding:14px;box-shadow:0 5px 18px rgba(15,23,42,.05)}
+.nk-ocr-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px}
+.nk-ocr-head b{font-size:15px;color:#2f3d50}
+.nk-ocr-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.nk-ocr-field{min-width:0}.nk-ocr-field.full{grid-column:1/-1}
+.nk-ocr-field label{display:block;font-size:11px;font-weight:800;color:#718096;margin:0 0 5px 2px}
+.nk-ocr-field input,.nk-ocr-field textarea{width:100%;box-sizing:border-box;border:1px solid #dce5ef;border-radius:10px;padding:11px 12px;font-size:14px;background:#fbfdff;color:#26364a}
+.nk-ocr-field textarea{display:block!important;min-height:68px;resize:vertical}
+.nk-ocr-missing{border-color:#f2b5a8!important;background:#fff8f6!important}
+.nk-ocr-remove{border:0;background:#fff0ed;color:#e45539;border-radius:9px;padding:7px 9px;font-weight:800}
+@media(max-width:600px){.nk-ocr-grid{grid-template-columns:1fr}.nk-ocr-field.full{grid-column:auto}}
+</style>
+
 </head>
 
 <body>
@@ -642,9 +659,9 @@
                 </div>
 
                 <div class="ocr-desc">
-                    Chọn một hoặc nhiều ảnh. Hệ thống sẽ đọc Mã đơn hàng,
-                    Tên sản phẩm, Thành tiền và mã vận đơn SPXVN nếu có. Email không có trong ảnh sẽ để trống.
-                    Bạn có thể sửa kết quả trước khi nạp.
+                    Chọn một hoặc nhiều ảnh. Hệ thống sẽ đọc Mã đơn hàng, Tên sản phẩm,
+                    Thành tiền, Mã vận đơn, Tên người nhận, SĐT và Địa chỉ nhận hàng.
+                    Kết quả sẽ hiện thành từng ô riêng để bạn kiểm tra và sửa trước khi nạp.
                 </div>
 
                 <input
@@ -670,10 +687,13 @@
 
             </div>
 
+            <div id="nkOcrEditor"></div>
+
+            <!-- Dữ liệu đồng bộ ẩn để hàm nạp hàng loạt cũ vẫn hoạt động -->
             <textarea
                 id="inputMultipleLines"
-                style="min-height:160px;"
-                placeholder="Mã Đơn | Email | Tên SP | Số tiền | Mã vận đơn | 4 số cuối SĐT"
+                style="display:none!important;"
+                aria-hidden="true"
             ></textarea>
 
             <button
@@ -3109,7 +3129,7 @@ async function addMultipleOrders(btnEl) {
    OCR SHOPEE
 ============================================================ */
 
-async function handleOrderImages(input) {
+async function handleOrderImagesLegacy(input) {
 
     const files =
         Array.from(
