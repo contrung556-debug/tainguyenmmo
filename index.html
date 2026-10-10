@@ -544,6 +544,15 @@
 @media(max-width:600px){.nk-ocr-grid{grid-template-columns:1fr}.nk-ocr-field.full{grid-column:auto}}
 </style>
 
+
+<style id="nk-links-route-v25-css">
+body.nk-links-route #nkQuickLinksPage{display:block!important}
+body.nk-links-route .product-section,
+body.nk-links-route .products-section,
+body.nk-links-route #productsSection,
+body.nk-links-route #storeContent,
+body.nk-links-route #marketplaceContent{display:none!important}
+</style>
 </head>
 
 <body>
@@ -8534,8 +8543,16 @@ html,body{width:100%;max-width:100%;overflow-x:hidden!important}
  document.getElementById('nkqlOpened').textContent=opened.size;document.getElementById('nkqlLeft').textContent=LINKS.length-opened.size;setTimeout(loadVisibleInfo,30)}
  window.nkqlOpen=n=>{const u=LINKS[n-1];if(!u)return;opened.add(n);save();render();window.open(u,'_blank','noopener,noreferrer')};
  window.nkqlReset=()=>{if(confirm('Reset toàn bộ dấu Đã mở hôm nay?')){opened.clear();save();render()}};
- window.nkOpenQuickLinks=()=>{document.querySelectorAll('main > section,.main-content > section,#content > section').forEach(x=>{if(x.id!=='nkQuickLinksPage')x.style.display='none'});const p=document.getElementById('nkQuickLinksPage');if(p){p.style.display='block';render();scrollTo(0,0)}};
- document.addEventListener('DOMContentLoaded',()=>{const i=document.getElementById('nkqlSearch');if(i)i.oninput=e=>{q=e.target.value.trim();render()};render();
+ function nkqlShowPage(push){
+   if(push && location.pathname!='/links') history.pushState({nkPage:'links'},'', '/links');
+   document.body.classList.add('nk-links-route');
+   document.querySelectorAll('main > section,.main-content > section,#content > section').forEach(x=>{if(x.id!=='nkQuickLinksPage')x.style.display='none'});
+   const p=document.getElementById('nkQuickLinksPage');
+   if(p){p.style.display='block';render();scrollTo(0,0)}
+ }
+ window.nkOpenQuickLinks=()=>nkqlShowPage(true);
+ window.addEventListener('popstate',()=>{ if(location.pathname==='/links') nkqlShowPage(false); else location.reload(); });
+ document.addEventListener('DOMContentLoaded',()=>{if(location.pathname==='/links'){setTimeout(()=>nkqlShowPage(false),0)}const i=document.getElementById('nkqlSearch');if(i)i.oninput=e=>{q=e.target.value.trim();render()};render();
  })
 })();
 </script>
