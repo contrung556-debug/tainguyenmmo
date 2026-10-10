@@ -8292,10 +8292,12 @@ html,body{width:100%;max-width:100%;overflow-x:hidden!important}
        else if(ad&&today&&dayOf(ad)<t&&active(o)&&hasDriver(o)) carry.push(o);
      });
      const arr=[...A], doneL=arr.filter(isDelivered);
+     const farL=today?all.filter(o=>active(o)&&!A.has(o)&&!carry.includes(o)):[];
      const cnt=(l,c)=>l.filter(o=>carrier(o)===c).length;
      window.__nkToday={today,done:doneL.length,assigned:arr.length-doneL.length,total:arr.length,carry:carry.length,
        spx:cnt(arr,'SPX'),ghn:cnt(arr,'GHN'),active:all.filter(active).length,
-       far:today?all.filter(o=>active(o)&&!A.has(o)&&!carry.includes(o)).length:0};
+       far:farL.length,
+       lists:{will:arr,done:doneL,miss:arr.filter(o=>!isDelivered(o)),carry:carry,far:farL}};
     })();
    const groups=new Map(); shown.forEach(o=>{const k=groupKey(o);if(!groups.has(k))groups.set(k,[]);groups.get(k).push(o)});
    const groupHtml=[...groups.entries()].sort((a,b)=>b[1].length-a[1].length).map(([k,arr],i)=>{
@@ -9802,14 +9804,15 @@ function enhance(){
       '<div class="v36-car"><span class="spx">SPX <b>'+spx+'</b></span><span class="ghn">G.HN <b>'+ghn+'</b></span></div></div>'+
       (total?'<div class="v36-bar"><i style="width:'+pct+'%"></i></div>':'')+
       '<div class="v36-leg">'+(T.total!==undefined||isToday?
-        '<div class="b"><b>'+total+'</b><span>S\u1ebd giao h\u00f4m nay</span></div><div class="g"><b>'+done+'</b><span>\u0110\u00e3 giao</span></div>'+
-        (total&&going===0?'<div class="g2"><b>\u0110\u1ee7 &#10003;</b><span>\u0110\u00e3 giao h\u1ebft</span></div>':'<div class="'+(going>0?'r':'b')+'"><b>'+going+'</b><span>C\u00f2n s\u00f3t</span></div>')
-        :'<div class="g"><b>'+done+'</b><span>\u0110\u00e3 giao</span></div>')+'</div>'+
-      (carry>0?'<div class="v36-far" style="color:#e8262e;font-weight:700">C\u00f2n '+carry+' \u0111\u01a1n c\u00f3 l\u1ecbch giao t\u1eeb h\u00f4m tr\u01b0\u1edbc ch\u01b0a giao</div>':'')+
-      (isToday&&far>0?'<div class="v36-far">C\u00f2n '+far+' \u0111\u01a1n \u0111ang tr\u00ean \u0111\u01b0\u1eddng, ch\u01b0a c\u00f3 l\u1ecbch giao</div>':'');
+        '<div class="b" data-v36-list="will"><b>'+total+'</b><span>S\u1ebd giao h\u00f4m nay</span></div><div class="g" data-v36-list="done"><b>'+done+'</b><span>\u0110\u00e3 giao</span></div>'+
+        (total&&going===0?'<div class="g2" data-v36-list="done"><b>\u0110\u1ee7 &#10003;</b><span>\u0110\u00e3 giao h\u1ebft</span></div>':'<div class="'+(going>0?'r':'b')+'" data-v36-list="miss"><b>'+going+'</b><span>C\u00f2n s\u00f3t</span></div>')
+        :'<div class="g" data-v36-list="done"><b>'+done+'</b><span>\u0110\u00e3 giao</span></div>')+'</div>'+
+      (carry>0?'<div class="v36-far" data-v36-list="carry" style="color:#e8262e;font-weight:700">C\u00f2n '+carry+' \u0111\u01a1n c\u00f3 l\u1ecbch giao t\u1eeb h\u00f4m tr\u01b0\u1edbc ch\u01b0a giao</div>':'')+
+      (isToday&&far>0?'<div class="v36-far" data-v36-list="far">C\u00f2n '+far+' \u0111\u01a1n \u0111ang tr\u00ean \u0111\u01b0\u1eddng, ch\u01b0a c\u00f3 l\u1ecbch giao</div>':'')+'<div class="v36-hint">B\u1ea5m v\u00e0o t\u1eebng \u00f4 \u0111\u1ec3 xem l\u00e0 \u0111\u01a1n n\u00e0o</div>';
     Array.prototype.forEach.call(hero.children,function(c){ if(!/position:\s*absolute/.test(c.getAttribute('style')||'')) c.classList.add('v36-x'); });
     hero.classList.add('v36h');
     hero.insertAdjacentHTML('afterbegin',html);
+    if(window.__v36Open) openList(window.__v36Open);
   }
   document.querySelectorAll('#nkDeliveryManager .nkx-tab').forEach(function(b,i){
     if(b.dataset.v36) return; b.dataset.v36='1';
@@ -9859,6 +9862,31 @@ window.nkAssignedAt=function(events){
     return best?new Date(best).toISOString():null;
   }catch(e){return null}
 };
+
+var VNF=function(v){var d=v?new Date(v):null; if(!d||isNaN(d)) return ''; return new Intl.DateTimeFormat('vi-VN',{timeZone:'Asia/Ho_Chi_Minh',hour:'2-digit',minute:'2-digit'}).format(d)};
+var ESC=function(v){return String(v==null?'':v).replace(/[&<>"]/g,function(m){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]})};
+var TITLES={will:['S\u1ebd giao h\u00f4m nay','#1b4fb8'],done:['\u0110\u00e3 giao','#12803f'],miss:['C\u00f2n s\u00f3t \u2013 ch\u01b0a giao','#e8262e'],carry:['C\u00f3 l\u1ecbch giao t\u1eeb h\u00f4m tr\u01b0\u1edbc, ch\u01b0a giao','#e8262e'],far:['\u0110ang tr\u00ean \u0111\u01b0\u1eddng, ch\u01b0a c\u00f3 l\u1ecbch giao','#5b21b6']};
+function rowHtml(o){
+  var t=o.tracking||{}, code=t.tracking_code||o.order_code||('#'+o.id), who=o.recipient_name||o.product_name||'', ward=o.shipping_ward||'', stt=t.tracking_status||o.status||'', at=VNF(t.driver_assigned_at);
+  return '<div class="v36-row" data-order-id="'+(Number(o.id)||0)+'"><div class="v36-rt"><b>'+ESC(code)+'</b>'+(at?'<em>C\u00f3 l\u1ecbch l\u00fac '+at+'</em>':'')+'</div><div class="v36-rs">'+ESC([who,ward].filter(Boolean).join(' \u00b7 '))+'</div><div class="v36-rst">'+ESC(stt)+'</div></div>';
+}
+function openList(type){
+  var old=document.getElementById('v36-detail'); if(old) old.remove();
+  document.querySelectorAll('#nkDeliveryManager [data-v36-list]').forEach(function(x){x.classList.toggle('v36-sel',!!type&&x.getAttribute('data-v36-list')===type)});
+  var T=window.__nkToday, hero=document.querySelector('#nkDeliveryManager .nkx-hero');
+  if(!type||!T||!T.lists||!hero) return;
+  var key=function(o){return (o.tracking&&o.tracking.driver_assigned_at)||''};
+  var list=(T.lists[type]||[]).slice().sort(function(a,b){var x=key(a),y=key(b);return x<y?-1:x>y?1:0});
+  var ti=TITLES[type]||['','#333'];
+  hero.insertAdjacentHTML('afterend','<div id="v36-detail"><div class="v36-dh" style="color:'+ti[1]+'"><span>'+ti[0]+'</span><i>'+list.length+' \u0111\u01a1n</i></div>'+(list.length?list.map(rowHtml).join(''):'<div class="v36-empty">Kh\u00f4ng c\u00f3 \u0111\u01a1n n\u00e0o</div>')+'</div>');
+}
+window.__v36Open='';
+document.addEventListener('click',function(e){
+  var t=e.target.closest&&e.target.closest('#nkDeliveryManager [data-v36-list]');
+  if(t){ var ty=t.getAttribute('data-v36-list'); window.__v36Open=(window.__v36Open===ty)?'':ty; openList(window.__v36Open); return; }
+  var r=e.target.closest&&e.target.closest('#v36-detail .v36-row');
+  if(r){ var id=Number(r.getAttribute('data-order-id')); if(id&&typeof window.showNkOrderDetail==='function') window.showNkOrderDetail(id); }
+});
 var pend=false;
 function schedule(){ if(pend) return; pend=true; requestAnimationFrame(function(){pend=false; enhance();}); }
 function boot(){
@@ -9940,6 +9968,24 @@ if(document.readyState==='loading') document.addEventListener('DOMContentLoaded'
 #nkDeliveryManager .v36-leg .r{background:#ffe4e1}.v36-leg .r b{color:#e8262e}
 #nkDeliveryManager .v36-leg .g2{background:#d9f7e4}.v36-leg .g2 b{color:#12803f}
 #nkDeliveryManager .v36-far{margin-top:7px;font-size:9.5px;color:#5a6090;text-align:center}
+</style>
+
+<style id="nk-v36e-css">
+#nkDeliveryManager [data-v36-list]{cursor:pointer}
+#nkDeliveryManager .v36-leg>div.v36-sel{outline:2px solid #fb6a4a}
+#nkDeliveryManager .v36-far.v36-sel{text-decoration:underline}
+#nkDeliveryManager .v36-hint{margin-top:6px;font-size:9px;color:#8a8fb5;text-align:center}
+#v36-detail{background:#fff;border-radius:14px;box-shadow:0 3px 10px rgba(60,60,140,.08);overflow:hidden}
+#v36-detail .v36-dh{display:flex;justify-content:space-between;align-items:center;padding:10px 13px;font-weight:800;font-size:13px;border-bottom:1px solid #edf2f7}
+#v36-detail .v36-dh i{font-style:normal;font-size:10px;color:#64748b;font-weight:600}
+#v36-detail .v36-row{padding:9px 13px;border-bottom:1px solid #f0f3f7;cursor:pointer}
+#v36-detail .v36-row:last-child{border-bottom:0}
+#v36-detail .v36-rt{display:flex;justify-content:space-between;gap:8px}
+#v36-detail .v36-rt b{font-size:12.5px;color:#2544a5;word-break:break-all}
+#v36-detail .v36-rt em{font-style:normal;font-size:10px;color:#5a6090;white-space:nowrap}
+#v36-detail .v36-rs{font-size:11px;color:#3a4170;margin-top:2px}
+#v36-detail .v36-rst{font-size:10.5px;color:#7b8798;margin-top:1px}
+#v36-detail .v36-empty{padding:16px;text-align:center;color:#94a3b8;font-size:12px}
 </style>
 </body>
 </html>
