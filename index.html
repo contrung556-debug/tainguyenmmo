@@ -690,7 +690,23 @@
 
             <!-- ===== QUẢN LÝ GIAO HÀNG GỌN ===== -->
             <div id="nkDeliveryManager" style="margin-bottom:12px;">
-                <div style="font-weight:900;font-size:14px;margin-bottom:8px;">🚚 Quản lý giao hàng</div>
+                <div style="font-weight:900;font-size:14px;margin-bottom:8px;">
+<div class="manual-tracking-box" style="margin:18px 0;padding:18px;border:1px solid #dce5ef;border-radius:16px;background:#fff;">
+  <div style="font-size:20px;font-weight:800;color:#2f3d50;margin-bottom:12px;">🔎 Kiểm tra mã vận đơn</div>
+  <input id="manualTrackingCode" type="text" autocomplete="off"
+    placeholder="Nhập mã vận đơn SPX hoặc GHN"
+    style="width:100%;box-sizing:border-box;padding:14px 15px;border:1px solid #d9e1ea;border-radius:12px;font-size:16px;text-transform:uppercase;">
+  <input id="manualTrackingPhone4" type="text" inputmode="numeric" maxlength="4" autocomplete="off"
+    placeholder="4 số cuối SĐT (chỉ cần khi tra GHN)"
+    style="width:100%;box-sizing:border-box;padding:14px 15px;border:1px solid #d9e1ea;border-radius:12px;font-size:16px;margin-top:10px;">
+  <button type="button" onclick="manualCheckTracking()"
+    style="width:100%;margin-top:12px;padding:14px;border:0;border-radius:12px;background:#4889bf;color:#fff;font-size:17px;font-weight:800;">
+    🔍 Kiểm tra vận đơn
+  </button>
+  <div id="manualTrackingResult" style="margin-top:12px;"></div>
+</div>
+
+🚚 Quản lý giao hàng</div>
 
                 <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:7px;">
                     <button type="button" onclick="showNkDeliveryGroup('danang')" style="border:1px solid #fed7aa;background:#fff7ed;border-radius:10px;padding:10px 5px;cursor:pointer;">
@@ -6640,6 +6656,103 @@ function deleteOrder(id) {
     if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',finishUi); else finishUi();
     setTimeout(finishUi,500);
 })();
+</script>
+
+
+<script>
+async function manualCheckTracking() {
+  const codeEl = document.getElementById('manualTrackingCode');
+  const phoneEl = document.getElementById('manualTrackingPhone4');
+  const resultEl = document.getElementById('manualTrackingResult');
+
+  const code = String(codeEl?.value || '').trim().toUpperCase();
+  const phone4 = String(phoneEl?.value || '').replace(/\D/g, '').slice(-4);
+
+  if (!code) {
+    resultEl.innerHTML = '<div style="color:#d9534f;font-weight:700;">Vui lòng nhập mã vận đơn.</div>';
+    return;
+  }
+
+  resultEl.innerHTML = '<div style="color:#667085;">Đang kiểm tra vận đơn...</div>';
+
+  try {
+    // SPX: dùng endpoint SPX hiện có.
+    if (/^SPX/i.test(code)) {
+      const r = await fetch('/api/spx?code=' + encodeURIComponent(code));
+      const d = await r.json().catch(() => null);
+      if (!r.ok || !d) throw new Error(d?.error || 'Không tra được SPX');
+
+      const info = d.data || d;
+      const events = Array.isArray(info.events) ? info.events :
+                     Array.isArray(info.history) ? info.history :
+                     Array.isArray(info.tracking) ? info.tracking : [];
+
+      renderManualTrackingResult(code, info, events);
+      return;
+    }
+
+    // GHN cần đúng 4 số cuối SĐT.
+    if (!/^\d{4}$/.test(phone4)) {
+      resultEl.innerHTML = '<div style="color:#d9822b;font-weight:700;">GHN cần nhập đúng 4 số cuối SĐT.</div>';
+      phoneEl?.focus();
+      return;
+    }
+
+    const r = await fetch('/api/ghn', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json','Accept':'application/json'},
+      body: JSON.stringify({trackingNumber: code, phoneLast4: phone4})
+    });
+    const d = await r.json().catch(() => null);
+    if (!r.ok || !d || d.success === false) {
+      throw new Error(d?.error || 'Không tra được GHN');
+    }
+
+    const info = d.data || d;
+    const events = Array.isArray(info.events) ? info.events : [];
+    renderManualTrackingResult(code, info, events);
+  } catch (e) {
+    resultEl.innerHTML = '<div style="color:#d9534f;font-weight:700;">' +
+      escapeManualTrackingHtml(e?.message || 'Lỗi kiểm tra vận đơn') + '</div>';
+  }
+}
+
+function renderManualTrackingResult(code, info, events) {
+  const el = document.getElementById('manualTrackingResult');
+  const list = (events || []).slice(0,15).map(ev => {
+    const title = ev.statusText || ev.description || ev.status || 'Cập nhật';
+    const time = ev.time || ev.timestampText || '';
+    const loc = ev.location?.name || ev.location?.address || ev.location || '';
+    return '<div style="padding:10px 0;border-top:1px solid #edf0f4;">' +
+      '<div style="font-weight:700;color:#344054;">' + escapeManualTrackingHtml(title) + '</div>' +
+      '<div style="font-size:13px;color:#667085;margin-top:3px;">' +
+      escapeManualTrackingHtml(time) +
+      (loc ? ' · ' + escapeManualTrackingHtml(loc) : '') +
+      '</div></div>';
+  }).join('');
+
+  const carrier = info.carrier?.name || (/^SPX/i.test(code) ? 'SPX Express' : 'GHN');
+  const status = info.statusText || info.status || info.message || 'Đã có dữ liệu';
+
+  el.innerHTML =
+    '<div style="padding:12px;border-radius:12px;background:#f7f9fc;border:1px solid #e3e8ef;">' +
+      '<div style="font-weight:800;color:#2f3d50;">' +
+        escapeManualTrackingHtml(carrier) + ' · ' + escapeManualTrackingHtml(code) +
+      '</div>' +
+      '<div style="margin-top:5px;color:#2e8b57;font-weight:700;">' +
+        escapeManualTrackingHtml(status) +
+      '</div>' +
+      '<div style="max-height:330px;overflow:auto;margin-top:8px;">' +
+        (list || '<div style="padding-top:8px;color:#667085;">Chưa có lịch sử vận chuyển.</div>') +
+      '</div>' +
+    '</div>';
+}
+
+function escapeManualTrackingHtml(v) {
+  return String(v == null ? '' : v)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#039;');
+}
 </script>
 
 </body>
