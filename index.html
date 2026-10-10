@@ -9325,5 +9325,163 @@ if(document.readyState==='loading') document.addEventListener('DOMContentLoaded'
 })();
 </script>
 
+
+<!-- ================= V28c: GIAO DIỆN MÁY TÍNH (tự động khi màn hình >= 1024px) ================= -->
+<style id="nk-v28c-desktop-css">
+/* bố cục 2 cột cho tab OTP: trên điện thoại hai khối này xếp dọc như bình thường */
+.nkd-otp-left,.nkd-otp-right{min-width:0}
+
+@media (min-width:1024px){
+  body{background:linear-gradient(180deg,#fff 0,#f3f5fa 420px)!important}
+
+  /* ---------- HEADER 1 hàng: logo | ví | tài khoản ---------- */
+  .store-header{
+    display:grid!important;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;column-gap:32px;
+    padding:18px max(32px,calc((100vw - 1180px)/2)) 18px!important;
+    border-radius:0 0 32px 32px!important}
+  .store-header .store-title-area{display:contents!important}
+  .store-header .store-name{grid-column:1;grid-row:1;flex:none!important}
+  .store-header .wallet-box{grid-column:2;grid-row:1;justify-self:center;width:100%;max-width:600px;
+    flex-wrap:nowrap!important;padding:12px 14px!important}
+  .store-header .user-top-actions{grid-column:3;grid-row:1;gap:10px!important}
+  .nkv-brand-text b{font-size:26px}
+  .nkv-brand-text small{font-size:13px}
+  .nkv-bolt svg{width:30px;height:38px}
+  .nkv-cart svg{width:28px;height:28px}
+  .nkv-ava{width:42px;height:42px;font-size:18px}
+  .nkv-uname{max-width:180px}
+  .nkv-uname b{font-size:15px}
+  .nkv-uname small{font-size:12px}
+  .nkv-out{font-size:14px;padding:9px 16px;transition:background .15s}
+  .nkv-out:hover{background:rgba(255,255,255,.26)}
+  .nkv-bal b{font-size:26px!important}
+  .nkv-wico svg{width:40px;height:36px}
+  .nkv-wbtns button{font-size:14px;padding:11px 18px;transition:transform .15s,box-shadow .15s}
+  .nkv-wbtns button:hover{transform:translateY(-1px)}
+
+  /* ---------- THANH ĐIỀU HƯỚNG nằm ngang ---------- */
+  .main-nav-bar{
+    display:flex!important;flex-wrap:nowrap!important;align-items:center;justify-content:flex-start;gap:10px!important;
+    padding:10px max(32px,calc((100vw - 1180px)/2))!important;overflow:visible!important}
+  .main-nav-bar .main-nav-btn,.main-nav-bar #navBtnMore{
+    flex:0 0 auto!important;width:auto!important;min-width:0!important;min-height:46px!important;
+    flex-direction:row!important;gap:9px!important;padding:0 20px!important;font-size:14px!important;
+    border-radius:14px!important;cursor:pointer;transition:transform .15s,box-shadow .15s,background .15s}
+  .main-nav-bar .main-nav-btn:not(.active):hover{background:#fff1ec!important;transform:translateY(-1px)}
+  .main-nav-bar #navBtnDeposit,.main-nav-bar #navBtnTracking{display:flex!important}
+  .main-nav-bar #navBtnMore{margin-left:auto}
+  .nkv-ni svg{width:20px;height:20px}
+
+  /* menu thả xuống căn theo thanh điều hướng, bỏ 2 mục đã có sẵn trên thanh */
+  .nk-mobile-menu{top:158px!important;right:max(32px,calc((100vw - 1180px)/2))!important;width:300px!important}
+  .nk-menu-item[onclick*="'deposit'"],.nk-menu-item[onclick*="'tracking'"]{display:none!important}
+
+  /* ---------- KHUNG NỘI DUNG ---------- */
+  .container{max-width:1180px!important;padding:24px 32px 56px!important;margin:0 auto}
+  .section-box{padding:26px 28px!important;border-radius:28px!important}
+  #sectionDeposit,#sectionTracking{max-width:860px;margin-left:auto!important;margin-right:auto!important}
+
+  /* ---------- CHỢ: lưới 2 cột ---------- */
+  .nkv-mh-ico svg{width:42px;height:42px}
+  .nkv-mh-t b{font-size:26px}
+  .nkv-mh-t small{font-size:14px}
+  .nkv-badge{padding:9px 16px}
+  .nkv-badge b{font-size:13.5px}
+  .nkv-badge small{font-size:12px}
+  #sectionMarket .sub-tab-container{display:flex!important;width:max-content;max-width:100%;gap:6px!important;padding:7px!important}
+  #sectionMarket .sub-tab-btn{padding:10px 22px!important;font-size:14px!important;cursor:pointer}
+  .nkv-ti svg{width:20px;height:20px}
+  #marketList{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;align-items:start}
+  #marketList>:not(.store-product-card){grid-column:1/-1}
+  #marketList .store-product-card{margin-bottom:0;padding:16px;transition:transform .15s,box-shadow .15s}
+  #marketList .store-product-card:hover{transform:translateY(-2px);box-shadow:0 14px 30px rgba(30,41,59,.1)}
+  #marketList .store-product-name{font-size:18px}
+  #marketList .store-product-desc.nkv-desc{grid-template-columns:minmax(0,1fr) 110px}
+  .nkv-list li{font-size:14px}
+  .nkv-art>svg{width:78px;height:78px}
+  .nkv-art em{font-size:11px}
+  #marketList .store-buy-btn{cursor:pointer;transition:filter .15s}
+  #marketList .store-buy-btn:hover:not(:disabled){filter:brightness(1.06)}
+  .nkv-qty button{cursor:pointer}
+
+  /* ---------- LẤY OTP: form bên trái, kết quả + hướng dẫn bên phải ---------- */
+  #sectionOtp.active-section{display:grid!important;grid-template-columns:minmax(0,5fr) minmax(0,6fr);column-gap:32px;align-items:start}
+  #sectionOtp>.section-title{grid-column:1/-1}
+  .nkvo-head-t b{font-size:28px}
+  .nkvo-head-t small{font-size:14px}
+  .nkvo-mail{width:54px;height:54px}
+  .nkvo-right-sticky{position:sticky;top:84px}
+  .nkd-otp-right .nkvo-guide{margin-top:0}
+  .nkd-otp-right #fetchResult:not(:empty){margin-bottom:14px}
+  .nkvo-code span{font-size:38px}
+
+  /* ---------- QUẢN LÝ ĐƠN ---------- */
+  #nkDeliveryManager>div:nth-of-type(2){grid-template-columns:repeat(4,1fr)!important}
+  #orderListContainer{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;align-items:start}
+  #orderListContainer>:not(.order-card){grid-column:1/-1}
+  #orderListContainer .order-card{margin-bottom:0!important}
+}
+
+/* màn hình rất rộng: thêm cột thứ 3 cho chợ */
+@media (min-width:1360px){
+  .container{max-width:1280px!important}
+  .store-header,.main-nav-bar{padding-left:max(32px,calc((100vw - 1280px)/2))!important;padding-right:max(32px,calc((100vw - 1280px)/2))!important}
+  .nk-mobile-menu{right:max(32px,calc((100vw - 1280px)/2))!important}
+  #marketList{grid-template-columns:repeat(3,minmax(0,1fr))}
+  #marketList .store-product-desc.nkv-desc{grid-template-columns:minmax(0,1fr) 84px}
+  .nkv-art>svg{width:62px;height:62px}
+}
+</style>
+
+<script id="nk-v28c-desktop-js">
+(function(){
+'use strict';
+var $=function(s,r){return (r||document).querySelector(s)};
+
+var ICON={
+ deposit:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/></svg>',
+ truck:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 6h11v10H2zM13 9h4l4 4v3h-8z"/><circle cx="7" cy="18" r="2" fill="currentColor"/><circle cx="17" cy="18" r="2" fill="currentColor"/></svg>'
+};
+
+/* icon cho 2 nút Nạp Đơn / Tra Mã Đơn (chỉ hiện trên máy tính) */
+function navExtra(){
+  var d=document.getElementById('navBtnDeposit'), t=document.getElementById('navBtnTracking');
+  if(!d||!t) return false;
+  [[d,ICON.deposit,'Nạp Đơn'],[t,ICON.truck,'Tra Mã Đơn']].forEach(function(x){
+    if(x[0].dataset.nkd) return; x[0].dataset.nkd='1';
+    x[0].innerHTML='<span class="nkv-ni">'+x[1]+'</span><span class="nkv-nl">'+x[2]+'</span>';
+  });
+  return true;
+}
+
+/* chia tab OTP thành 2 cột: trái = form, phải = kết quả + hướng dẫn */
+function otpColumns(){
+  var sec=document.getElementById('sectionOtp');
+  if(!sec) return false;
+  if(sec.querySelector('.nkd-otp-left')) return true;
+  if(!sec.dataset.nkv) return false;                 // chờ V28b dựng xong
+  var info=$('.nkvo-info',sec), lab=$('.nkvo-lab',sec), field=$('.nkvo-field',sec),
+      btn=document.getElementById('btnFetchOtp'), res=document.getElementById('fetchResult'), guide=$('.nkvo-guide',sec);
+  if(!info||!lab||!field||!btn||!res||!guide) return false;
+  var L=document.createElement('div'); L.className='nkd-otp-left';
+  var R=document.createElement('div'); R.className='nkd-otp-right';
+  var S=document.createElement('div'); S.className='nkvo-right-sticky';
+  info.parentNode.insertBefore(L,info);
+  [info,lab,field,btn].forEach(function(e){L.appendChild(e)});
+  sec.appendChild(R); R.appendChild(S);
+  S.appendChild(res); S.appendChild(guide);
+  return true;
+}
+
+function init(){
+  var n=0;(function t(){
+    var a=navExtra(), b=otpColumns();
+    if((!a||!b) && n++<150) setTimeout(t,80);
+  })();
+}
+if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',init); else init();
+})();
+</script>
+
 </body>
 </html>
