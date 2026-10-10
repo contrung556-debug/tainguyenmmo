@@ -8675,5 +8675,42 @@ html,body{width:100%;max-width:100%;overflow-x:hidden!important}
 })();
 </script>
 
+
+
+<style id="nk-remove-order-upload-card-v7">
+/* Khung giới thiệu Nạp đơn cũ nằm trực tiếp sau tiêu đề Quản lý đơn */
+#sectionOrders > .section-title + div {
+    display: none !important;
+}
+</style>
+
+<script id="nk-remove-order-upload-card-v7-js">
+(function () {
+    function removeOldDepositIntro() {
+        const orders = document.getElementById('sectionOrders');
+        if (!orders) return;
+
+        [...orders.children].forEach(el => {
+            const text = (el.textContent || '').replace(/\s+/g, ' ').trim();
+            if (
+                text.includes('Nạp đơn hàng') &&
+                text.includes('Chọn một hoặc nhiều ảnh Shopee') &&
+                !el.id
+            ) {
+                el.remove();
+            }
+        });
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        removeOldDepositIntro();
+        setTimeout(removeOldDepositIntro, 300);
+        setTimeout(removeOldDepositIntro, 1200);
+    });
+
+    setTimeout(removeOldDepositIntro, 50);
+})();
+</script>
+
 </body>
 </html>
