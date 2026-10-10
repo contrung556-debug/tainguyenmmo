@@ -8945,5 +8945,27 @@ html,body{width:100%;max-width:100%;overflow-x:hidden!important}
 })();
 </script>
 
+
+
+<script id="nk-v12-sync-status">
+(function(){
+  function syncDashboard(){
+    try{
+      /* Sau khi nkOrderState đã được tạo, render lại dashboard để
+         số đếm và danh sách click cùng dùng một kết quả phân loại. */
+      if(typeof window.renderSmartDelivery === "function"){
+        window.renderSmartDelivery();
+      }
+    }catch(e){ console.warn("NK V12 sync:", e); }
+  }
+
+  document.addEventListener("DOMContentLoaded", function(){
+    setTimeout(syncDashboard, 500);
+    setTimeout(syncDashboard, 1400);
+  });
+  setTimeout(syncDashboard, 2200);
+})();
+</script>
+
 </body>
 </html>
