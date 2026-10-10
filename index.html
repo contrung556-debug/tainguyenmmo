@@ -545,7 +545,7 @@
 <div class="main-nav-bar">
     <button class="main-nav-btn active" id="navBtnMarket" onclick="switchMainTab('market')">🛒 Chợ MMO</button>
     <button class="main-nav-btn" id="navBtnOtp" onclick="switchMainTab('otp')">🔗 Lấy OTP</button>
-    <button class="main-nav-btn" id="navBtnOrders" onclick="switchMainTab('orders')">📦 Quản Lý Đơn</button>
+    <button class="main-nav-btn" id="navBtnOrders" onclick="switchMainTab('orders')">📊 Quản Lý Đơn</button>
 </div>
 
 <div class="container">
@@ -6753,6 +6753,144 @@ function escapeManualTrackingHtml(v) {
     .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
     .replace(/"/g,'&quot;').replace(/'/g,'&#039;');
 }
+</script>
+
+
+
+<style>
+/* ===== NK MMO 2026 DASHBOARD REDESIGN ===== */
+.main-nav-bar{
+  display:flex!important; gap:8px!important; overflow-x:auto!important;
+  padding:10px 12px!important; scrollbar-width:none; -webkit-overflow-scrolling:touch;
+}
+.main-nav-bar::-webkit-scrollbar{display:none}
+.main-nav-btn{
+  flex:0 0 auto!important; min-width:118px; border-radius:14px!important;
+  padding:13px 15px!important; white-space:nowrap; font-weight:800!important;
+}
+#navBtnOrders.active,#navBtnDeposit.active,#navBtnTracking.active{
+  box-shadow:0 8px 20px rgba(238,77,45,.22);
+}
+#sectionOrders .section-title{
+  font-size:22px!important; margin-bottom:4px!important;
+}
+.nk-dashboard-subtitle{color:#64748b;font-size:13px;margin:0 0 16px}
+#nkDeliveryManager{
+  padding:16px!important;border:1px solid #edf1f5!important;border-radius:18px!important;
+  background:linear-gradient(180deg,#fff,#fbfdff)!important;
+  box-shadow:0 8px 26px rgba(15,23,42,.05);
+}
+#nkDeliveryManager>div:nth-of-type(2){
+  gap:10px!important;
+}
+#nkDeliveryManager>div:nth-of-type(2)>button{
+  border-radius:15px!important;padding:14px 7px!important;min-height:92px;
+  box-shadow:0 4px 12px rgba(15,23,42,.04);
+}
+#orderListContainer .order-card{
+  border-radius:18px!important; box-shadow:0 7px 22px rgba(15,23,42,.06)!important;
+  border-color:#e8edf3!important;
+}
+.nk-page-hero{
+  padding:18px;border-radius:18px;margin-bottom:14px;
+  background:linear-gradient(135deg,#fff7f4,#fff);
+  border:1px solid #f7d9d1;
+}
+.nk-page-hero h2{margin:0 0 6px;font-size:22px;color:#24364b}
+.nk-page-hero p{margin:0;color:#64748b;font-size:13px;line-height:1.55}
+#sectionDeposit .sub-tab-container{margin-bottom:14px}
+#sectionTracking .manual-tracking-box{
+  margin:0!important;border-radius:18px!important;padding:20px!important;
+  box-shadow:0 8px 26px rgba(15,23,42,.06);
+}
+.nk-track-hero{
+  text-align:center;padding:12px 4px 18px;
+}
+.nk-track-icon{
+  width:72px;height:72px;margin:0 auto 10px;border-radius:22px;
+  display:grid;place-items:center;font-size:36px;
+  background:linear-gradient(135deg,#fff0ea,#ffe0d6);
+}
+@media(max-width:600px){
+  .main-nav-btn{min-width:108px;font-size:13px!important}
+  #nkDeliveryManager>div:nth-of-type(2){grid-template-columns:repeat(2,1fr)!important}
+  #nkDeliveryManager>div:nth-of-type(2)>button{min-height:82px}
+}
+</style>
+
+<script>
+/* ===== Tách Nạp Đơn / Quản Lý Đơn / Tra Vận Đơn thành 3 trang ===== */
+(function(){
+  function buildNewPages(){
+    const nav=document.querySelector('.main-nav-bar');
+    const orders=document.getElementById('sectionOrders');
+    if(!nav||!orders||document.getElementById('sectionDeposit')) return;
+
+    const depBtn=document.createElement('button');
+    depBtn.className='main-nav-btn'; depBtn.id='navBtnDeposit';
+    depBtn.innerHTML='➕ Nạp Đơn'; depBtn.onclick=()=>switchMainTab('deposit');
+    nav.appendChild(depBtn);
+
+    const trackBtn=document.createElement('button');
+    trackBtn.className='main-nav-btn'; trackBtn.id='navBtnTracking';
+    trackBtn.innerHTML='🚚 Tra Vận Đơn'; trackBtn.onclick=()=>switchMainTab('tracking');
+    nav.appendChild(trackBtn);
+
+    const deposit=document.createElement('div');
+    deposit.className='section-box'; deposit.id='sectionDeposit';
+    deposit.innerHTML='<div class="nk-page-hero"><h2>➕ Nạp đơn hàng</h2><p>Nạp một đơn thủ công hoặc đọc nhiều ảnh Shopee bằng OCR. Mã vận đơn SPX/GHN và 4 số cuối SĐT GHN có thể nhập ngay khi nạp.</p></div>';
+    orders.parentNode.insertBefore(deposit,orders.nextSibling);
+
+    const tabs=orders.querySelector('.sub-tab-container');
+    const single=document.getElementById('depositSingleForm');
+    const multi=document.getElementById('depositMultipleForm');
+    if(tabs) deposit.appendChild(tabs);
+    if(single) deposit.appendChild(single);
+    if(multi) deposit.appendChild(multi);
+
+    const tracking=document.createElement('div');
+    tracking.className='section-box'; tracking.id='sectionTracking';
+    tracking.innerHTML='<div class="nk-page-hero nk-track-hero"><div class="nk-track-icon">🚚</div><h2>Tra cứu vận đơn</h2><p>Kiểm tra nhanh hành trình SPX và GHN. GHN cần thêm 4 số cuối số điện thoại nhận hàng.</p></div>';
+    deposit.parentNode.insertBefore(tracking,deposit.nextSibling);
+
+    const manual=document.querySelector('.manual-tracking-box');
+    if(manual) tracking.appendChild(manual);
+
+    const title=orders.querySelector('.section-title');
+    if(title){
+      title.textContent='🚚 Quản lý giao hàng';
+      title.insertAdjacentHTML('afterend','<div class="nk-dashboard-subtitle">Theo dõi tổng quan, lọc trạng thái và quản lý tất cả đơn SPX / GHN.</div>');
+    }
+  }
+
+  const oldSwitch=window.switchMainTab || switchMainTab;
+  window.switchMainTab=function(tabName){
+    ['navBtnMarket','navBtnOtp','navBtnOrders','navBtnDeposit','navBtnTracking'].forEach(id=>{
+      document.getElementById(id)?.classList.remove('active');
+    });
+    ['sectionMarket','sectionOtp','sectionOrders','sectionDeposit','sectionTracking'].forEach(id=>{
+      document.getElementById(id)?.classList.remove('active-section');
+    });
+
+    const map={
+      market:['navBtnMarket','sectionMarket'],
+      otp:['navBtnOtp','sectionOtp'],
+      orders:['navBtnOrders','sectionOrders'],
+      deposit:['navBtnDeposit','sectionDeposit'],
+      tracking:['navBtnTracking','sectionTracking']
+    };
+    const pair=map[tabName]||map.market;
+    document.getElementById(pair[0])?.classList.add('active');
+    document.getElementById(pair[1])?.classList.add('active-section');
+
+    if(tabName==='orders' && typeof window.loadOrdersFromSupabase==='function'){
+      window.loadOrdersFromSupabase();
+    }
+  };
+
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',buildNewPages);
+  else buildNewPages();
+})();
 </script>
 
 </body>
