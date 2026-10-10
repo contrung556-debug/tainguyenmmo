@@ -7217,3 +7217,397 @@ html,body{width:100%;max-width:100%;overflow-x:hidden!important}
 
         const parts=result.shippingAddress.split(',').map(clean).filter(Boolean);
         for(const p of parts){
+            if(/^(tỉnh|thành phố|tp\.?)/i.test(p)) result.shippingProvince=p;
+            else if(/^(quận|huyện|thị xã|thành phố)/i.test(p)) result.shippingDistrict=p;
+            else if(/^(phường|xã|thị trấn)/i.test(p)) result.shippingWard=p;
+        }
+        const admin=new Set([result.shippingWard,result.shippingDistrict,result.shippingProvince].filter(Boolean));
+        result.shippingDetail=parts.filter(x=>!admin.has(x)).join(', ');
+
+        return result;
+    }
+
+    const previousParse=window.parseShopeeOrderOCR;
+    window.parseShopeeOrderOCR=function(rawText){
+        const base=previousParse(rawText);
+        const text=String(base.rawText || rawText || '');
+        const lines=text.split('\n').map(x=>x.trim()).filter(Boolean);
+        const r=extractRecipientBlock(text,lines);
+        return {
+            ...base,
+            ...r,
+            phoneLast4:r.recipientPhone ? r.recipientPhone.slice(-4) : (base.phoneLast4||'')
+        };
+    };
+
+    const previousMerge=window.mergeShopeeOcrResults;
+    window.mergeShopeeOcrResults=function(inputResults){
+        const out=previousMerge(inputResults);
+        const keys=['recipientName','recipientPhone','shippingAddress','shippingDetail','shippingWard','shippingDistrict','shippingProvince','phoneLast4'];
+        for(const item of out){
+            const related=inputResults.filter(x=>String(x.orderCode||'').toUpperCase()===String(item.orderCode||'').toUpperCase());
+            for(const k of keys){
+                if(!item[k]){
+                    const hit=related.find(x=>x[k]);
+                    if(hit) item[k]=hit[k];
+                }
+            }
+        }
+        return out;
+    };
+
+    window.handleOrderImages = async function(input){
+        const files=Array.from(input.files||[]);
+        if(!files.length)return;
+        if(orderOcrRunning){showModal('Thông báo','OCR đang xử lý ảnh. Vui lòng chờ.');return;}
+        if(typeof Tesseract==='undefined'){showModal('Lỗi OCR','Không tải được thư viện OCR.');return;}
+        orderOcrRunning=true;
+        const btn=document.getElementById('btnOrderOcr'), status=document.getElementById('ocrStatus'), output=document.getElementById('inputMultipleLines');
+        btn.disabled=true; btn.innerText='⏳ Đang chuẩn bị OCR...'; status.style.display='block';
+        const rawResults=[],failed=[];
+        try{
+            for(let i=0;i<files.length;i++){
+                const file=files[i];
+                try{
+                    const image=await prepareImageForOCR(file);
+                    const result=await Tesseract.recognize(image,'vie+eng',{logger:m=>{
+                        if(m.status==='recognizing text') status.innerHTML=`🔎 Đang đọc ảnh <b>${i+1}/${files.length}</b> — ${Math.round((m.progress||0)*100)}%`;
+                    }});
+                    const parsed=window.parseShopeeOrderOCR(result?.data?.text||'');
+                    parsed.fileName=file.name; parsed.imageIndex=i;
+                    if(parsed.orderCode||parsed.productName||parsed.amount||parsed.trackingCode||parsed.recipientPhone||parsed.shippingAddress) rawResults.push(parsed);
+                    else failed.push(file.name);
+                }catch(e){console.error('OCR ERROR',e);failed.push(file.name);}
+            }
+            const valid=window.mergeShopeeOcrResults(rawResults).filter(o=>o.orderCode);
+            if(!valid.length){status.innerHTML='<span style="color:#e74c3c;font-weight:800">❌ OCR chưa tìm thấy Mã đơn hàng.</span>';return;}
+            const lines=valid.map(o=>[
+                cleanOcrOutput(o.orderCode),
+                '',
+                cleanOcrOutput(o.productName||'Đơn Shopee'),
+                Number(o.amount)||0,
+                clean(String(o.trackingCode||'').toUpperCase()),
+                clean(o.recipientPhone||''),
+                clean(o.recipientName||''),
+                clean(o.shippingAddress||''),
+                clean(o.shippingDetail||''),
+                clean(o.shippingWard||''),
+                clean(o.shippingDistrict||''),
+                clean(o.shippingProvince||'')
+            ].join(' | '));
+            output.value=(output.value.trim()?output.value.trim()+'\n':'')+lines.join('\n');
+            status.innerHTML=`<span style="color:#27ae60;font-weight:800">✅ Đã đọc ${valid.length} đơn</span>`+
+              (failed.length?`<br><span style="color:#e67e22">⚠️ ${failed.length} ảnh chưa đọc được.</span>`:'')+
+              '<br><span style="color:#718096">Đã thêm: SĐT đầy đủ, tên người nhận và địa chỉ chi tiết. Hãy kiểm tra/sửa trước khi nạp.</span>';
+        }finally{
+            orderOcrRunning=false;btn.disabled=false;btn.innerText='📷 Chọn thêm ảnh đơn hàng Shopee';input.value='';
+        }
+    };
+
+    window.addMultipleOrders=async function(btnEl){
+        if(!currentUser){showModal('Lỗi','Vui lòng đăng nhập!');return;}
+        const raw=document.getElementById('inputMultipleLines').value.trim();
+        if(!raw){showModal('Thông báo','Chưa có dữ liệu đơn hàng để nạp.');return;}
+        const rows=raw.split('\n').map(x=>x.trim()).filter(Boolean).map(line=>{
+            const p=line.split('|').map(clean);
+            if(!p[0])return null;
+            const amount=parseInt(String(p[3]||'').replace(/\D/g,''),10)||0;
+            return {
+                order:{
+                    order_code:p[0],email:p[1]||'',product_name:p[2]||'Đơn Shopee',
+                    amount,price:amount,user_id:currentUser.id,status:'Đang chờ giao',
+                    recipient_phone:p[5]||'',recipient_name:p[6]||'',
+                    shipping_address:p[7]||'',shipping_detail:p[8]||'',
+                    shipping_ward:p[9]||'',shipping_district:p[10]||'',shipping_province:p[11]||''
+                },
+                trackingCode:String(p[4]||'').trim().toUpperCase()
+            };
+        }).filter(Boolean);
+        if(btnEl){btnEl.disabled=true;btnEl.innerText='⏳ Đang nạp hàng loạt...';}
+        let inserted=0,trackingSaved=0;
+        try{
+            for(let i=0;i<rows.length;i+=50){
+                const chunk=rows.slice(i,i+50);
+                const {data,error}=await _supabase.from('shopee_orders').insert(chunk.map(x=>x.order)).select('id,order_code');
+                if(error)throw error;
+                inserted+=(data||[]).length;
+                const map=new Map(chunk.map(x=>[String(x.order.order_code).toUpperCase(),x.trackingCode]));
+                const trs=(data||[]).map(o=>{
+                    const tc=map.get(String(o.order_code).toUpperCase())||'';
+                    return tc?{order_id:Number(o.id),user_id:currentUser.id,tracking_code:tc,updated_at:new Date().toISOString()}:null;
+                }).filter(Boolean);
+                if(trs.length){
+                    const {error:te}=await _supabase.from('shopee_tracking').upsert(trs,{onConflict:'order_id'});
+                    if(te)throw te; trackingSaved+=trs.length;
+                }
+            }
+            document.getElementById('inputMultipleLines').value='';
+            await window.loadOrdersFromSupabase();
+            showModal('Thành công',`Đã nạp ${inserted} đơn và lưu ${trackingSaved} mã vận đơn.`);
+        }catch(e){
+            showModal('Lỗi','Nạp dữ liệu thất bại: '+(e.message||e));
+        }finally{if(btnEl){btnEl.disabled=false;btnEl.innerText='Nạp Hàng Loạt';}}
+    };
+
+    function installRecipientUi(){
+        const single=document.getElementById('depositSingleForm');
+        const btn=document.getElementById('btnAddSingleOrder');
+        if(single&&btn&&!document.getElementById('inputRecipientName')){
+            const box=document.createElement('div');
+            box.innerHTML=`
+              <div class="nk-recipient-grid">
+                <input type="text" id="inputRecipientName" placeholder="Tên người nhận">
+                <input type="tel" id="inputRecipientPhone" placeholder="Số điện thoại người nhận">
+              </div>
+              <input type="text" id="inputShippingAddress" placeholder="Địa chỉ nhận hàng đầy đủ">
+              <div class="nk-recipient-grid">
+                <input type="text" id="inputShippingDetail" placeholder="Địa chỉ chi tiết: số nhà / thôn / đường / kiệt...">
+                <input type="text" id="inputShippingWard" placeholder="Phường / Xã">
+                <input type="text" id="inputShippingDistrict" placeholder="Quận / Huyện">
+                <input type="text" id="inputShippingProvince" placeholder="Tỉnh / Thành phố">
+              </div>`;
+            btn.insertAdjacentElement('beforebegin',box);
+        }
+        const ta=document.getElementById('inputMultipleLines');
+        if(ta)ta.placeholder='Mã Đơn | Email | Tên SP | Số tiền | Mã vận đơn | SĐT | Tên người nhận | Địa chỉ đầy đủ | Địa chỉ chi tiết | Phường/Xã | Quận/Huyện | Tỉnh/TP';
+        const desc=document.querySelector('#depositMultipleForm .ocr-desc');
+        if(desc)desc.innerHTML='Chọn ảnh đơn Shopee. OCR sẽ đọc mã đơn, sản phẩm, số tiền, mã vận đơn, <b>tên người nhận, SĐT đầy đủ và địa chỉ nhận hàng</b>. Địa chỉ được tách thêm phần chi tiết, phường/xã, quận/huyện và tỉnh/thành. Bạn có thể sửa trước khi nạp.';
+    }
+
+    window.addNewOrder=async function(btnEl){
+        if(!currentUser){showModal('Lỗi','Vui lòng đăng nhập!');return;}
+        const val=id=>document.getElementById(id)?.value.trim()||'';
+        const c=val('inputOrderCode'),e=val('inputEmail'),n=val('inputProductName')||'Đơn Shopee';
+        const a=parseInt(val('inputAmount'),10)||0,tracking=val('inputTrackingCode').toUpperCase();
+        if(!c){showModal('Lỗi','Mã đơn không được để trống!');return;}
+        const order={
+            order_code:c,product_name:n,email:e,amount:a,price:a,user_id:currentUser.id,status:'Đang chờ giao',
+            recipient_name:val('inputRecipientName'),recipient_phone:val('inputRecipientPhone').replace(/[^\d+]/g,''),
+            shipping_address:val('inputShippingAddress'),shipping_detail:val('inputShippingDetail'),
+            shipping_ward:val('inputShippingWard'),shipping_district:val('inputShippingDistrict'),shipping_province:val('inputShippingProvince')
+        };
+        if(btnEl){btnEl.disabled=true;btnEl.innerText='⏳ Đang nạp...';}
+        try{
+            const {data,error}=await _supabase.from('shopee_orders').insert(order).select('id').single();
+            if(error)throw error;
+            if(tracking){
+                const {error:te}=await _supabase.from('shopee_tracking').upsert({order_id:Number(data.id),user_id:currentUser.id,tracking_code:tracking,updated_at:new Date().toISOString()},{onConflict:'order_id'});
+                if(te)throw te;
+            }
+            ['inputOrderCode','inputProductName','inputAmount','inputEmail','inputTrackingCode','inputRecipientName','inputRecipientPhone','inputShippingAddress','inputShippingDetail','inputShippingWard','inputShippingDistrict','inputShippingProvince'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+            await window.loadOrdersFromSupabase();
+            showModal('Thành công','Đã nạp đơn và thông tin người nhận!');
+        }catch(e){showModal('Lỗi','Không thể nạp đơn: '+(e.message||e));}
+        finally{if(btnEl){btnEl.disabled=false;btnEl.innerText='Nạp Đơn Vào Hệ Thống';}}
+    };
+
+    if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',installRecipientUi);
+    else installRecipientUi();
+})();
+</script>
+
+
+
+<style>
+/* ===== OCR EDITOR CARDS V2 ===== */
+#nkOcrEditor{display:grid;gap:14px;margin-top:14px}
+.nk-ocr-card{background:#fff;border:1px solid #dce5ef;border-radius:16px;padding:14px;box-shadow:0 5px 18px rgba(15,23,42,.05)}
+.nk-ocr-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px}
+.nk-ocr-head b{font-size:15px;color:#2f3d50}
+.nk-ocr-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.nk-ocr-field{min-width:0}
+.nk-ocr-field.full{grid-column:1/-1}
+.nk-ocr-field label{display:block;font-size:11px;font-weight:800;color:#718096;margin:0 0 5px 2px}
+.nk-ocr-field input,.nk-ocr-field textarea{width:100%;box-sizing:border-box;border:1px solid #dce5ef;border-radius:10px;padding:11px 12px;font-size:14px;background:#fbfdff;color:#26364a}
+.nk-ocr-field textarea{min-height:68px;resize:vertical}
+.nk-ocr-missing{border-color:#f2b5a8!important;background:#fff8f6!important}
+.nk-ocr-remove{border:0;background:#fff0ed;color:#e45539;border-radius:9px;padding:7px 9px;font-weight:800}
+#inputMultipleLines{display:none!important}
+@media(max-width:600px){.nk-ocr-grid{grid-template-columns:1fr}.nk-ocr-field.full{grid-column:auto}}
+</style>
+
+<script>
+(function(){
+  const phoneRe=/(?:\(\s*\+?84\s*\)|\+?84|0)(?:[\s.\-]?\d){9,10}/g;
+  const tidy=v=>String(v==null?'':v).replace(/\s+/g,' ').trim();
+
+  function phoneFrom(text){
+    const ms=String(text||'').match(phoneRe)||[];
+    for(const m of ms){
+      let d=m.replace(/\D/g,'');
+      if(d.startsWith('84')) d='0'+d.slice(2);
+      if(/^0\d{9}$/.test(d)) return d;
+    }
+    return '';
+  }
+
+  function looksAddress(s){
+    return /\b(thôn|thon|xóm|xom|ấp|ap|đường|duong|kiệt|kiet|hẻm|hem|xã|xa|phường|phuong|quận|quan|huyện|huyen|tỉnh|tinh|thành phố|thanh pho|tp\.?)\b/i.test(s);
+  }
+  function looksUi(s){
+    return /^(thông tin|người bán|giao nhanh|đồng kiểm|địa chỉ nhận hàng|cập nhật|yêu thích|bạn cần hỗ trợ|liên hệ shop|trung tâm hỗ trợ|mã đơn hàng|thành tiền|hủy đơn hàng|liên hệ|xem thêm)/i.test(s);
+  }
+
+  function smartFields(raw, base){
+    const lines=String(raw||'').split('\n').map(tidy).filter(Boolean);
+    const r={...base};
+    r.recipientPhone=phoneFrom(raw)||r.recipientPhone||'';
+
+    // Recipient: line containing phone, with phone removed.
+    const pidx=lines.findIndex(x=>phoneFrom(x));
+    if(pidx>=0){
+      const n=tidy(lines[pidx].replace(phoneRe,'').replace(/[()]/g,' ').replace(/^[,;:\-\s]+|[,;:\-\s]+$/g,''));
+      if(n.length>=2 && !looksAddress(n) && !looksUi(n)) r.recipientName=n;
+      // Address normally follows recipient line in Shopee order detail.
+      const addr=[];
+      for(let j=pidx+1;j<Math.min(lines.length,pidx+5);j++){
+        const x=lines[j];
+        if(looksUi(x) || /(?:₫|\d{1,3}[.,]\d{3}\s*đ?)/i.test(x)) break;
+        if(looksAddress(x) || addr.length) addr.push(x);
+        if(addr.length>=2) break;
+      }
+      if(addr.length) r.shippingAddress=tidy(addr.join(', '));
+    }
+
+    // Address label fallback.
+    const aidx=lines.findIndex(x=>/địa\s*chỉ\s*nhận\s*hàng|dia\s*chi\s*nhan\s*hang/i.test(x));
+    if(aidx>=0 && !r.shippingAddress){
+      const addr=[];
+      for(let j=aidx+1;j<Math.min(lines.length,aidx+7);j++){
+        const x=lines[j];
+        if(j===aidx+1 && (phoneFrom(x)||(!looksAddress(x)&&x.length<60))) continue;
+        if(looksUi(x)) break;
+        if(looksAddress(x)||addr.length) addr.push(x);
+        if(addr.length>=2) break;
+      }
+      r.shippingAddress=tidy(addr.join(', '));
+    }
+
+    // Product: prioritize lines around seller/product block, and NEVER use address-like lines.
+    const productCandidates=[];
+    for(let i=0;i<lines.length;i++){
+      const x=lines[i];
+      if(x.length<7||x.length>180||looksUi(x)||looksAddress(x)||phoneFrom(x)) continue;
+      if(/^[A-Z0-9]{10,25}$/i.test(x)||/^[\d.,]+\s*[đ₫]?$/i.test(x)||/^x\s*\d+$/i.test(x)) continue;
+      let score=0;
+      if(/[A-Za-zÀ-ỹ]/.test(x)) score+=2;
+      if(x.length>=15) score+=2;
+      if(/\b(ml|lít|lit|kg|g|chai|gói|goi|hộp|hop|combo|dầu|dau|sữa|sua|áo|ao|quần|quan|kem|nước|nuoc)\b/i.test(x)) score+=5;
+      if(i>0 && /yêu thích|shop|store|color/i.test(lines[i-1])) score+=4;
+      if(/₫|\bthành tiền\b/i.test(x)) score-=5;
+      productCandidates.push({x,score});
+    }
+    productCandidates.sort((a,b)=>b.score-a.score||b.x.length-a.x.length);
+    if(productCandidates[0] && productCandidates[0].score>=3) r.productName=productCandidates[0].x;
+
+    // Split address conservatively; never invent missing district.
+    const parts=tidy(r.shippingAddress||'').split(',').map(tidy).filter(Boolean);
+    r.shippingProvince=''; r.shippingDistrict=''; r.shippingWard='';
+    for(const p of parts){
+      if(/^(tỉnh|thành phố|tp\.?)/i.test(p)) r.shippingProvince=p;
+      else if(/^(quận|huyện|thị xã)/i.test(p)) r.shippingDistrict=p;
+      else if(/^(phường|xã|thị trấn)/i.test(p)) r.shippingWard=p;
+    }
+    const admins=new Set([r.shippingWard,r.shippingDistrict,r.shippingProvince].filter(Boolean));
+    r.shippingDetail=parts.filter(x=>!admins.has(x)).join(', ');
+    r.phoneLast4=r.recipientPhone?r.recipientPhone.slice(-4):(r.phoneLast4||'');
+    return r;
+  }
+
+  const oldParse=window.parseShopeeOrderOCR;
+  window.parseShopeeOrderOCR=function(raw){
+    return smartFields(raw,oldParse(raw));
+  };
+
+  let ocrRows=[];
+
+  function esc(v){return String(v??'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+  function field(i,key,label,value,full=false,area=false){
+    const miss=!tidy(value);
+    return `<div class="nk-ocr-field ${full?'full':''}"><label>${label}</label>${area
+      ? `<textarea data-i="${i}" data-k="${key}" class="${miss?'nk-ocr-missing':''}">${esc(value)}</textarea>`
+      : `<input data-i="${i}" data-k="${key}" value="${esc(value)}" class="${miss?'nk-ocr-missing':''}">`}</div>`;
+  }
+  function render(){
+    let box=document.getElementById('nkOcrEditor');
+    if(!box)return;
+    box.innerHTML=ocrRows.map((o,i)=>`
+      <div class="nk-ocr-card">
+        <div class="nk-ocr-head"><b>📦 Đơn ${i+1}</b><button type="button" class="nk-ocr-remove" onclick="nkRemoveOcr(${i})">Xóa</button></div>
+        <div class="nk-ocr-grid">
+          ${field(i,'orderCode','Mã đơn hàng',o.orderCode)}
+          ${field(i,'trackingCode','Mã vận đơn',o.trackingCode)}
+          ${field(i,'productName','Tên sản phẩm',o.productName,true)}
+          ${field(i,'amount','Thành tiền',o.amount)}
+          ${field(i,'recipientName','Tên người nhận',o.recipientName)}
+          ${field(i,'recipientPhone','Số điện thoại',o.recipientPhone)}
+          ${field(i,'shippingAddress','Địa chỉ đầy đủ',o.shippingAddress,true,true)}
+          ${field(i,'shippingDetail','Địa chỉ chi tiết',o.shippingDetail,true)}
+          ${field(i,'shippingWard','Phường / Xã',o.shippingWard)}
+          ${field(i,'shippingDistrict','Quận / Huyện',o.shippingDistrict)}
+          ${field(i,'shippingProvince','Tỉnh / Thành phố',o.shippingProvince)}
+        </div>
+      </div>`).join('');
+    box.querySelectorAll('[data-i]').forEach(el=>el.addEventListener('input',()=>{
+      ocrRows[+el.dataset.i][el.dataset.k]=el.value;
+      el.classList.toggle('nk-ocr-missing',!tidy(el.value));
+      syncLegacy();
+    }));
+    syncLegacy();
+  }
+  function syncLegacy(){
+    const ta=document.getElementById('inputMultipleLines'); if(!ta)return;
+    ta.value=ocrRows.map(o=>[
+      tidy(o.orderCode),'',tidy(o.productName),String(o.amount||0).replace(/[^\d]/g,''),
+      tidy(o.trackingCode).toUpperCase(),tidy(o.recipientPhone),tidy(o.recipientName),
+      tidy(o.shippingAddress),tidy(o.shippingDetail),tidy(o.shippingWard),
+      tidy(o.shippingDistrict),tidy(o.shippingProvince)
+    ].join(' | ')).join('\n');
+  }
+  window.nkRemoveOcr=i=>{ocrRows.splice(i,1);render()};
+
+  function installEditor(){
+    const ta=document.getElementById('inputMultipleLines');
+    if(ta&&!document.getElementById('nkOcrEditor')){
+      const box=document.createElement('div'); box.id='nkOcrEditor';
+      ta.insertAdjacentElement('beforebegin',box);
+    }
+    const desc=document.querySelector('#depositMultipleForm .ocr-desc');
+    if(desc)desc.innerHTML='Chọn ảnh Shopee. Sau khi OCR, mỗi đơn sẽ hiện thành <b>các ô riêng</b> để bạn kiểm tra và sửa Tên sản phẩm, Tên người nhận, SĐT, mã vận đơn và địa chỉ trước khi nạp.';
+  }
+
+  window.handleOrderImages=async function(input){
+    const files=Array.from(input.files||[]); if(!files.length)return;
+    if(orderOcrRunning){showModal('Thông báo','OCR đang xử lý ảnh. Vui lòng chờ.');return;}
+    if(typeof Tesseract==='undefined'){showModal('Lỗi OCR','Không tải được thư viện OCR.');return;}
+    orderOcrRunning=true;
+    const btn=document.getElementById('btnOrderOcr'),status=document.getElementById('ocrStatus');
+    btn.disabled=true; status.style.display='block';
+    const raw=[];
+    try{
+      for(let i=0;i<files.length;i++){
+        btn.innerText=`⏳ OCR ${i+1}/${files.length}`;
+        const image=await prepareImageForOCR(files[i]);
+        const result=await Tesseract.recognize(image,'vie+eng',{logger:m=>{
+          if(m.status==='recognizing text')status.innerHTML=`🔎 Ảnh <b>${i+1}/${files.length}</b> — ${Math.round((m.progress||0)*100)}%`;
+        }});
+        const parsed=window.parseShopeeOrderOCR(result?.data?.text||'');
+        parsed.fileName=files[i].name; parsed.imageIndex=i; raw.push(parsed);
+      }
+      const merged=window.mergeShopeeOcrResults(raw).filter(o=>o.orderCode);
+      ocrRows.push(...merged.map(o=>smartFields(o.rawText||'',o)));
+      render();
+      status.innerHTML=`<span style="color:#27ae60;font-weight:800">✅ Đã tạo ${merged.length} đơn từ ${files.length} ảnh</span><br><span style="color:#718096">Ô viền đỏ nhạt là trường OCR chưa chắc/đang thiếu — bạn có thể nhập trực tiếp.</span>`;
+    }catch(e){
+      console.error(e); status.innerHTML='<span style="color:#e74c3c;font-weight:800">❌ OCR lỗi: '+esc(e.message||e)+'</span>';
+    }finally{
+      orderOcrRunning=false;btn.disabled=false;btn.innerText='📷 Chọn thêm ảnh đơn hàng Shopee';input.value='';
+    }
+  };
+
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',installEditor);else installEditor();
+})();
+</script>
+
+</body>
+</html>
