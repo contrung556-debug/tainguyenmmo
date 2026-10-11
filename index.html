@@ -719,6 +719,55 @@ input,textarea,select{border-radius:14px!important;background:#fbfcfe!important;
 @media(min-width:560px){.dp-g{grid-template-columns:1.5fr 1fr}}
 @media(max-width:559px){#dpOverlay{padding:8px}.dp-m{padding:14px 10px 12px;border-radius:22px}.dp-x{width:30px;height:30px;right:10px;top:10px;font-size:14px}.dp-h{padding-right:34px;gap:8px}.dp-w{width:46px;height:46px}.dp-t1{font-size:20px}.dp-h p{font-size:11px;margin-top:3px;line-height:1.35}.dp-g{grid-template-columns:1.5fr 1fr;gap:8px;margin-top:10px}.dp-c{padding:8px;border-radius:16px}.dp-bk{margin-bottom:2px;gap:6px}.dp-bk svg{width:28px;height:28px}.dp-bk b{font-size:15px}.dp-bk small{font-size:9.5px}.dp-r{padding:6px;gap:6px;margin-top:5px;border-radius:12px}.dp-ri{display:none}.dp-r small{font-size:10px}.dp-r strong{font-size:14px}.dp-tag{font-size:12px;padding:3px 6px;margin-top:1px}.dp-cp{font-size:0;padding:8px;border-radius:10px}.dp-cp svg{width:15px;height:15px}.dp-q{padding:8px;border-radius:16px}.dp-mb{font-size:15px;margin-bottom:5px}.dp-mb svg{width:18px;height:18px}.dp-qb{padding:5px 5px 3px;border-radius:10px}.dp-ft{font-size:9.5px;margin-top:3px}.dp-dl{font-size:11px;padding:8px 4px;margin-top:6px;border-radius:10px;gap:4px}.dp-dl svg{width:13px;height:13px}.dp-h3{margin:12px 0 6px;font-size:15px}.dp-h3 span{width:24px;height:24px;font-size:13px}.dp-s{gap:5px}.dp-s>div{padding:26px 4px 6px;font-size:9px;line-height:1.3;border-radius:12px}.dp-s b{font-size:10px;margin:2px 0}.dp-s em{width:16px;height:16px;line-height:16px;font-size:10px;left:5px;top:5px}.dp-si{font-size:22px;margin-top:-18px}.dp-n{padding:8px;margin-top:8px;border-radius:14px;gap:8px}.dp-bu{width:28px;height:28px;font-size:16px}.dp-n .dp-nt{font-size:14px;margin-bottom:2px}.dp-n ul{font-size:11px;line-height:1.5;padding-left:14px}.dp-n .dp-tag{font-size:11px;padding:1px 6px}.dp-ok{padding:12px;font-size:15px;margin-top:10px;border-radius:14px}.dp-ok span{width:22px;height:22px;font-size:13px}}
 </style>
+<style id="ls-css">
+#lsOverlay{display:none;position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,.6);backdrop-filter:blur(3px);justify-content:center;align-items:center;padding:12px;box-sizing:border-box}
+#lsOverlay *{box-sizing:border-box;margin:0}
+.ls-modal{container-type:inline-size;width:100%;max-width:520px;max-height:100%;display:flex;flex-direction:column;background:#fbfbfd;border-radius:4cqw;box-shadow:0 20px 60px rgba(0,0,0,.35);font-family:inherit;color:#1f2937}
+.ls-in{padding:3.4cqw 3.4cqw 3cqw;display:flex;flex-direction:column;min-height:0}
+.ls-head{display:flex;align-items:center;gap:2.4cqw}
+.ls-logo{width:13.2cqw;height:13.2cqw;border-radius:4cqw;background:linear-gradient(#ffe4e8,#ffd3da);display:grid;place-items:center;flex:none}
+.ls-logo svg{width:6.6cqw;height:6.6cqw}
+.ls-head h1{font-size:4.6cqw;font-weight:800;letter-spacing:-.03em;line-height:1.15;color:#1f2937}
+.ls-head h1 span{color:#e11d1d}
+.ls-head p{font-size:2.6cqw;color:#6b7280;margin-top:.6cqw}
+.ls-x{margin-left:auto;align-self:flex-start;width:7cqw;height:7cqw;border-radius:50%;border:1px solid #e5e7eb;background:#f1f2f6;font-size:4.6cqw;line-height:1;color:#374151;cursor:pointer;padding:0}
+.ls-tabs{display:flex;gap:1.6cqw;margin:2.2cqw 0 2.4cqw}
+.ls-tab{position:relative;display:flex;align-items:center;justify-content:center;gap:1.2cqw;height:7.7cqw;border-radius:2.6cqw;border:1px solid #e8e9ef;background:#f3f4f8;font-family:inherit;font-weight:600;font-size:2.5cqw;color:#374151;cursor:pointer;white-space:nowrap;padding:0 1cqw;flex:1}
+.ls-tab svg{width:3.2cqw;height:3.2cqw;flex:none}
+.ls-tab.on{background:linear-gradient(90deg,#ff6a3d,#ef2f3c);color:#fff;border-color:transparent;box-shadow:0 .8cqw 1.8cqw rgba(239,47,60,.35)}
+.ls-tab.minus{background:#ffecee;border-color:#fbd5da}
+.ls-tab.minus.on{background:linear-gradient(90deg,#ff6a3d,#ef2f3c)}
+.ls-tab.date{font-weight:500;color:#6b7280;flex:1.6}
+.ls-tab.date select{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;font-size:16px}
+.ls-dot{width:3.2cqw;height:3.2cqw;border-radius:50%;display:grid;place-items:center;color:#fff;font-size:2.6cqw;line-height:1;font-weight:700;flex:none}
+.ls-dot.p{background:#22c55e}.ls-dot.m{background:#ef2424}
+.ls-list{overflow:auto;display:flex;flex-direction:column;gap:1.6cqw;min-height:0}
+.ls-item{display:flex;gap:2.2cqw;padding:2cqw 1.8cqw 2cqw 2.2cqw;border-radius:2.6cqw;border:1px solid;border-left-width:.6cqw;min-height:15.4cqw}
+.ls-item.p{background:#effaf3;border-color:#c7ebd3;border-left-color:#22c55e;min-height:17cqw}
+.ls-item.m{background:#fff0f2;border-color:#f7bcc4;border-left-color:#ef2424}
+.ls-ic{width:9.8cqw;height:9.8cqw;border-radius:50%;flex:none;display:grid;place-items:center;margin-top:.4cqw}
+.p .ls-ic{background:#d3f1de}.m .ls-ic{background:#fcd5db}
+.ls-ic i{width:7cqw;height:7cqw;border-radius:50%;display:grid;place-items:center}
+.p .ls-ic i{background:linear-gradient(#22c55e,#16a34a)}
+.m .ls-ic i{background:linear-gradient(#ff3b5c,#e11d48)}
+.ls-ic svg{width:3.6cqw;height:3.6cqw}
+.ls-body{flex:1;min-width:0}
+.ls-amt{font-size:4.2cqw;font-weight:800;letter-spacing:-.02em;line-height:1.15}
+.p .ls-amt{color:#16a34a}.m .ls-amt{color:#e11d48}
+.ls-line{font-size:2.7cqw;color:#4b5563;margin-top:.8cqw;line-height:1.2;word-break:break-word}
+.ls-line b{color:#1f2937;font-weight:700}
+.ls-side{display:flex;flex-direction:column;align-items:flex-end;justify-content:space-between;flex:none;gap:1cqw}
+.ls-time{display:flex;align-items:center;gap:.9cqw;font-size:2.3cqw;color:#6b7280;white-space:nowrap}
+.ls-time svg{width:2.4cqw;height:2.4cqw}
+.ls-badge{display:inline-flex;align-items:center;gap:1.2cqw;height:5.6cqw;padding:0 1.8cqw;border-radius:2cqw;font-size:2.4cqw;font-weight:700;white-space:nowrap}
+.p .ls-badge{background:#d9f3e2;color:#16a34a}
+.m .ls-badge{background:#fddde2;color:#e11d48}
+.ls-badge .ls-dot{width:2.8cqw;height:2.8cqw;font-size:2cqw}
+.ls-empty{padding:8cqw 4cqw;text-align:center;color:#6b7280;font-size:3cqw}
+.ls-close{margin-top:1.8cqw;height:8.4cqw;width:100%;border:0;border-radius:2.6cqw;background:linear-gradient(90deg,#ff8a3d,#ef2f3c 70%,#e5123e);color:#fff;font-family:inherit;font-weight:700;font-size:3.3cqw;display:flex;align-items:center;justify-content:center;gap:2.2cqw;cursor:pointer;box-shadow:0 1cqw 2cqw rgba(239,47,60,.35);flex:none}
+.ls-close span{width:4.4cqw;height:4.4cqw;border-radius:50%;background:#fff;color:#ef2f3c;display:grid;place-items:center;font-size:2.6cqw}
+</style>
+
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap">
 </head>
 
@@ -991,6 +1040,26 @@ input,textarea,select{border-radius:14px!important;background:#fbfcfe!important;
 <button class="dp-ok" onclick="closeDepositModal()"><span>✓</span>Đã hiểu, đóng lại</button>
 </div></div>
 <div id="dpToast"></div>
+
+<!-- ===== LỊCH SỬ CỘNG TIỀN MODAL ===== -->
+<div id="lsOverlay" onclick="if(event.target===this)closeHistoryModal()">
+<div class="ls-modal"><div class="ls-in">
+  <div class="ls-head">
+    <div class="ls-logo"><svg viewBox="0 0 24 24" fill="none"><path d="M5 3h11l4 4v11a3 3 0 0 1-3 3H5z" fill="#ef2f3c"/><path d="M8 9h8M8 13h8M8 17h5" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg></div>
+    <div><h1>Lịch Sử <span>Cộng Tiền</span></h1><p>Danh sách các lần nạp và trừ tiền trong ví của bạn.</p></div>
+    <button class="ls-x" onclick="closeHistoryModal()" aria-label="Đóng">×</button>
+  </div>
+  <div class="ls-tabs">
+    <button class="ls-tab on" data-f="all"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M4 6h.01M4 12h.01M4 18h.01M9 6h12M9 12h12M9 18h12"/></svg>Tất cả</button>
+    <button class="ls-tab" data-f="p"><span class="ls-dot p">+</span>Nạp tiền</button>
+    <button class="ls-tab minus" data-f="m"><span class="ls-dot m">−</span>Trừ tiền</button>
+    <label class="ls-tab date"><svg viewBox="0 0 24 24" fill="none" stroke="#374151" stroke-width="2" stroke-linecap="round"><rect x="3.5" y="5" width="17" height="15" rx="2.5"/><path d="M8 3v4M16 3v4M3.5 10h17"/></svg><span id="lsDateLbl">Chọn thời gian</span><svg viewBox="0 0 24 24" fill="none" stroke="#374151" stroke-width="2.5" stroke-linecap="round"><path d="m6 9 6 6 6-6"/></svg>
+      <select id="lsDate"><option value="0">Tất cả thời gian</option><option value="1">Hôm nay</option><option value="7">7 ngày qua</option><option value="30">30 ngày qua</option></select></label>
+  </div>
+  <div class="ls-list" id="lsList"></div>
+  <button class="ls-close" onclick="closeHistoryModal()"><span>✓</span>Đóng</button>
+</div></div>
+</div>
 
 <div id="customModalOverlay">
 
@@ -1433,153 +1502,98 @@ async function loadDepositHistory() {
 
     if (!currentUser) return;
 
-    showModal(
-        "Lịch Sử Cộng Tiền",
-        "Đang tải lịch sử giao dịch..."
-    );
+    lsOpen();
+    lsSetList('<div class="ls-empty">Đang tải lịch sử giao dịch...</div>');
 
-    const {
-        data: historyData,
-        error
-    } =
+    const { data: historyData, error } =
         await _supabase
             .from('deposit_history')
             .select('*')
-            .eq(
-                'user_id',
-                currentUser.id
-            )
-            .order(
-                'created_at',
-                { ascending:false }
-            );
+            .eq('user_id', currentUser.id)
+            .order('created_at', { ascending:false });
 
     if (error) {
-
-        showModal(
-            "Lịch Sử Cộng Tiền",
-            "Chưa có dữ liệu lịch sử hoặc bảng giao dịch chưa được khởi tạo trên CSDL."
-        );
-
+        lsSetList('<div class="ls-empty">Chưa có dữ liệu lịch sử hoặc bảng giao dịch chưa được khởi tạo trên CSDL.</div>');
         return;
     }
 
-    if (
-        !historyData ||
-        historyData.length === 0
-    ) {
-
-        showModal(
-            "Lịch Sử Cộng Tiền",
-            "Bạn chưa có giao dịch cộng tiền hoặc nạp tiền nào."
-        );
-
-        return;
-    }
-
-    let historyHtml = `
-        <div style="
-            max-height:350px;
-            overflow-y:auto;
-            text-align:left;
-            display:flex;
-            flex-direction:column;
-            gap:8px;
-        ">
-    `;
-
-    historyData.forEach(item => {
-
-        const timeStr =
-            item.created_at
-                ? new Date(
-                    item.created_at
-                ).toLocaleString(
-                    'vi-VN',
-                    {
-                        timeZone:
-                            'Asia/Ho_Chi_Minh'
-                    }
-                )
-                : '';
-
-        const amountVal =
-            formatCurrency(
-                item.amount || 0
-            );
-
-        const noteStr =
-            escapeHtml(
-                item.note ||
-                item.description ||
-                'Cộng tiền vào ví'
-            );
-
-        const typeStr =
-            item.type ===
-            'cong_thu_cong'
-                ? 'Cộng thủ công'
-                : 'Nạp tiền ví';
-
-        historyHtml += `
-            <div style="
-                background:#f8fafc;
-                border:1px solid #e2e8f0;
-                padding:10px;
-                border-radius:8px;
-                font-size:12px;
-            ">
-
-                <div style="
-                    display:flex;
-                    justify-content:space-between;
-                    margin-bottom:4px;
-                ">
-
-                    <b style="
-                        color:#27ae60;
-                    ">
-                        + ${amountVal}
-                    </b>
-
-                    <span style="
-                        color:#718096;
-                        font-size:11px;
-                    ">
-                        ${timeStr}
-                    </span>
-
-                </div>
-
-                <div style="
-                    color:#4a5568;
-                    margin-bottom:2px;
-                ">
-                    <b>Loại:</b>
-                    ${typeStr}
-                </div>
-
-                <div style="
-                    color:#4a5568;
-                ">
-                    <b>Nội dung:</b>
-                    ${noteStr}
-                </div>
-
-            </div>
-        `;
+    lsData = (historyData || []).map(function(it){
+        var amt = Number(it.amount) || 0;
+        var tp = String(it.type || '').toLowerCase();
+        var minus = amt < 0 || /tru|deduct|minus|debit/.test(tp);
+        var raw = String(it.note || it.description || '');
+        var m = raw.match(/FT\d{6,}/i);
+        var code = m ? m[0].toUpperCase() : (it.transaction_id || it.ma_giao_dich || it.reference_code || it.code || '');
+        var note = raw;
+        if (/sepay/i.test(raw)) note = 'Nạp tự động';
+        else if (!raw) note = minus ? 'Admin đã trừ tiền' : 'Nạp tự động';
+        else if (minus && /^admin/i.test(raw)) note = 'Admin đã trừ tiền';
+        return {
+            minus: minus,
+            amount: Math.abs(amt),
+            note: note,
+            code: minus ? '' : code,
+            ts: it.created_at ? new Date(it.created_at) : null
+        };
     });
 
-    historyHtml += `</div>`;
-
-    showModal(
-        "Lịch Sử Cộng Tiền",
-        "",
-        false,
-        null,
-        historyHtml
-    );
+    lsRender();
 }
+
+var lsData = [], lsFilter = 'all', lsDays = 0;
+
+function lsOpen() { document.getElementById('lsOverlay').style.display = 'flex'; }
+function closeHistoryModal() { document.getElementById('lsOverlay').style.display = 'none'; }
+function lsSetList(h) { document.getElementById('lsList').innerHTML = h; }
+
+function lsFmtTime(d) {
+    if (!d || isNaN(d)) return '';
+    var o = {};
+    new Intl.DateTimeFormat('en-GB', { timeZone:'Asia/Ho_Chi_Minh', hour12:false, year:'numeric', month:'numeric', day:'numeric', hour:'2-digit', minute:'2-digit', second:'2-digit' })
+        .formatToParts(d).forEach(function(p){ o[p.type] = p.value; });
+    return o.hour + ':' + o.minute + ':' + o.second + ' ' + o.day + '/' + o.month + '/' + o.year;
+}
+
+var LS_ARROW = { pIn:'M6 6l12 12M18 9v9H9', pOut:'M6 18L18 6M9 6h9v9', mOut:'M18 18L6 6M15 6H6v9', mIn:'M18 6L6 18M6 9v9h9' };
+
+function lsRender() {
+    var now = Date.now(), n = 0, h = '';
+    lsData.forEach(function(x){
+        if (lsFilter === 'p' && x.minus) return;
+        if (lsFilter === 'm' && !x.minus) return;
+        if (lsDays && x.ts) {
+            if (lsDays === 1) {
+                if (lsFmtTime(x.ts).split(' ')[1] !== lsFmtTime(new Date()).split(' ')[1]) return;
+            } else if (now - x.ts.getTime() > lsDays * 86400000) return;
+        }
+        var c = x.minus ? 'm' : 'p';
+        var arrow = x.minus ? LS_ARROW.mOut : LS_ARROW.pOut;
+        h += '<div class="ls-item ' + c + '"><div class="ls-ic"><i><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"><path d="' + arrow + '"/></svg></i></div>' +
+            '<div class="ls-body"><div class="ls-amt">' + (x.minus ? '- ' : '+ ') + formatCurrency(x.amount) + '</div>' +
+            '<div class="ls-line"><b>Nội dung:</b> ' + escapeHtml(x.note) + '</div>' +
+            (x.code ? '<div class="ls-line"><b>Mã giao dịch:</b> ' + escapeHtml(x.code) + '</div>' : '') + '</div>' +
+            '<div class="ls-side"><div class="ls-time"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>' + lsFmtTime(x.ts) + '</div>' +
+            '<div class="ls-badge"><span class="ls-dot ' + c + '">' + (x.minus ? '×' : '✓') + '</span>' + (x.minus ? 'Đã trừ tiền' : 'Đã cộng tiền') + '</div></div></div>';
+        n++;
+    });
+    lsSetList(n ? h : '<div class="ls-empty">Bạn chưa có giao dịch nào.</div>');
+}
+
+document.addEventListener('click', function(e){
+    var t = e.target.closest && e.target.closest('.ls-tab[data-f]');
+    if (!t) return;
+    document.querySelectorAll('.ls-tab[data-f]').forEach(function(o){ o.classList.remove('on'); });
+    t.classList.add('on');
+    lsFilter = t.dataset.f;
+    lsRender();
+});
+document.addEventListener('change', function(e){
+    if (e.target.id !== 'lsDate') return;
+    lsDays = parseInt(e.target.value, 10) || 0;
+    document.getElementById('lsDateLbl').textContent = e.target.options[e.target.selectedIndex].text;
+    lsRender();
+});
+document.addEventListener('keydown', function(e){ if (e.key === 'Escape') closeHistoryModal(); });
 
 
 /* ============================================================
