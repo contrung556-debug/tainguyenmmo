@@ -1,4 +1,4 @@
-// ============================================================
+/// ============================================================
 // api/vubel-test.js
 // CommonJS - Vercel
 //
@@ -6,7 +6,7 @@
 // Browser
 //   -> Vercel
 //   -> Proxy.vn (get rotating proxy)
-//   -> Vubel
+//   -> Vubel (502/504 được phân loại là upstream, không tự kết luận proxy DIE)
 //   -> Shopee
 //
 // ENV:
@@ -83,10 +83,49 @@ function maskProxy(proxy) {
 
 
 // ============================================================
+// PROXY.VN CACHE / TTL
+// Best-effort cache: Vercel warm instance may reuse this value.
+// If the instance is cold, a new proxy is requested normally.
+// ============================================================
+
+let proxyVNCache = null;
+
+function getProxyTTLSeconds(data) {
+  const message = safeString(
+    data && (data.message || data.comen || data.msg)
+  );
+
+  // Example: "proxy nay se die sau 1040s"
+  const match = message.match(/(?:die|het|hết)[^0-9]{0,30}(\d+)\s*s/i);
+  if (match) {
+    return Math.max(0, Number(match[1]) || 0);
+  }
+
+  return 0;
+}
+
+function getProxyRemainingSeconds(info) {
+  if (!info || !info.expiresAtMs) return null;
+  return Math.max(0, Math.floor((info.expiresAtMs - Date.now()) / 1000));
+}
+
+// ============================================================
 // GET PROXY FROM PROXY.VN
 // ============================================================
 
 async function getProxyVN() {
+  // Reuse the same issued proxy while it still has a safe TTL.
+  // Keep a 30-second safety margin before the seller's reported expiry.
+  if (proxyVNCache) {
+    const remaining = getProxyRemainingSeconds(proxyVNCache);
+    if (remaining != null && remaining > 30) {
+      return Object.assign({}, proxyVNCache, {
+        remainingSeconds: remaining,
+        source: "cache"
+      });
+    }
+    proxyVNCache = null;
+  }
   const key = process.env.PROXYVN_KEY;
 
   if (!key) {
@@ -170,11 +209,22 @@ async function getProxyVN() {
       normalizeProxy(rawProxy);
 
 
-    return {
+    const ttlSeconds =
+      getProxyTTLSeconds(data);
+
+    const issuedAtMs = Date.now();
+    const expiresAtMs = ttlSeconds > 0
+      ? issuedAtMs + (ttlSeconds * 1000)
+      : null;
+
+    const info = {
       proxy: proxy,
 
       provider:
         "Proxy.vn",
+
+      status:
+        "ISSUED",
 
       network:
         data["Nha Mang"] ||
@@ -188,11 +238,39 @@ async function getProxyVN() {
         data.tinhthanh ||
         null,
 
+      exitIp:
+        data.ip || null,
+
+      tokenExpiration:
+        data["Token expiration date"] || null,
+
+      ttlSeconds:
+        ttlSeconds || null,
+
+      remainingSeconds:
+        ttlSeconds || null,
+
+      issuedAtMs:
+        issuedAtMs,
+
+      expiresAtMs:
+        expiresAtMs,
+
+      source:
+        "api",
+
       message:
         data.message ||
         data.comen ||
         null
     };
+
+    // Only cache when Proxy.vn gave an explicit TTL.
+    if (expiresAtMs) {
+      proxyVNCache = info;
+    }
+
+    return info;
 
   } catch (error) {
 
@@ -2217,6 +2295,24 @@ function row(
 }
 
 
+
+function proxyLabel(proxy) {
+  if (!proxy) return "Chua co proxy";
+
+  var parts = [];
+  parts.push(proxy.status || "ISSUED");
+  if (proxy.network) parts.push(proxy.network);
+  if (proxy.location) parts.push(proxy.location);
+
+  if (typeof proxy.remaining_seconds === "number") {
+    var min = Math.floor(proxy.remaining_seconds / 60);
+    var sec = proxy.remaining_seconds % 60;
+    parts.push("con ~" + min + "p " + sec + "s");
+  }
+
+  return parts.join(" • ");
+}
+
 // ============================================================
 // SEND
 // ============================================================
@@ -2318,7 +2414,7 @@ async function runAction(action) {
     ) {
 
       setProxyStatus(
-        "LIVE - Proxy.vn",
+        proxyLabel(data.proxy),
         "live"
       );
 
@@ -2337,10 +2433,18 @@ async function runAction(action) {
       data.proxy
     ) {
 
-      setProxyStatus(
+      var proxyState =
         data.proxy.status ||
-        "Loi proxy/upstream",
-        "die"
+        "ISSUED";
+
+      var proxyType =
+        proxyState === "ERROR"
+          ? "die"
+          : "live";
+
+      setProxyStatus(
+        proxyLabel(data.proxy),
+        proxyType
       );
 
     }
@@ -2420,6 +2524,26 @@ async function runAction(action) {
 </html>`;
 }
 
+
+// ============================================================
+// SAFE PROXY SUMMARY FOR BROWSER
+// Never expose proxy host/port/credentials.
+// ============================================================
+
+function proxySummary(proxyInfo, status) {
+  const remaining = getProxyRemainingSeconds(proxyInfo);
+
+  return {
+    provider: "Proxy.vn",
+    status: status || "ISSUED",
+    network: proxyInfo ? proxyInfo.network : null,
+    location: proxyInfo ? proxyInfo.location : null,
+    remaining_seconds: remaining,
+    ttl_seconds: proxyInfo ? proxyInfo.ttlSeconds : null,
+    token_expiration: proxyInfo ? proxyInfo.tokenExpiration : null,
+    source: proxyInfo ? proxyInfo.source : null
+  };
+}
 
 // ============================================================
 // MAIN HANDLER
@@ -2671,21 +2795,22 @@ async function handler(
             ok:false,
 
             stage:
-              "PROXY_CHECK",
+              "VUBEL_UPSTREAM",
 
-            proxy:{
-              provider:
-                "Proxy.vn",
+            error:
+              "VUBEL_UPSTREAM_502",
 
-              status:
-                "DIE_OR_UPSTREAM_ERROR",
+            message:
+              "Vubel/Cloudflare trả 502/504. Proxy.vn đã cấp proxy; phản hồi này không đủ để kết luận proxy DIE.",
 
-              network:
-                proxyInfo.network,
+            retryable:
+              true,
 
-              location:
-                proxyInfo.location
-            },
+            proxy:
+                proxySummary(
+                  proxyInfo,
+                  "ISSUED",
+                ),
 
             vubel_status:
               result.status,
@@ -2710,21 +2835,11 @@ async function handler(
           endpoint:
             "/v1/shopee/info",
 
-          proxy:{
-            provider:
-              "Proxy.vn",
-
-            status:
-              result.ok
-                ? "LIVE"
-                : "REQUEST_REACHED_VUBEL",
-
-            network:
-              proxyInfo.network,
-
-            location:
-              proxyInfo.location
-          },
+          proxy:
+              proxySummary(
+                proxyInfo,
+                result.ok ? "LIVE" : "REQUEST_REACHED_VUBEL",
+              ),
 
           vubel_status:
             result.status,
@@ -2800,21 +2915,22 @@ async function handler(
             ok:false,
 
             stage:
-              "PROXY_CHECK",
+              "VUBEL_UPSTREAM",
 
-            proxy:{
-              provider:
-                "Proxy.vn",
+            error:
+              "VUBEL_UPSTREAM_502",
 
-              status:
-                "DIE_OR_UPSTREAM_ERROR",
+            message:
+              "Vubel/Cloudflare trả 502/504. Proxy.vn đã cấp proxy; phản hồi này không đủ để kết luận proxy DIE.",
 
-              network:
-                proxyInfo.network,
+            retryable:
+              true,
 
-              location:
-                proxyInfo.location
-            },
+            proxy:
+                proxySummary(
+                  proxyInfo,
+                  "ISSUED",
+                ),
 
             vubel_status:
               result.status,
@@ -2839,21 +2955,11 @@ async function handler(
           endpoint:
             "/v1/shopee/get_order",
 
-          proxy:{
-            provider:
-              "Proxy.vn",
-
-            status:
-              result.ok
-                ? "LIVE"
-                : "REQUEST_REACHED_VUBEL",
-
-            network:
-              proxyInfo.network,
-
-            location:
-              proxyInfo.location
-          },
+          proxy:
+              proxySummary(
+                proxyInfo,
+                result.ok ? "LIVE" : "REQUEST_REACHED_VUBEL",
+              ),
 
           vubel_status:
             result.status,
@@ -2934,21 +3040,22 @@ async function handler(
             ok:false,
 
             stage:
-              "PROXY_CHECK",
+              "VUBEL_UPSTREAM",
 
-            proxy:{
-              provider:
-                "Proxy.vn",
+            error:
+              "VUBEL_UPSTREAM_502",
 
-              status:
-                "DIE_OR_UPSTREAM_ERROR",
+            message:
+              "Vubel/Cloudflare trả 502/504. Proxy.vn đã cấp proxy; phản hồi này không đủ để kết luận proxy DIE.",
 
-              network:
-                proxyInfo.network,
+            retryable:
+              true,
 
-              location:
-                proxyInfo.location
-            },
+            proxy:
+                proxySummary(
+                  proxyInfo,
+                  "ISSUED",
+                ),
 
             info:{
               status:
@@ -2986,21 +3093,22 @@ async function handler(
             ok:false,
 
             stage:
-              "PROXY_CHECK",
+              "VUBEL_UPSTREAM",
 
-            proxy:{
-              provider:
-                "Proxy.vn",
+            error:
+              "VUBEL_UPSTREAM_502",
 
-              status:
-                "DIE_OR_UPSTREAM_ERROR",
+            message:
+              "Vubel/Cloudflare trả 502/504. Proxy.vn đã cấp proxy; phản hồi này không đủ để kết luận proxy DIE.",
 
-              network:
-                proxyInfo.network,
+            retryable:
+              true,
 
-              location:
-                proxyInfo.location
-            },
+            proxy:
+                proxySummary(
+                  proxyInfo,
+                  "ISSUED",
+                ),
 
             info:{
               ok:
@@ -3050,21 +3158,11 @@ async function handler(
           action:
             "all",
 
-          proxy:{
-            provider:
-              "Proxy.vn",
-
-            status:
-              everythingOK
-                ? "LIVE"
-                : "REQUEST_REACHED_VUBEL",
-
-            network:
-              proxyInfo.network,
-
-            location:
-              proxyInfo.location
-          },
+          proxy:
+              proxySummary(
+                proxyInfo,
+                everythingOK ? "LIVE" : "REQUEST_REACHED_VUBEL",
+              ),
 
           account:
             normalizeInfo(
