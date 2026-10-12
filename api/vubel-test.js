@@ -6,7 +6,7 @@
 // Browser
 //   -> Vercel
 //   -> Proxy.vn (get rotating proxy)
-//   -> Vubel
+//   -> Vubel (502/504 được phân loại là upstream, không tự kết luận proxy DIE)
 //   -> Shopee
 //
 // ENV:
@@ -2337,10 +2337,18 @@ async function runAction(action) {
       data.proxy
     ) {
 
-      setProxyStatus(
+      var proxyState =
         data.proxy.status ||
-        "Loi proxy/upstream",
-        "die"
+        "ACQUIRED";
+
+      var proxyType =
+        proxyState === "ERROR"
+          ? "die"
+          : "live";
+
+      setProxyStatus(
+        proxyState + " - Proxy.vn",
+        proxyType
       );
 
     }
@@ -2671,14 +2679,23 @@ async function handler(
             ok:false,
 
             stage:
-              "PROXY_CHECK",
+              "VUBEL_UPSTREAM",
+
+            error:
+              "VUBEL_UPSTREAM_502",
+
+            message:
+              "Vubel/Cloudflare trả 502/504. Proxy.vn đã cấp proxy; phản hồi này không đủ để kết luận proxy DIE.",
+
+            retryable:
+              true,
 
             proxy:{
               provider:
                 "Proxy.vn",
 
               status:
-                "DIE_OR_UPSTREAM_ERROR",
+                "ACQUIRED",
 
               network:
                 proxyInfo.network,
@@ -2800,14 +2817,23 @@ async function handler(
             ok:false,
 
             stage:
-              "PROXY_CHECK",
+              "VUBEL_UPSTREAM",
+
+            error:
+              "VUBEL_UPSTREAM_502",
+
+            message:
+              "Vubel/Cloudflare trả 502/504. Proxy.vn đã cấp proxy; phản hồi này không đủ để kết luận proxy DIE.",
+
+            retryable:
+              true,
 
             proxy:{
               provider:
                 "Proxy.vn",
 
               status:
-                "DIE_OR_UPSTREAM_ERROR",
+                "ACQUIRED",
 
               network:
                 proxyInfo.network,
@@ -2934,14 +2960,23 @@ async function handler(
             ok:false,
 
             stage:
-              "PROXY_CHECK",
+              "VUBEL_UPSTREAM",
+
+            error:
+              "VUBEL_UPSTREAM_502",
+
+            message:
+              "Vubel/Cloudflare trả 502/504. Proxy.vn đã cấp proxy; phản hồi này không đủ để kết luận proxy DIE.",
+
+            retryable:
+              true,
 
             proxy:{
               provider:
                 "Proxy.vn",
 
               status:
-                "DIE_OR_UPSTREAM_ERROR",
+                "ACQUIRED",
 
               network:
                 proxyInfo.network,
@@ -2986,14 +3021,23 @@ async function handler(
             ok:false,
 
             stage:
-              "PROXY_CHECK",
+              "VUBEL_UPSTREAM",
+
+            error:
+              "VUBEL_UPSTREAM_502",
+
+            message:
+              "Vubel/Cloudflare trả 502/504. Proxy.vn đã cấp proxy; phản hồi này không đủ để kết luận proxy DIE.",
+
+            retryable:
+              true,
 
             proxy:{
               provider:
                 "Proxy.vn",
 
               status:
-                "DIE_OR_UPSTREAM_ERROR",
+                "ACQUIRED",
 
               network:
                 proxyInfo.network,
