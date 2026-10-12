@@ -1,11 +1,12 @@
 /// ============================================================
 // api/vubel-test.js
+// V16 HOMEPROXY AUTO
 // CommonJS - Vercel
 //
 // FLOW:
 // Browser
 //   -> Vercel
-//   -> HomeProxy (rotatev2)
+//   -> HomeProxy rotatev2 (get rotating proxy)
 //   -> Vubel
 //   -> Shopee
 //
@@ -15,7 +16,6 @@
 // ============================================================
 
 const VUBEL_BASE = "https://api.vubel.store";
-const HOMEPROXY_API = "https://app.homeproxy.vn/api/v3/users/rotatev2";
 const { ProxyAgent, request: undiciRequest } = require("undici");
 
 
@@ -43,7 +43,7 @@ function normalizeProxy(raw) {
   let proxy = safeString(raw);
 
   if (!proxy) {
-    throw new Error("Proxy.vn khÃ´ng tráº£ proxy HTTP");
+    throw new Error("HomeProxy khÃ´ng tráº£ proxy HTTP");
   }
 
   // VÃ­ dá»¥:
@@ -87,39 +87,66 @@ function maskProxy(proxy) {
 // GET PROXY FROM PROXY.VN
 // ============================================================
 
-async function getHomeProxy() {
+async function getProxyVN() {
   const key = process.env.HOMEPROXY_KEY;
-  if (!key) throw new Error("HOMEPROXY_KEY chÆ°a ÄÆ°á»£c cáº¥u hÃ¬nh trÃªn Vercel");
+
+  if (!key) {
+    throw new Error("HOMEPROXY_KEY chÆ°a ÄÆ°á»£c cáº¥u hÃ¬nh trÃªn Vercel");
+  }
+
+  const url =
+    "https://app.homeproxy.vn/api/v3/users/rotatev2?token=" +
+    encodeURIComponent(key);
 
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 15000);
+  const timer = setTimeout(function() { controller.abort(); }, 15000);
+
   try {
-    const response = await fetch(
-      HOMEPROXY_API + "?token=" + encodeURIComponent(key),
-      { method: "GET", headers: { Accept: "application/json" }, cache: "no-store", signal: controller.signal }
-    );
+    const response = await fetch(url, {
+      method: "GET",
+      headers: { "Accept": "application/json" },
+      cache: "no-store",
+      signal: controller.signal
+    });
+
     const text = await response.text();
     let data;
-    try { data = JSON.parse(text); }
-    catch (_) { throw new Error("HomeProxy tráº£ dá»¯ liá»u khÃ´ng pháº£i JSON: " + text.slice(0, 300)); }
+    try {
+      data = JSON.parse(text);
+    } catch (_) {
+      throw new Error("HomeProxy tráº£ dá»¯ liá»u khÃ´ng pháº£i JSON: " + text.slice(0, 300));
+    }
 
-    if (!response.ok) throw new Error("HomeProxy HTTP " + response.status);
+    if (!response.ok) {
+      throw new Error("HomeProxy HTTP " + response.status);
+    }
+
     if (safeString(data.status).toLowerCase() !== "success" || !data.proxy) {
       throw new Error(data.message || "HomeProxy khÃ´ng cáº¥p ÄÆ°á»£c proxy");
     }
 
     // HomeProxy: IP:PORT:USERNAME:PASSWORD
     const parts = safeString(data.proxy).split(":");
-    if (parts.length < 4) throw new Error("Proxy HomeProxy sai Äá»nh dáº¡ng IP:PORT:USERNAME:PASSWORD");
+    if (parts.length < 4) {
+      throw new Error("Proxy HomeProxy khÃ´ng ÄÃºng Äá»nh dáº¡ng IP:PORT:USERNAME:PASSWORD");
+    }
+
     const ip = parts.shift();
     const port = parts.shift();
     const username = parts.shift();
     const password = parts.join(":");
-    const proxy = "http://" + encodeURIComponent(username) + ":" + encodeURIComponent(password) + "@" + ip + ":" + port;
+
+    if (!ip || !port || !username || !password) {
+      throw new Error("Proxy HomeProxy thiáº¿u IP/PORT/USERNAME/PASSWORD");
+    }
+
+    const proxy =
+      "http://" + encodeURIComponent(username) + ":" +
+      encodeURIComponent(password) + "@" + ip + ":" + port;
 
     return {
-      proxy,
-      provider: "HomeProxy",
+      proxy: proxy,
+      provider: data.provider || "HomeProxy",
       network: data.provider || null,
       location: data.location || null,
       message: data.message || null,
@@ -127,10 +154,15 @@ async function getHomeProxy() {
       timeRemaining: data.timeRemaining ?? null
     };
   } catch (error) {
-    if (error && error.name === "AbortError") throw new Error("HomeProxy timeout khi láº¥y proxy");
+    if (error && error.name === "AbortError") {
+      throw new Error("HomeProxy timeout khi láº¥y proxy");
+    }
     throw error;
-  } finally { clearTimeout(timer); }
+  } finally {
+    clearTimeout(timer);
+  }
 }
+
 
 // ============================================================
 // INDEPENDENT HTTP PROXY TEST
@@ -215,7 +247,7 @@ async function runABVubel(endpoint, cookieHeader, proxyA, proxyAMeta) {
       ok: false,
       conclusion: "PROXY_A_DIE",
       selected: null,
-      proxy_a: publicProxyMeta("PROXYVN", testA, proxyAMeta),
+      proxy_a: publicProxyMeta("HOMEPROXY", testA, proxyAMeta),
       proxy_b: null,
       result: null
     };
@@ -229,7 +261,7 @@ async function runABVubel(endpoint, cookieHeader, proxyA, proxyAMeta) {
       ok: resultA.ok,
       conclusion: resultA.ok ? "PROXY_A_VUBEL_OK" : "PROXY_A_REACHED_VUBEL",
       selected: "A",
-      proxy_a: publicProxyMeta("PROXYVN", testA, proxyAMeta),
+      proxy_a: publicProxyMeta("HOMEPROXY", testA, proxyAMeta),
       proxy_b: null,
       result: resultA
     };
@@ -241,7 +273,7 @@ async function runABVubel(endpoint, cookieHeader, proxyA, proxyAMeta) {
       ok: false,
       conclusion: "A_LIVE_BUT_VUBEL_502_NO_PROXY_B",
       selected: null,
-      proxy_a: publicProxyMeta("PROXYVN", testA, proxyAMeta),
+      proxy_a: publicProxyMeta("HOMEPROXY", testA, proxyAMeta),
       proxy_b: { name: "FALLBACK", status: "NOT_CONFIGURED" },
       result: resultA
     };
@@ -255,7 +287,7 @@ async function runABVubel(endpoint, cookieHeader, proxyA, proxyAMeta) {
       ok: false,
       conclusion: "PROXY_B_INVALID",
       selected: null,
-      proxy_a: publicProxyMeta("PROXYVN", testA, proxyAMeta),
+      proxy_a: publicProxyMeta("HOMEPROXY", testA, proxyAMeta),
       proxy_b: { name: "FALLBACK", status: "INVALID" },
       result: resultA
     };
@@ -267,7 +299,7 @@ async function runABVubel(endpoint, cookieHeader, proxyA, proxyAMeta) {
       ok: false,
       conclusion: "PROXY_B_DIE_INCONCLUSIVE",
       selected: null,
-      proxy_a: publicProxyMeta("PROXYVN", testA, proxyAMeta),
+      proxy_a: publicProxyMeta("HOMEPROXY", testA, proxyAMeta),
       proxy_b: publicProxyMeta("FALLBACK", testB),
       result: resultA
     };
@@ -288,7 +320,7 @@ async function runABVubel(endpoint, cookieHeader, proxyA, proxyAMeta) {
     ok: resultB.ok,
     conclusion: conclusion,
     selected: "B",
-    proxy_a: publicProxyMeta("PROXYVN", testA, proxyAMeta),
+    proxy_a: publicProxyMeta("HOMEPROXY", testA, proxyAMeta),
     proxy_b: publicProxyMeta("FALLBACK", testB),
     result_a: resultA,
     result: resultB
@@ -1423,7 +1455,7 @@ function renderPage() {
   content="width=device-width,initial-scale=1"
 >
 
-<title>Vubel + HomeProxy Test</title>
+<title>Vubel API Test V16 - HomeProxy Test</title>
 
 <style>
 
@@ -1810,12 +1842,12 @@ pre{
 
 <div class="hero-inner">
 
-<h1>Vubel + HomeProxy</h1>
+<h1>Vubel API Test V16 - HomeProxy</h1>
 
 <p>
-T&#7921; &#273;&#7897;ng xoay HomeProxy
+T&#7921; &#273;&#7897;ng l&#7845;y proxy
 &rarr;
-ki&#7875;m tra proxy
+ki&#7875;m tra request
 &rarr;
 Vubel
 </p>
@@ -1852,8 +1884,8 @@ Cookie Shopee
 
 <div class="note">
 
-Proxy kh&ocirc;ng c&#7847;n nh&#7853;p th&#7911; c&ocirc;ng.
-Server s&#7869; d&ugrave;ng HOMEPROXY_KEY tr&ecirc;n Vercel
+Kh&ocirc;ng c&#7847;n nh&#7853;p proxy th&#7911; c&ocirc;ng.
+Server t&#7921; &#273;&#7897;ng d&ugrave;ng HOMEPROXY_KEY tr&ecirc;n Vercel
 &#273;&#7875; xoay v&agrave; l&#7845;y proxy HomeProxy.
 
 Cookie v&agrave; key kh&ocirc;ng &#273;&#432;&#7907;c l&#432;u
@@ -2673,7 +2705,7 @@ async function handler(
   try {
 
     proxyInfo =
-      await getHomeProxy();
+      await getProxyVN();
 
   } catch(error) {
 
