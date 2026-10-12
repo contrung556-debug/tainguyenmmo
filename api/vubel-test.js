@@ -217,7 +217,6 @@ async function getProxyVN() {
 
 // ============================================================
 // INDEPENDENT HTTP PROXY TEST
-// Tests the SAME proxy before sending it to Vubel.
 // ============================================================
 
 async function testHttpProxy(proxy) {
@@ -231,7 +230,7 @@ async function testHttpProxy(proxy) {
       "https://api.ipify.org?format=json",
       {
         method: "GET",
-        dispatcher: dispatcher,
+        dispatcher,
         headersTimeout: 12000,
         bodyTimeout: 12000
       }
@@ -239,10 +238,7 @@ async function testHttpProxy(proxy) {
 
     const raw = await response.body.text();
     let data = {};
-
-    try {
-      data = JSON.parse(raw);
-    } catch (_) {}
+    try { data = JSON.parse(raw); } catch (_) {}
 
     if (response.statusCode < 200 || response.statusCode >= 300) {
       return {
@@ -259,11 +255,9 @@ async function testHttpProxy(proxy) {
       ip: data.ip || null,
       elapsed_ms: Date.now() - startedAt
     };
-
   } catch (error) {
     const message = safeString(error && error.message ? error.message : error);
     const lower = message.toLowerCase();
-
     let reason = "NETWORK_ERROR";
     if (lower.includes("timeout") || lower.includes("timed out")) reason = "TIMEOUT";
     else if (lower.includes("407") || lower.includes("auth")) reason = "AUTH_FAILED";
@@ -277,14 +271,111 @@ async function testHttpProxy(proxy) {
       message: message,
       elapsed_ms: Date.now() - startedAt
     };
-
   } finally {
     if (dispatcher && dispatcher.close) {
-      try {
-        await dispatcher.close();
-      } catch (_) {}
+      try { await dispatcher.close(); } catch (_) {}
     }
   }
+}
+
+function isUpstream502(result) {
+  return Boolean(result && (result.status === 502 || result.status === 504));
+}
+
+function publicProxyMeta(name, test, extra) {
+  return Object.assign({
+    name: name,
+    status: test && test.ok ? "LIVE" : "DIE",
+    test: test || null
+  }, extra || {});
+}
+
+async function runABVubel(endpoint, cookieHeader, proxyA, proxyAMeta) {
+  const testA = await testHttpProxy(proxyA);
+
+  if (!testA.ok) {
+    return {
+      ok: false,
+      conclusion: "PROXY_A_DIE",
+      selected: null,
+      proxy_a: publicProxyMeta("PROXYVN", testA, proxyAMeta),
+      proxy_b: null,
+      result: null
+    };
+  }
+
+  const resultA = await callVubel(endpoint, cookieHeader, proxyA);
+
+  // Only use B as an A/B control when A gets 502/504.
+  if (!isUpstream502(resultA)) {
+    return {
+      ok: resultA.ok,
+      conclusion: resultA.ok ? "PROXY_A_VUBEL_OK" : "PROXY_A_REACHED_VUBEL",
+      selected: "A",
+      proxy_a: publicProxyMeta("PROXYVN", testA, proxyAMeta),
+      proxy_b: null,
+      result: resultA
+    };
+  }
+
+  const fallbackRaw = safeString(process.env.VUBEL_FALLBACK_PROXY);
+  if (!fallbackRaw) {
+    return {
+      ok: false,
+      conclusion: "A_LIVE_BUT_VUBEL_502_NO_PROXY_B",
+      selected: null,
+      proxy_a: publicProxyMeta("PROXYVN", testA, proxyAMeta),
+      proxy_b: { name: "FALLBACK", status: "NOT_CONFIGURED" },
+      result: resultA
+    };
+  }
+
+  let proxyB;
+  try {
+    proxyB = normalizeProxy(fallbackRaw);
+  } catch (e) {
+    return {
+      ok: false,
+      conclusion: "PROXY_B_INVALID",
+      selected: null,
+      proxy_a: publicProxyMeta("PROXYVN", testA, proxyAMeta),
+      proxy_b: { name: "FALLBACK", status: "INVALID" },
+      result: resultA
+    };
+  }
+
+  const testB = await testHttpProxy(proxyB);
+  if (!testB.ok) {
+    return {
+      ok: false,
+      conclusion: "PROXY_B_DIE_INCONCLUSIVE",
+      selected: null,
+      proxy_a: publicProxyMeta("PROXYVN", testA, proxyAMeta),
+      proxy_b: publicProxyMeta("FALLBACK", testB),
+      result: resultA
+    };
+  }
+
+  const resultB = await callVubel(endpoint, cookieHeader, proxyB);
+
+  let conclusion;
+  if (resultB.ok) {
+    conclusion = "PROXY_A_UNUSABLE_FOR_VUBEL_OR_TARGET";
+  } else if (isUpstream502(resultB)) {
+    conclusion = "BOTH_LIVE_BOTH_VUBEL_502_LIKELY_UPSTREAM";
+  } else {
+    conclusion = "PROXY_B_REACHED_VUBEL_DIFFERENT_RESPONSE";
+  }
+
+  return {
+    ok: resultB.ok,
+    conclusion: conclusion,
+    selected: "B",
+    proxy_a: publicProxyMeta("PROXYVN", testA, proxyAMeta),
+    proxy_b: publicProxyMeta("FALLBACK", testB),
+    result_a: resultA,
+    result: resultB
+  };
 }
 
 
@@ -2716,283 +2807,112 @@ async function handler(
   );
 
 
-  
-
-  const proxyTest = await testHttpProxy(proxy);
-
-  if (!proxyTest.ok) {
-    return res.status(502).json({ok:false,stage:"PROXY_TEST",error:"PROXY_HTTP_UNUSABLE",proxy:{provider:"Proxy.vn",status:"DIE",network:proxyInfo.network,location:proxyInfo.location},proxy_test:proxyTest});
-  }
-
   // ==========================================================
-  // INFO
+  // INFO - A/B PROXY TEST
   // ==========================================================
 
-  if (
-    action === "info"
-  ) {
-
+  if (action === "info") {
     try {
-
-      const result =
-        await callVubel(
-          "/v1/shopee/info",
-          cookieHeader,
-          proxy
-        );
-
-
-      if (
-        result.status === 502 ||
-        result.status === 504
-      ) {
-
-        return res
-          .status(502)
-          .json({
-
-            ok:false,
-
-            stage:
-              "PROXY_CHECK",
-
-            proxy:{
-              provider:
-                "Proxy.vn",
-
-              status:
-                "DIE_OR_UPSTREAM_ERROR",
-
-              network:
-                proxyInfo.network,
-
-              location:
-                proxyInfo.location
-            },
-
-            proxy_test:
-              proxyTest,
-
-            vubel_status:
-              result.status,
-
-            data:
-              result.data
-
-          });
-      }
-
-
-      return res
-        .status(result.status)
-        .json({
-
-          ok:
-            result.ok,
-
-          action:
-            "info",
-
-          endpoint:
-            "/v1/shopee/info",
-
-          proxy:{
-            provider:
-              "Proxy.vn",
-
-            status:
-              result.ok
-                ? "LIVE"
-                : "REQUEST_REACHED_VUBEL",
-
-            network:
-              proxyInfo.network,
-
-            location:
-              proxyInfo.location
-          },
-
-          proxy_test:
-            proxyTest,
-
-          vubel_status:
-            result.status,
-
-          elapsed_ms:
-            result.elapsed_ms,
-
-          proxy_test:
-            proxyTest,
-
-          account:
-            normalizeInfo(
-              result.data
-            ),
-
-          raw:
-            result.data
-
-        });
-
-    } catch(error) {
-
-      console.error(
-        "Info error:",
-        error
+      const ab = await runABVubel(
+        "/v1/shopee/info",
+        cookieHeader,
+        proxy,
+        {
+          provider: "Proxy.vn",
+          network: proxyInfo.network,
+          location: proxyInfo.location
+        }
       );
 
+      const result = ab.result;
 
-      return res
-        .status(500)
-        .json({
-
-          ok:false,
-
-          action:
-            "info",
-
-          error:
-            "Cannot call Vubel",
-
-          message:
-            error.message
-
+      if (!result) {
+        return res.status(502).json({
+          ok: false,
+          action: "info",
+          stage: "AB_PROXY_TEST",
+          conclusion: ab.conclusion,
+          proxy_a: ab.proxy_a,
+          proxy_b: ab.proxy_b
         });
+      }
+
+      return res.status(result.status).json({
+        ok: result.ok,
+        action: "info",
+        endpoint: "/v1/shopee/info",
+        conclusion: ab.conclusion,
+        selected_proxy: ab.selected,
+        proxy_a: ab.proxy_a,
+        proxy_b: ab.proxy_b,
+        vubel_a_status: ab.result_a ? ab.result_a.status : result.status,
+        vubel_status: result.status,
+        elapsed_ms: result.elapsed_ms,
+        account: normalizeInfo(result.data),
+        raw: result.data
+      });
+    } catch (error) {
+      return res.status(500).json({
+        ok: false,
+        action: "info",
+        error: "Cannot complete A/B test",
+        message: error.message
+      });
     }
   }
 
 
   // ==========================================================
-  // ORDERS
+  // ORDERS - A/B PROXY TEST
   // ==========================================================
 
-  if (
-    action === "orders"
-  ) {
-
+  if (action === "orders") {
     try {
-
-      const result =
-        await callVubel(
-          "/v1/shopee/get_order",
-          cookieHeader,
-          proxy
-        );
-
-
-      if (
-        result.status === 502 ||
-        result.status === 504
-      ) {
-
-        return res
-          .status(502)
-          .json({
-
-            ok:false,
-
-            stage:
-              "PROXY_CHECK",
-
-            proxy:{
-              provider:
-                "Proxy.vn",
-
-              status:
-                "DIE_OR_UPSTREAM_ERROR",
-
-              network:
-                proxyInfo.network,
-
-              location:
-                proxyInfo.location
-            },
-
-            proxy_test:
-              proxyTest,
-
-            vubel_status:
-              result.status,
-
-            data:
-              result.data
-
-          });
-      }
-
-
-      return res
-        .status(result.status)
-        .json({
-
-          ok:
-            result.ok,
-
-          action:
-            "orders",
-
-          endpoint:
-            "/v1/shopee/get_order",
-
-          proxy:{
-            provider:
-              "Proxy.vn",
-
-            status:
-              result.ok
-                ? "LIVE"
-                : "REQUEST_REACHED_VUBEL",
-
-            network:
-              proxyInfo.network,
-
-            location:
-              proxyInfo.location
-          },
-
-          proxy_test:
-            proxyTest,
-
-          vubel_status:
-            result.status,
-
-          elapsed_ms:
-            result.elapsed_ms,
-
-          orders:
-            normalizeOrders(
-              result.data
-            ),
-
-          raw:
-            result.data
-
-        });
-
-    } catch(error) {
-
-      console.error(
-        "Orders error:",
-        error
+      const ab = await runABVubel(
+        "/v1/shopee/get_order",
+        cookieHeader,
+        proxy,
+        {
+          provider: "Proxy.vn",
+          network: proxyInfo.network,
+          location: proxyInfo.location
+        }
       );
 
+      const result = ab.result;
 
-      return res
-        .status(500)
-        .json({
-
-          ok:false,
-
-          action:
-            "orders",
-
-          error:
-            "Cannot call Vubel",
-
-          message:
-            error.message
-
+      if (!result) {
+        return res.status(502).json({
+          ok: false,
+          action: "orders",
+          stage: "AB_PROXY_TEST",
+          conclusion: ab.conclusion,
+          proxy_a: ab.proxy_a,
+          proxy_b: ab.proxy_b
         });
+      }
+
+      return res.status(result.status).json({
+        ok: result.ok,
+        action: "orders",
+        endpoint: "/v1/shopee/get_order",
+        conclusion: ab.conclusion,
+        selected_proxy: ab.selected,
+        proxy_a: ab.proxy_a,
+        proxy_b: ab.proxy_b,
+        vubel_a_status: ab.result_a ? ab.result_a.status : result.status,
+        vubel_status: result.status,
+        elapsed_ms: result.elapsed_ms,
+        orders: normalizeOrders(result.data),
+        raw: result.data
+      });
+    } catch (error) {
+      return res.status(500).json({
+        ok: false,
+        action: "orders",
+        error: "Cannot complete A/B test",
+        message: error.message
+      });
     }
   }
 
@@ -3163,9 +3083,6 @@ async function handler(
             location:
               proxyInfo.location
           },
-
-          proxy_test:
-            proxyTest,
 
           account:
             normalizeInfo(
