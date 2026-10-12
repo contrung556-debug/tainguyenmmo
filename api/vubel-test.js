@@ -1,9 +1,17 @@
 export default async function handler(req, res) {
-  res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
+  // ============================================================
+  // VUBEL / SHOPEE TEST
+  // ============================================================
 
-  // =========================================================
-  // GET -> TRANG TEST
-  // =========================================================
+  res.setHeader(
+    "Cache-Control",
+    "no-store, no-cache, must-revalidate"
+  );
+
+  // ============================================================
+  // GET -> HIỆN TRANG TEST
+  // ============================================================
+
   if (req.method === "GET") {
     res.setHeader("Content-Type", "text/html; charset=utf-8");
 
@@ -12,8 +20,11 @@ export default async function handler(req, res) {
 <html lang="vi">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport"
-        content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0, viewport-fit=cover"
+  >
 
   <title>Test Vubel / Shopee</title>
 
@@ -24,53 +35,83 @@ export default async function handler(req, res) {
 
     body {
       margin: 0;
-      padding: 20px 16px;
-      font-family: -apple-system, BlinkMacSystemFont,
-                   "Segoe UI", sans-serif;
-      background: #f5f6f8;
+      padding: 20px 16px 50px;
+
+      font-family:
+        -apple-system,
+        BlinkMacSystemFont,
+        "Segoe UI",
+        sans-serif;
+
+      background: #f4f5f7;
       color: #222;
     }
 
     .box {
-      max-width: 600px;
+      width: 100%;
+      max-width: 620px;
+
       margin: 20px auto;
+
+      padding: 24px;
+
       background: #fff;
-      border-radius: 20px;
-      padding: 22px;
-      box-shadow: 0 8px 30px rgba(0,0,0,.08);
+
+      border-radius: 22px;
+
+      box-shadow:
+        0 8px 30px
+        rgba(0, 0, 0, 0.07);
     }
 
     h1 {
       margin: 0 0 8px;
-      font-size: 25px;
+
+      font-size: 27px;
+      line-height: 1.25;
     }
 
     .sub {
+      margin-bottom: 25px;
+
       color: #777;
-      margin-bottom: 24px;
+
+      font-size: 15px;
       line-height: 1.5;
     }
 
     label {
       display: block;
+
+      margin: 19px 0 8px;
+
+      font-size: 16px;
       font-weight: 700;
-      margin: 18px 0 8px;
     }
 
     textarea,
     input {
       width: 100%;
-      border: 1px solid #ddd;
-      border-radius: 12px;
+
       padding: 14px;
-      font-size: 16px;
+
+      border: 1px solid #ddd;
+      border-radius: 13px;
+
       outline: none;
+
       background: #fff;
+
+      font-size: 16px;
+
+      transition: border-color .2s;
     }
 
     textarea {
       min-height: 135px;
+
       resize: vertical;
+
       word-break: break-all;
     }
 
@@ -80,253 +121,489 @@ export default async function handler(req, res) {
     }
 
     .hint {
-      margin-top: 7px;
+      margin-top: 8px;
+
       color: #888;
+
       font-size: 12px;
+      line-height: 1.6;
+    }
+
+    .warning {
+      margin-top: 18px;
+
+      padding: 12px 14px;
+
+      border-radius: 12px;
+
+      background: #fff8e6;
+
+      color: #795d13;
+
+      font-size: 13px;
       line-height: 1.5;
     }
 
     button {
       width: 100%;
+
       margin-top: 22px;
+
       padding: 16px;
-      border: 0;
-      border-radius: 13px;
+
+      border: none;
+      border-radius: 14px;
+
       background: #ee4d2d;
+
       color: #fff;
+
       font-size: 17px;
       font-weight: 700;
+
       cursor: pointer;
     }
 
     button:disabled {
-      opacity: .6;
+      opacity: .55;
+      cursor: not-allowed;
     }
 
     .status {
-      margin-top: 22px;
-      font-size: 17px;
+      margin-top: 23px;
+
+      padding: 13px 14px;
+
+      border-radius: 12px;
+
+      background: #f6f6f6;
+
+      font-size: 16px;
       font-weight: 700;
+
+      line-height: 1.45;
+    }
+
+    .status.success {
+      background: #ecf9f0;
+      color: #18763a;
+    }
+
+    .status.error {
+      background: #fff0ed;
+      color: #c7381c;
+    }
+
+    .status.loading {
+      background: #fff8e6;
+      color: #856404;
     }
 
     pre {
       margin-top: 12px;
+
+      min-height: 110px;
+      max-height: 550px;
+
       padding: 15px;
-      min-height: 100px;
-      max-height: 500px;
+
       overflow: auto;
-      border-radius: 13px;
+
+      border-radius: 14px;
+
       background: #111;
+
       color: #eee;
+
       font-size: 12px;
-      line-height: 1.5;
+      line-height: 1.55;
+
       white-space: pre-wrap;
       word-break: break-word;
     }
 
     .security {
-      margin-top: 15px;
-      padding: 12px;
-      border-radius: 10px;
+      margin-top: 16px;
+
+      padding: 13px;
+
+      border-radius: 12px;
+
       background: #f7f7f7;
+
       color: #777;
+
       font-size: 12px;
-      line-height: 1.5;
+      line-height: 1.55;
     }
   </style>
 </head>
 
 <body>
 
-<div class="box">
+  <div class="box">
 
-  <h1>🧪 Test Vubel / Shopee</h1>
+    <h1>🧪 Test Vubel / Shopee</h1>
 
-  <div class="sub">
-    Test lấy đơn hàng Shopee qua Vubel API
+    <div class="sub">
+      Kiểm tra API lấy đơn hàng Shopee qua Vubel.
+    </div>
+
+
+    <!-- SPC_ST -->
+
+    <label for="cookie">
+      SPC_ST
+    </label>
+
+    <textarea
+      id="cookie"
+      autocomplete="off"
+      autocapitalize="none"
+      spellcheck="false"
+      placeholder="Dán SPC_ST=... hoặc chỉ giá trị SPC_ST"
+    ></textarea>
+
+
+    <!-- PROXY -->
+
+    <label for="proxy">
+      Proxy
+    </label>
+
+    <input
+      id="proxy"
+      type="text"
+      autocomplete="off"
+      autocapitalize="none"
+      spellcheck="false"
+      placeholder="http://ip:port"
+    >
+
+
+    <div class="hint">
+      Định dạng:<br>
+      http://ip:port<br>
+      http://user:pass@ip:port
+    </div>
+
+
+    <div class="warning">
+      ⚠️ Không nên sử dụng proxy công cộng với cookie
+      của tài khoản thật. Nên dùng proxy riêng mà bạn tin cậy.
+    </div>
+
+
+    <!-- BUTTON -->
+
+    <button
+      id="btn"
+      type="button"
+      onclick="testVubel()"
+    >
+      TEST VUBEL API
+    </button>
+
+
+    <!-- STATUS -->
+
+    <div
+      id="status"
+      class="status"
+    >
+      Chưa test
+    </div>
+
+
+    <!-- RESULT -->
+
+    <pre id="result">Kết quả sẽ hiện ở đây...</pre>
+
+
+    <div class="security">
+      🔐 VUBEL_API_KEY được đọc trực tiếp từ
+      Vercel Environment Variables.
+
+      SPC_ST và Proxy không được lưu vào
+      localStorage/sessionStorage bởi trang test này.
+    </div>
+
   </div>
 
-  <label>SPC_ST</label>
-
-  <textarea
-    id="cookie"
-    autocomplete="off"
-    placeholder="Dán SPC_ST=... hoặc chỉ giá trị cookie"></textarea>
-
-  <label>Proxy</label>
-
-  <input
-    id="proxy"
-    type="text"
-    autocomplete="off"
-    autocapitalize="none"
-    placeholder="http://ip:port">
-
-  <div class="hint">
-    Hỗ trợ:<br>
-    http://ip:port<br>
-    http://user:pass@ip:port
-  </div>
-
-  <button id="btn" onclick="testAPI()">
-    TEST API
-  </button>
-
-  <div id="status" class="status">
-    Chưa test
-  </div>
-
-  <pre id="result">Kết quả sẽ hiện ở đây...</pre>
-
-  <div class="security">
-    SPC_ST và proxy không được lưu vào localStorage.
-    VUBEL_API_KEY vẫn nằm trên Vercel và không được gửi xuống trình duyệt.
-  </div>
-
-</div>
 
 <script>
 
-async function testAPI() {
+  // ============================================================
+  // UI STATUS
+  // ============================================================
 
-  const cookieInput =
-    document.getElementById("cookie");
+  function setStatus(type, text) {
 
-  const proxyInput =
-    document.getElementById("proxy");
+    const el =
+      document.getElementById("status");
 
-  const btn =
-    document.getElementById("btn");
+    el.className =
+      "status " + (type || "");
 
-  const status =
-    document.getElementById("status");
-
-  const result =
-    document.getElementById("result");
-
-
-  let spc_st =
-    cookieInput.value.trim();
-
-  let proxy =
-    proxyInput.value.trim();
-
-
-  // Cho phép dán SPC_ST=xxxx
-  spc_st = spc_st
-    .replace(/^SPC_ST=/i, "")
-    .trim();
-
-
-  if (!spc_st) {
-    alert("Bạn chưa nhập SPC_ST");
-    return;
+    el.textContent =
+      text;
   }
 
 
-  if (!proxy) {
-    alert("Bạn chưa nhập Proxy");
-    return;
-  }
+  // ============================================================
+  // TEST
+  // ============================================================
+
+  async function testVubel() {
+
+    const cookieInput =
+      document.getElementById("cookie");
+
+    const proxyInput =
+      document.getElementById("proxy");
+
+    const button =
+      document.getElementById("btn");
+
+    const result =
+      document.getElementById("result");
 
 
-  if (
-    !proxy.startsWith("http://") &&
-    !proxy.startsWith("https://")
-  ) {
-    alert(
-      "Proxy phải bắt đầu bằng http:// hoặc https://"
+    let spc_st =
+      cookieInput.value.trim();
+
+    let proxy =
+      proxyInput.value.trim();
+
+
+    // Cho phép dán nguyên:
+    // SPC_ST=xxxx
+
+    spc_st =
+      spc_st
+        .replace(/^SPC_ST=/i, "")
+        .trim();
+
+
+    // ==========================================================
+    // VALIDATE
+    // ==========================================================
+
+    if (!spc_st) {
+
+      setStatus(
+        "error",
+        "❌ Bạn chưa nhập SPC_ST"
+      );
+
+      return;
+    }
+
+
+    if (!proxy) {
+
+      setStatus(
+        "error",
+        "❌ Bạn chưa nhập Proxy"
+      );
+
+      return;
+    }
+
+
+    if (
+      !proxy.startsWith("http://") &&
+      !proxy.startsWith("https://")
+    ) {
+
+      setStatus(
+        "error",
+        "❌ Proxy phải bắt đầu bằng http:// hoặc https://"
+      );
+
+      return;
+    }
+
+
+    // ==========================================================
+    // LOADING
+    // ==========================================================
+
+    button.disabled = true;
+
+    button.textContent =
+      "ĐANG TEST...";
+
+
+    setStatus(
+      "loading",
+      "⏳ Đang kết nối Vubel..."
     );
-    return;
-  }
 
 
-  btn.disabled = true;
-  btn.innerText = "ĐANG TEST...";
-
-  status.innerText =
-    "⏳ Đang gọi Vubel...";
-
-  result.textContent = "";
+    result.textContent =
+      "Đang chờ phản hồi...";
 
 
-  try {
-
-    const response =
-      await fetch(window.location.pathname, {
-
-        method: "POST",
-
-        headers: {
-          "Content-Type": "application/json"
-        },
-
-        body: JSON.stringify({
-          spc_st: spc_st,
-          proxy: proxy
-        })
-
-      });
-
-
-    const text =
-      await response.text();
-
-
-    let data;
+    // ==========================================================
+    // REQUEST
+    // ==========================================================
 
     try {
 
-      data = JSON.parse(text);
+      const response =
+        await fetch(
+          window.location.pathname,
+          {
 
-    } catch {
+            method: "POST",
 
-      data = {
-        raw: text
-      };
+            headers: {
+              "Content-Type":
+                "application/json"
+            },
 
-    }
+            body: JSON.stringify({
 
+              spc_st:
+                spc_st,
 
-    if (response.ok) {
+              proxy:
+                proxy
 
-      status.innerText =
-        "✅ Vubel phản hồi thành công";
+            })
 
-    } else {
-
-      status.innerText =
-        "❌ API trả HTTP " +
-        response.status;
-
-    }
+          }
+        );
 
 
-    result.textContent =
-      JSON.stringify(
-        data,
-        null,
-        2
+      const text =
+        await response.text();
+
+
+      let data;
+
+
+      try {
+
+        data =
+          JSON.parse(text);
+
+      } catch {
+
+        data = {
+          ok: false,
+          message:
+            "Server trả dữ liệu không phải JSON."
+        };
+
+      }
+
+
+      // ========================================================
+      // STATUS MESSAGE
+      // ========================================================
+
+      if (response.ok && data.ok) {
+
+        setStatus(
+          "success",
+          "✅ Vubel phản hồi thành công"
+        );
+
+      }
+
+      else if (
+        data.type ===
+        "VUBEL_BAD_GATEWAY"
+      ) {
+
+        setStatus(
+          "error",
+          "⚠️ Vubel / upstream đang lỗi 502"
+        );
+
+      }
+
+      else if (
+        response.status === 400
+      ) {
+
+        setStatus(
+          "error",
+          "❌ Request không hợp lệ (HTTP 400)"
+        );
+
+      }
+
+      else if (
+        response.status === 401 ||
+        response.status === 403
+      ) {
+
+        setStatus(
+          "error",
+          "❌ API key / xác thực bị từ chối"
+        );
+
+      }
+
+      else {
+
+        setStatus(
+          "error",
+          "❌ API trả HTTP " +
+          response.status
+        );
+
+      }
+
+
+      result.textContent =
+        JSON.stringify(
+          data,
+          null,
+          2
+        );
+
+
+    } catch (error) {
+
+      setStatus(
+        "error",
+        "❌ Không kết nối được endpoint Vercel"
       );
 
 
-  } catch (error) {
+      result.textContent =
+        JSON.stringify(
+          {
+            ok: false,
 
-    status.innerText =
-      "❌ Không gọi được API";
+            error:
+              String(
+                error?.message ||
+                error
+              )
+          },
 
-    result.textContent =
-      String(error);
+          null,
+          2
+        );
 
-  } finally {
+    }
 
-    btn.disabled = false;
+    finally {
 
-    btn.innerText =
-      "TEST API";
+      button.disabled =
+        false;
+
+      button.textContent =
+        "TEST VUBEL API";
+
+    }
 
   }
-}
 
 </script>
 
@@ -336,23 +613,30 @@ async function testAPI() {
   }
 
 
-  // =========================================================
-  // POST
-  // =========================================================
+  // ============================================================
+  // CHỈ CHẤP NHẬN POST
+  // ============================================================
 
   if (req.method !== "POST") {
 
     return res.status(405).json({
+
       ok: false,
-      error: "Method not allowed"
+
+      type:
+        "METHOD_NOT_ALLOWED",
+
+      message:
+        "Chỉ hỗ trợ GET và POST"
+
     });
 
   }
 
 
-  // =========================================================
-  // VUBEL API KEY
-  // =========================================================
+  // ============================================================
+  // API KEY TỪ VERCEL
+  // ============================================================
 
   const apiKey =
     process.env.VUBEL_API_KEY;
@@ -361,54 +645,107 @@ async function testAPI() {
   if (!apiKey) {
 
     return res.status(500).json({
+
       ok: false,
-      error: "Không tìm thấy VUBEL_API_KEY trên Vercel"
+
+      type:
+        "MISSING_API_KEY",
+
+      message:
+        "Vercel chưa có VUBEL_API_KEY"
+
     });
 
   }
 
 
-  // =========================================================
+  // ============================================================
   // INPUT
-  // =========================================================
+  // ============================================================
 
   let spc_st =
-    String(req.body?.spc_st || "")
-      .trim();
+    String(
+      req.body?.spc_st || ""
+    ).trim();
+
 
   let proxy =
-    String(req.body?.proxy || "")
+    String(
+      req.body?.proxy || ""
+    ).trim();
+
+
+  spc_st =
+    spc_st
+      .replace(/^SPC_ST=/i, "")
       .trim();
 
 
-  spc_st = spc_st
-    .replace(/^SPC_ST=/i, "")
-    .trim();
-
+  // ============================================================
+  // VALIDATE SPC_ST
+  // ============================================================
 
   if (!spc_st) {
 
     return res.status(400).json({
+
       ok: false,
-      error: "Thiếu SPC_ST"
+
+      type:
+        "MISSING_SPC_ST",
+
+      message:
+        "Thiếu SPC_ST"
+
     });
 
   }
 
+
+  // ============================================================
+  // VALIDATE PROXY
+  // ============================================================
 
   if (!proxy) {
 
     return res.status(400).json({
+
       ok: false,
-      error: "Thiếu proxy"
+
+      type:
+        "MISSING_PROXY",
+
+      message:
+        "Thiếu Proxy"
+
     });
 
   }
 
 
-  // =========================================================
+  if (
+    !proxy.startsWith("http://") &&
+    !proxy.startsWith("https://")
+  ) {
+
+    return res.status(400).json({
+
+      ok: false,
+
+      type:
+        "INVALID_PROXY",
+
+      message:
+        "Proxy phải bắt đầu bằng http:// hoặc https://"
+
+    });
+
+  }
+
+
+  // ============================================================
   // CALL VUBEL
-  // =========================================================
+  // ============================================================
 
   try {
 
@@ -417,11 +754,15 @@ async function testAPI() {
         "https://api.vubel.store/v1/shopee/get_order",
         {
 
-          method: "POST",
+          method:
+            "POST",
 
           headers: {
 
             "Content-Type":
+              "application/json",
+
+            "Accept":
               "application/json",
 
             "x-api-key":
@@ -429,22 +770,32 @@ async function testAPI() {
 
             "Cookie":
               "SPC_ST=" + spc_st
+
           },
 
+          body:
+            JSON.stringify({
 
-          body: JSON.stringify({
-            proxy: proxy
-          })
+              proxy:
+                proxy
+
+            })
 
         }
       );
 
 
+    // ==========================================================
+    // READ RESPONSE
+    // ==========================================================
+
     const raw =
       await response.text();
 
 
-    let data;
+    let data =
+      null;
+
 
     try {
 
@@ -453,45 +804,140 @@ async function testAPI() {
 
     } catch {
 
-      data = {
-        raw: raw
-      };
+      data =
+        null;
 
     }
 
 
-    return res
-      .status(response.status)
-      .json({
+    // ==========================================================
+    // CLOUDFLARE / VUBEL 502
+    // ==========================================================
 
-        ok: response.ok,
+    if (response.status === 502) {
 
-        vubel_status:
-          response.status,
-
-        data: data
-
-      });
-
-
-  } catch (error) {
-
-    return res
-      .status(500)
-      .json({
+      return res.status(502).json({
 
         ok: false,
 
-        error:
-          "Không kết nối được Vubel",
+        type:
+          "VUBEL_BAD_GATEWAY",
 
-        detail:
-          String(
-            error?.message ||
-            error
-          )
+        message:
+          "Vubel hoặc upstream/proxy trả lỗi 502 Bad Gateway. Hãy thử lại hoặc kiểm tra proxy."
 
       });
 
+    }
+
+
+    // ==========================================================
+    // 401 / 403
+    // ==========================================================
+
+    if (
+      response.status === 401 ||
+      response.status === 403
+    ) {
+
+      return res
+        .status(response.status)
+        .json({
+
+          ok: false,
+
+          type:
+            data?.error ||
+            "AUTH_FAILED",
+
+          message:
+            data?.message ||
+            "Vubel từ chối xác thực.",
+
+          data:
+            data
+
+        });
+
+    }
+
+
+    // ==========================================================
+    // OTHER ERRORS
+    // ==========================================================
+
+    if (!response.ok) {
+
+      return res
+        .status(response.status)
+        .json({
+
+          ok: false,
+
+          type:
+            data?.error ||
+            "VUBEL_ERROR",
+
+          message:
+            data?.message ||
+            (
+              "Vubel trả HTTP " +
+              response.status
+            ),
+
+          data:
+            data
+
+        });
+
+    }
+
+
+    // ==========================================================
+    // SUCCESS
+    // ==========================================================
+
+    return res.status(200).json({
+
+      ok: true,
+
+      message:
+        "Vubel phản hồi thành công",
+
+      data:
+        data ?? {
+          raw:
+            raw
+        }
+
+    });
+
   }
+
+  catch (error) {
+
+    // ==========================================================
+    // NETWORK ERROR
+    // ==========================================================
+
+    return res.status(500).json({
+
+      ok: false,
+
+      type:
+        "NETWORK_ERROR",
+
+      message:
+        "Vercel không kết nối được tới Vubel.",
+
+      detail:
+        String(
+          error?.message ||
+          error
+        )
+
+    });
+
+  }
+
 }
