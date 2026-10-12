@@ -14,7 +14,9 @@
 
 const VUBEL_BASE = "https://api.vubel.store";
 
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
+
+  // phần code còn lại giữ nguyên
 
   // ==========================================================
   // GET - GIAO DIỆN TEST
