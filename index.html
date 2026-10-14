@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- NK MMO Store V28.6.2 - Hardening + Cookie atomic cooldown | GHN Auto Recipient Phone4 + Cookie Full Order Sync | RLS | HomeProxy 61s -->
+<!-- NK MMO Store V28.6.3 - Hardening + Cookie atomic cooldown | GHN Auto Recipient Phone4 + Cookie Full Order Sync | RLS | HomeProxy 61s -->
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
@@ -8204,6 +8204,7 @@ if(typeof Tesseract==='undefined'){showModal('Lỗi OCR','Không tải được 
 .nkx-label{font-size:9px;color:#718096}.nkx-code{font-size:13px;font-weight:950;color:#172033;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px}
 .nkx-detail{font-size:9px;color:#64748b;margin-top:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .nkx-divider{height:44px;background:#e6ebf0}.nkx-person{min-width:0}.nkx-person-name{font-size:12px;font-weight:950;color:#172033;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.nkx-address{font-size:9px;color:#64748b;margin-top:4px;line-height:1.35;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .nkx-go{font-size:24px;color:#64748b}
 .nkx-overview{border:1px solid #dbe8f3;border-radius:17px;background:linear-gradient(135deg,#f4faff,#eef8ff);padding:12px}
 .nkx-overview-title{font-size:14px;font-weight:950;color:#172033;margin-bottom:10px}
@@ -8302,7 +8303,18 @@ if(typeof Tesseract==='undefined'){showModal('Lỗi OCR','Không tải được 
    if(c&&!c.startsWith('SPXVN')&&S(o?.recipient_phone).replace(/\D/g,'').length>=4)return 'GHN';
    return 'MVD';
  }
- function ward(o){return S(o?.shipping_ward)||'Chưa có địa chỉ'}
+ function fullAddress(o){
+   return S(o?.shipping_address||o?.recipient_address||o?.shipping_detail||o?.recipient_json?.address||o?.vubel_raw?.recipient?.address);
+ }
+ function ward(o){
+   const direct=S(o?.shipping_ward); if(direct)return direct;
+   const a=fullAddress(o); if(!a)return 'Chưa có địa chỉ';
+   const parts=a.split(',').map(S).filter(Boolean);
+   // Địa chỉ Shopee thường: chi tiết, phường/xã, quận/huyện, tỉnh/thành.
+   // Lấy thành phần thứ 3 từ cuối khi có đủ cấu trúc; nếu không thì giữ nhãn địa chỉ đầy đủ.
+   if(parts.length>=3)return parts[parts.length-3];
+   return a;
+ }
  function person(o){return S(o?.recipient_name)||'Chưa có tên người nhận'}
  function eventDate(o){
    const raw=o?.tracking?.last_event_at||o?.last_event_at||o?.delivered_at||o?.tracking?.updated_at||o?.updated_at||o?.created_at;
@@ -8374,7 +8386,7 @@ if(typeof Tesseract==='undefined'){showModal('Lỗi OCR','Không tải được 
     <div class="nkx-logo ${cls}">${H(c)}</div>
     <div style="min-width:0"><div class="nkx-label">Mã vận đơn</div><div class="nkx-code">${H(track(o))}</div><div class="nkx-detail">${H(st(o)||'Đang vận chuyển')}</div></div>
     <div class="nkx-divider"></div>
-    <div class="nkx-person"><div class="nkx-label">👤 Người nhận</div><div class="nkx-person-name">${H(person(o))}</div></div>
+    <div class="nkx-person"><div class="nkx-label">👤 Người nhận</div><div class="nkx-person-name">${H(person(o))}</div><div class="nkx-address" title="${H(fullAddress(o))}">📍 ${H(fullAddress(o)||'Chưa có địa chỉ chi tiết')}</div></div>
     <div class="nkx-go">›</div>
    </div>`
  }
@@ -8393,7 +8405,7 @@ if(typeof Tesseract==='undefined'){showModal('Lỗi OCR','Không tải được 
      cancelled: all.filter(isCancelled),
      waiting: all.filter(o=>!track(o)&&!isDelivered(o)&&!isCancelled(o))
    };
-   const shown=lowerOrders.filter(o=>!q||[track(o),person(o),ward(o),S(o.product_name)].join(' ').toLowerCase().includes(q.toLowerCase()));
+   const shown=lowerOrders.filter(o=>!q||[track(o),person(o),ward(o),fullAddress(o),S(o.product_name)].join(' ').toLowerCase().includes(q.toLowerCase()));
    const ghn=selected.filter(o=>carrier(o)==='GHN').length, spx=selected.filter(o=>carrier(o)==='SPX').length;
     (function(){
      const t=targetYmd(), today=!customDate&&dayOffset===0;
