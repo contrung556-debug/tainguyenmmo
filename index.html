@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- NK MMO Store V28.6.5 - Cookie Display Mapping + Single Top Add Tracking + Full Detail + Auto Carrier Tracking + GHN Phone4 Auto Check | HomeProxy 61s -->
+<!-- NK MMO Store V28.6.6 - Cookie Display Mapping + Single Top Add Tracking + Full Detail + Auto Carrier Tracking + GHN Phone4 Auto Check | HomeProxy 61s -->
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
@@ -4838,7 +4838,7 @@ function filterOrders(
 function nkV2865Obj(v){if(!v)return null;if(typeof v==='object')return v;try{return JSON.parse(v)}catch(_e){return null}}
 function nkV2865First(obj,paths){for(const path of paths){let cur=obj;for(const key of String(path).split('.')){if(cur==null){cur=null;break}cur=cur[key]}if(cur!==undefined&&cur!==null&&String(cur).trim()!=='')return cur}return ''}
 function nkV2865Product(o){if(o&&o.product_name&&String(o.product_name).trim()&&String(o.product_name).trim()!=='Đơn Shopee')return String(o.product_name).trim();const raw=nkV2865Obj(o?.vubel_raw)||nkV2865Obj(o?.full_order_json)||nkV2865Obj(o?.order_json)||{};let pools=[raw?.items,raw?.item_list,raw?.order_items,raw?.products].filter(Array.isArray);if(Array.isArray(raw?.parcels))pools.push(raw.parcels.flatMap(p=>p?.items||p?.item_list||[]));const names=pools.flat().map(x=>nkV2865First(x,['name','itemName','item_name','productName','product_name','title','model.name','model_name','item.name','product.name'])).filter(Boolean).map(String);return [...new Set(names)].join(' • ')||String(o?.product_name||'Đơn Shopee')}
-function nkV2865Email(o){if(o&&o.email&&String(o.email).trim())return String(o.email).trim();const a=nkV2865Obj(o?.vubel_account_json)||{};return String(nkV2865First(a,['email','email_address','emailAddress','data.email','user.email'])||'').trim()}
+function nkV2865Email(o){if(o&&o.email&&String(o.email).trim())return String(o.email).trim();const a=nkV2865Obj(o?.vubel_account_json)||{};return String(nkV2865First(a,['email','email_address','emailAddress','data.email','data.data.email','user.email','account.email'])||'').trim()}
 
 function renderOrders(
     ordersToRender
@@ -8078,8 +8078,12 @@ if(typeof Tesseract==='undefined'){showModal('Lỗi OCR','Không tải được 
     return '';
   }
   function statusText(o){
-    const t=txt(o?.tracking?.tracking_status);
-    return t || txt(o?.status) || 'Đang chờ';
+    const code=txt(o?.tracking?.tracking_code).toUpperCase();
+    const c=nkCarrier(code);
+    const carrierStatus=txt(o?.tracking?.tracking_status);
+    // V28.6.6: chưa có SPX/GHN thì hiển thị nguyên văn trạng thái Vubel/Shopee.
+    if(!c) return txt(o?.status_label) || txt(o?.status) || 'Đang chờ';
+    return carrierStatus || txt(o?.status_label) || txt(o?.status) || 'Đang chờ';
   }
   function statusClass(o){
     if(typeof nkIsDelivered==='function' && nkIsDelivered(o)) return 'nk-delivered';
@@ -10301,7 +10305,7 @@ function closeDepositModal(){
 </script>
 
 <!-- NK MMO Store V28.6.4 - Full Order Detail + Auto Carrier Tracking + GHN Phone4 Auto Check -->
-<script id="nk-v2865-full-detail-auto-carrier">
+<script id="nk-v2866-full-detail-auto-carrier">
 (function(){
 'use strict';
 const esc=v=>typeof escapeHtml==='function'?escapeHtml(String(v??'')):String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
