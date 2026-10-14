@@ -1,4 +1,4 @@
-// NK MMO Store V28.6.5 - Cookie session guard + atomic cooldown + safer refresh
+// NK MMO Store V28.6.6 - Cookie session guard + atomic cooldown + safer refresh
 const { createClient } = require('@supabase/supabase-js');
 const { ProxyAgent, request: undiciRequest } = require('undici');
 const crypto = require('crypto');
@@ -48,7 +48,9 @@ function amount(o){const n=Number(first(o,['payment.amountPaid','payment.total',
 function normalize(o){
   const sn=first(o,['orderSn','order_sn','ordersn','orderId','order_id','id']); if(!sn)return null;
   const recipient=o?.recipient||o?.recipient_address||o?.shipping?.recipient||o?.shipping?.address||{};
-  const tr=tracking(o); const st=String(first(o,['statusLabel','status_label','status'],'Äang chá» giao'));
+  const tr=tracking(o);
+  // V28.6.6: giá»¯ nguyÃªn chá»¯ tráº¡ng thÃ¡i Vubel tráº£ vá»; khÃ´ng suy tráº¡ng thÃ¡i tá»« tracking.
+  const st=String(first(o,['statusLabel','status_label','processing.statusLabel','processing.status_label','status'],'Äang chá» giao'));
   const addrParts=[
     first(recipient,['address','fullAddress','full_address','address_detail','detail']),
     first(recipient,['ward','ward_name']),
@@ -68,7 +70,7 @@ async function saveOrders(sb,userId,rawOrders,accountInfo){
   if(!list.length)return {total:0,inserted:0,updated:0,new_tracking:0,pending:0};
   const prevMap=new Map();
   for(const part of chunks(list.map(x=>x.sn),200)){
-    const {data,error}=await sb.from('shopee_orders').select('id,order_code,tracking_number,source,product_name,amount,price,recipient_name,recipient_phone,shipping_address').eq('user_id',userId).in('order_code',part);if(error)throw error;
+    const {data,error}=await sb.from('shopee_orders').select('id,order_code,tracking_number,source,product_name,email,amount,price,recipient_name,recipient_phone,shipping_address').eq('user_id',userId).in('order_code',part);if(error)throw error;
     for(const r of data||[])prevMap.set(String(r.order_code),r);
   }
   let inserted=0,updated=0,newTracking=0,pending=0;const now=new Date().toISOString();
@@ -79,7 +81,7 @@ async function saveOrders(sb,userId,rawOrders,accountInfo){
     if(!resolved)pending++;if(x.tracking&&!prev?.tracking_number)newTracking++;if(prev)updated++;else inserted++;
     const o=x.raw;
     const accountEmail=String(first(accountInfo||{},['email','email_address','emailAddress'],'')||'').trim();
-    return {user_id:userId,order_code:x.sn,shopee_order_sn:x.sn,product_name:keep?(prev.product_name||x.product):x.product,amount:keep?(prev.amount||x.amount):x.amount,price:keep?(prev.price||x.amount):x.amount,status:x.status||'Äang chá» giao',source:keep?prev.source:'cookie',recipient_name:keep?(prev.recipient_name||x.recipient_name):x.recipient_name,recipient_phone:keep?(prev.recipient_phone||x.recipient_phone):x.recipient_phone,shipping_address:keep?(prev.shipping_address||x.recipient_address):x.recipient_address,tracking_number:trk,tracking_status:resolved?'found':'waiting',vubel_tracking_resolved:resolved,last_synced_at:now,status_key:first(o,['statusKey','status_key']),status_label:first(o,['statusLabel','status_label']),recipient_json:o?.recipient||{},shops_json:o?.shops||[],parcels_json:o?.parcels||[],items_json:o?.items||[],payment_json:o?.payment||{},shipping_json:o?.shipping||{},processing_json:o?.processing||{},coins_json:o?.coins||{},vubel_account_json:accountInfo||{},vubel_raw:o};
+    return {user_id:userId,order_code:x.sn,shopee_order_sn:x.sn,product_name:keep?(prev.product_name||x.product):x.product,email:keep?(prev.email||accountEmail):(accountEmail||null),amount:keep?(prev.amount||x.amount):x.amount,price:keep?(prev.price||x.amount):x.amount,status:x.status||'Äang chá» giao',source:keep?prev.source:'cookie',recipient_name:keep?(prev.recipient_name||x.recipient_name):x.recipient_name,recipient_phone:keep?(prev.recipient_phone||x.recipient_phone):x.recipient_phone,shipping_address:keep?(prev.shipping_address||x.recipient_address):x.recipient_address,tracking_number:trk,tracking_status:resolved?'found':'waiting',vubel_tracking_resolved:resolved,last_synced_at:now,status_key:first(o,['statusKey','status_key']),status_label:first(o,['statusLabel','status_label','processing.statusLabel','processing.status_label','status']),recipient_json:o?.recipient||{},shops_json:o?.shops||[],parcels_json:o?.parcels||[],items_json:o?.items||[],payment_json:o?.payment||{},shipping_json:o?.shipping||{},processing_json:o?.processing||{},coins_json:o?.coins||{},vubel_account_json:accountInfo||{},vubel_raw:o};
   });
   const idByCode=new Map();
   for(const part of chunks(payloads,CHUNK)){
