@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+<!-- NK MMO Store V28.6.2 - Hardening + Cookie atomic cooldown | GHN Auto Recipient Phone4 + Cookie Full Order Sync | RLS | HomeProxy 61s -->
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
@@ -6849,7 +6850,14 @@ if (typeof Tesseract === 'undefined') { showModal('Lỗi OCR','Không tải đư
                 try{
                     let d;
                     if(type==='GHN'){
-                        let p4=''; try{p4=String((JSON.parse(localStorage.getItem('nk_ghn_phone4_v1')||'{}')||{})[String(o.id)]||'');}catch(_e){}
+                        // NK MMO V28.0 - GHN AUTO PHONE4
+                        // Ưu tiên 4 số cuối SĐT NGƯỜI NHẬN (recipient_phone).
+                        // localStorage chỉ fallback cho đơn cũ chưa có recipient_phone.
+                        const recipientDigits=String(o.recipient_phone||'').replace(/\D/g,'');
+                        let p4=recipientDigits.length>=4 ? recipientDigits.slice(-4) : '';
+                        if(!/^\d{4}$/.test(p4)){
+                            try{p4=String((JSON.parse(localStorage.getItem('nk_ghn_phone4_v1')||'{}')||{})[String(o.id)]||'').replace(/\D/g,'').slice(-4);}catch(_e){}
+                        }
                         if(!/^\d{4}$/.test(p4)){needPhone++;continue;}
                         d=await window.checkGhnForOrder(o.id,code,p4,false);
                         if((d?.data||d)?.isTerminal) delivered++;
@@ -10215,5 +10223,65 @@ function closeDepositModal(){
 }
 </script>
 
+
+
+<!-- NK MMO Store V28.6 - Shopee Cookie Full Order Sync -->
+<style id="nk-v2861-cookie-css">
+#nkCookieImport{display:none;margin:14px 0;padding:16px;border:1px solid #dce5ef;border-radius:16px;background:#fff}
+.nk-import-tabs{display:flex;gap:8px;margin:0 0 14px;flex-wrap:wrap}.nk-import-tabs button{border:1px solid #dce5ef;background:#fff;padding:10px 13px;border-radius:11px;font-weight:900;color:#475569}.nk-import-tabs button.active{background:#ee4d2d;color:#fff;border-color:#ee4d2d}
+#nkCookieInput{width:100%;box-sizing:border-box;min-height:92px;border:1px solid #dce5ef;border-radius:12px;padding:12px;resize:vertical;font:13px/1.45 monospace;background:#fbfdff}
+.nk-cookie-actions{display:flex;gap:9px;flex-wrap:wrap;margin-top:10px}.nk-cookie-actions button{flex:1;min-width:150px}.nk-cookie-note{font-size:12px;color:#718096;line-height:1.55;margin-top:9px}.nk-cookie-status{margin-top:10px;padding:10px 12px;border-radius:10px;background:#f8fafc;font-size:13px;display:none}
+</style>
+<script id="nk-v2861-cookie-js">
+(function(){
+  function el(tag,attrs,html){const x=document.createElement(tag);Object.entries(attrs||{}).forEach(([k,v])=>x.setAttribute(k,v));if(html!=null)x.innerHTML=html;return x;}
+  function setMode(mode){
+    const single=document.getElementById('depositSingleForm'),multi=document.getElementById('depositMultipleForm'),cookie=document.getElementById('nkCookieImport');
+    const legacy=document.querySelector('#sectionDeposit .sub-tab-container');
+    const isCookie=mode==='cookie'; if(single)single.style.display=isCookie?'none':''; if(multi)multi.style.display=isCookie?'none':''; if(legacy)legacy.style.display=isCookie?'none':''; if(cookie)cookie.style.display=isCookie?'block':'none';
+    document.getElementById('nkTabNormal')?.classList.toggle('active',!isCookie);document.getElementById('nkTabCookie')?.classList.toggle('active',isCookie);
+  }
+  async function token(){const {data,error}=await _supabase.auth.getSession();if(error)throw error;const t=data?.session?.access_token;if(!t)throw new Error('Vui lòng đăng nhập lại');return t;}
+  function status(msg,ok){const x=document.getElementById('nkCookieStatus');if(!x)return;x.style.display='block';x.style.background=ok?'#ecfdf5':'#fff7ed';x.textContent=msg;}
+  async function api(action,cookie){
+    const r=await fetch('/api/shopee-cookie-orders',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+await token()},body:JSON.stringify({action,cookie:cookie||undefined})});
+    const d=await r.json().catch(()=>({}));if(!r.ok||!d.ok)throw new Error(d.message||'Yêu cầu thất bại');return d;
+  }
+  function fmtRemain(ms){const m=Math.floor(ms/60000),d=Math.floor(m/1440),h=Math.floor((m%1440)/60);return d>0?d+' ngày '+h+' giờ':(h>0?h+' giờ '+(m%60)+' phút':m+' phút');}
+  async function refreshExpiry(){
+    const x=document.getElementById('nkCookieExpiry');if(!x)return;
+    try{const d=await api('status');x.textContent=d.has_cookie?('🔒 Cookie đã lưu mã hóa • còn hiệu lực '+fmtRemain(d.remaining_ms)):'Chưa lưu Cookie nào (hoặc Cookie đã hết hạn).';}catch(_){x.textContent='';}
+  }
+  async function removeCookie(btn){
+    if(!confirm('Xóa Cookie Shopee đã lưu? Bạn sẽ phải dán lại Cookie để đồng bộ.'))return;
+    btn.disabled=true;
+    try{await api('delete');status('Đã xóa Cookie khỏi hệ thống.',true);}catch(e){status('Lỗi: '+(e.message||e),false);}finally{btn.disabled=false;refreshExpiry();}
+  }
+  async function call(action,cookie,btn){
+    if(btn){btn.disabled=true;btn.dataset.old=btn.textContent;btn.textContent='⏳ Đang đồng bộ...';}
+    try{
+      status(action==='sync'?'Đang tìm mã vận đơn còn thiếu...':'Đang kết nối Vubel và lấy đầy đủ thông tin đơn hàng...',true);
+      const r=await fetch('/api/shopee-cookie-orders',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+await token()},body:JSON.stringify({action,cookie:cookie||undefined})});
+      const d=await r.json().catch(()=>({}));if(!r.ok||!d.ok)throw new Error(d.message||'Đồng bộ thất bại');
+      status(d.skipped?(d.message||'Không có dữ liệu cần đồng bộ.'):`Đã đồng bộ ${d.total||0} đơn • mới ${d.inserted||0} • cập nhật ${d.updated||0} • có mã vận đơn mới ${d.new_tracking||0} • đang chờ ${d.pending||0}`,true);
+      if(action==='import'){const inp=document.getElementById('nkCookieInput');if(inp)inp.value='';}
+      if(typeof window.loadOrdersFromSupabase==='function')await window.loadOrdersFromSupabase();
+    }catch(e){status('Lỗi: '+(e.message||e),false);}finally{if(btn){btn.disabled=false;btn.textContent=btn.dataset.old||'Đồng bộ';}refreshExpiry();}
+  }
+  function install(){
+    const dep=document.getElementById('sectionDeposit');if(!dep||document.getElementById('nkCookieImport'))return false;
+    const tabs=el('div',{class:'nk-import-tabs'},'<button type="button" id="nkTabNormal" class="active">📷 NẠP ĐƠN HIỆN TẠI</button><button type="button" id="nkTabCookie">🍪 THÊM ĐƠN BẰNG COOKIE</button>');
+    const card=el('div',{id:'nkCookieImport'},`<div style="font-size:20px;font-weight:900;color:#2f3d50">🍪 Thêm đơn bằng Cookie Shopee</div><div style="margin-top:6px;color:#64748b;font-size:13px;line-height:1.55">Lấy đầy đủ dữ liệu đơn từ Vubel rồi lưu ngay vào Supabase. Cookie được gửi về backend, mã hóa và giữ tối đa 7 ngày để đồng bộ lại.</div><textarea id="nkCookieInput" placeholder="Dán Cookie Shopee hoặc SPC_ST tại đây" autocomplete="off"></textarea><div class="nk-cookie-actions"><button type="button" class="btn-main" id="nkCookieImportBtn">Lấy đơn & lưu Supabase</button><button type="button" class="btn-main" id="nkCookieSyncBtn" style="background:#2980b9">🔄 Tìm tracking mới</button><button type="button" class="btn-main" id="nkCookieRefreshBtn" style="background:#6c5ce7">♻️ Làm mới full đơn</button><button type="button" class="btn-main" id="nkCookieDeleteBtn" style="background:#c0392b">🗑️ Xóa Cookie</button></div><div id="nkCookieExpiry" class="nk-cookie-note"></div><div class="nk-cookie-note">Dữ liệu lưu gồm người nhận/SĐT/địa chỉ, sản phẩm, shop, kiện hàng, thanh toán, vận chuyển, tracking, trạng thái, thời gian xử lý và JSON gốc. GHN dùng 4 số cuối <b>SĐT người nhận của đơn</b>.</div><div id="nkCookieStatus" class="nk-cookie-status"></div>`);
+    const hero=dep.querySelector('.nk-page-hero'); if(hero)hero.insertAdjacentElement('afterend',tabs);else dep.prepend(tabs); dep.appendChild(card);
+    document.getElementById('nkTabNormal').onclick=()=>setMode('normal');document.getElementById('nkTabCookie').onclick=()=>{setMode('cookie');refreshExpiry();};
+    document.getElementById('nkCookieImportBtn').onclick=function(){const c=document.getElementById('nkCookieInput').value.trim();if(!c){status('Vui lòng dán Cookie Shopee.',false);return;}call('import',c,this);};
+    document.getElementById('nkCookieSyncBtn').onclick=function(){call('sync','',this);};
+    document.getElementById('nkCookieRefreshBtn').onclick=function(){call('refresh','',this);};
+    document.getElementById('nkCookieDeleteBtn').onclick=function(){removeCookie(this);};
+    return true;
+  }
+  let n=0;const t=setInterval(()=>{n++;if(install()||n>40)clearInterval(t)},150);
+})();
+</script>
 </body>
 </html>
