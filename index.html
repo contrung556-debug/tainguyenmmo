@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- NK MMO Store V28.6.3 - Hardening + Cookie atomic cooldown | GHN Auto Recipient Phone4 + Cookie Full Order Sync | RLS | HomeProxy 61s -->
+<!-- NK MMO Store V28.6.4 - Full Order Detail + Auto Carrier Tracking + GHN Phone4 Auto Check | Cookie Full Order Sync | HomeProxy 61s -->
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
@@ -10295,5 +10295,67 @@ function closeDepositModal(){
   let n=0;const t=setInterval(()=>{n++;if(install()||n>40)clearInterval(t)},150);
 })();
 </script>
+
+<!-- NK MMO Store V28.6.4 - Full Order Detail + Auto Carrier Tracking + GHN Phone4 Auto Check -->
+<script id="nk-v2864-full-detail-auto-carrier">
+(function(){
+'use strict';
+const esc=v=>typeof escapeHtml==='function'?escapeHtml(String(v??'')):String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+const S=v=>String(v??'').trim();
+const money=v=>{const n=Number(v);return Number.isFinite(n)&&n!==0?n.toLocaleString('vi-VN')+'đ':S(v)};
+const fmt=v=>{if(!v)return '';const d=new Date(v);return isNaN(d)?S(v):d.toLocaleString('vi-VN',{timeZone:'Asia/Ho_Chi_Minh'})};
+const obj=v=>{if(!v)return null;if(typeof v==='object')return v;try{return JSON.parse(v)}catch(_){return null}};
+function phone4Map(){try{return JSON.parse(localStorage.getItem('nk_ghn_phone4_v1')||'{}')||{}}catch(_){return {}}}
+function save4(id,p){p=S(p).replace(/\D/g,'').slice(-4);if(!/^\d{4}$/.test(p))return;const m=phone4Map();m[String(id)]=p;localStorage.setItem('nk_ghn_phone4_v1',JSON.stringify(m))}
+function recipient4(o){const p=S(o?.recipient_phone).replace(/\D/g,'');return p.length>=4?p.slice(-4):S(phone4Map()[String(o?.id)]||'').replace(/\D/g,'').slice(-4)}
+function carrier(code){code=S(code).toUpperCase();if(/^SPXVN[A-Z0-9]+$/.test(code))return 'SPX';if(window.isGhnCode&&window.isGhnCode(code))return 'GHN';return ''}
+function row(label,value){if(value===undefined||value===null||S(value)==='')return '';return `<div style="padding:8px 0;border-bottom:1px solid #eef2f7;word-break:break-word"><b>${label}</b> ${esc(value)}</div>`}
+function jsonBlock(title,value){const x=obj(value);if(!x)return '';let pretty='';try{pretty=JSON.stringify(x,null,2)}catch(_){return ''}return `<details style="margin-top:10px;border:1px solid #e5e7eb;border-radius:10px;padding:9px;background:#fafafa"><summary style="font-weight:850;cursor:pointer">${esc(title)}</summary><pre style="white-space:pre-wrap;word-break:break-word;font-size:10.5px;line-height:1.5;max-height:260px;overflow:auto">${esc(pretty)}</pre></details>`}
+
+window.openNkTracking=function(orderId,currentCode=''){
+ const o=(window.cachedOrders||cachedOrders||[]).find(x=>Number(x.id)===Number(orderId))||{};
+ const auto4=recipient4(o);
+ showModal(currentCode?'🚚 Cập nhật vận đơn':'➕ Thêm vận đơn','',true,async ok=>{
+   if(!ok)return;
+   const code=S(document.getElementById('nkUnifiedTrackingCode')?.value).toUpperCase();
+   const type=carrier(code);
+   if(!type){showModal('Lỗi','Không nhận dạng được mã vận đơn SPX hoặc GHN.');return;}
+   let p4=recipient4(o);
+   if(type==='GHN'){
+     p4=S(document.getElementById('nkUnifiedPhone4')?.value||p4).replace(/\D/g,'').slice(-4);
+     if(!/^\d{4}$/.test(p4)){showModal('Thiếu 4 số cuối','GHN cần đúng 4 số cuối SĐT người nhận.');return;}
+   }
+   const {error}=await _supabase.from('shopee_tracking').upsert({order_id:Number(orderId),user_id:currentUser.id,tracking_code:code,updated_at:new Date().toISOString()},{onConflict:'order_id'});
+   if(error){showModal('Lỗi','Không lưu được mã vận đơn: '+error.message);return;}
+   try{
+     if(type==='GHN'){save4(orderId,p4);await window.checkGhnForOrder(orderId,code,p4,true);}
+     else await window.checkSpxForOrder(orderId,code,true);
+   }finally{await window.loadOrdersFromSupabase();}
+ },`<div style="text-align:left"><div style="font-size:12px;color:#64748b;margin-bottom:8px">Nhập mã vận đơn. Hệ thống tự nhận SPX/GHN và kiểm tra ngay sau khi lưu.</div><input id="nkUnifiedTrackingCode" value="${esc(currentCode)}" placeholder="Mã vận đơn SPX hoặc GHN" autocapitalize="characters" oninput="window.nkV2864CarrierPreview&&window.nkV2864CarrierPreview(this.value)"><div id="nkCarrierPreview" style="font-size:12px;font-weight:850;margin:-4px 0 8px;color:#64748b"></div><div id="nkGhnPhoneWrap" style="display:none"><div style="font-size:12px;color:#16a34a;font-weight:800;margin-bottom:6px">🚚 GHN cần 4 số cuối SĐT người nhận</div><input id="nkUnifiedPhone4" value="${esc(auto4)}" maxlength="4" inputmode="numeric" placeholder="4 số cuối SĐT người nhận"></div></div>`);
+ setTimeout(()=>window.nkV2864CarrierPreview(currentCode),0);
+};
+window.nkV2864CarrierPreview=function(v){const t=carrier(v),p=document.getElementById('nkCarrierPreview'),w=document.getElementById('nkGhnPhoneWrap');if(p)p.textContent=t==='SPX'?'🟠 Đã nhận dạng: SPX':t==='GHN'?'🟢 Đã nhận dạng: GHN':'Nhập mã để tự nhận dạng hãng';if(w)w.style.display=t==='GHN'?'block':'none'};
+
+const priorRender=window.renderOrders;
+if(typeof priorRender==='function') window.renderOrders=function(list){
+ priorRender.apply(this,arguments);
+ setTimeout(()=>{
+  const total=Math.ceil((list||[]).length/ordersPerPage);if(!total)return;const page=Math.max(1,Math.min(currentOrderPage,total));const visible=list.slice((page-1)*ordersPerPage,(page-1)*ordersPerPage+ordersPerPage);const cards=document.querySelectorAll('#orderListContainer .order-card');
+  cards.forEach((card,i)=>{const o=visible[i];if(!o)return;const code=S(o?.tracking?.tracking_code).toUpperCase();const type=carrier(code);const actions=card.querySelector('.order-actions');if(!actions)return;Array.from(actions.querySelectorAll('button')).forEach(b=>{const x=S(b.textContent);if(/Thêm SPX|Check SPX|Check GHN|Thêm GHN/i.test(x))b.style.display='none'});let b=actions.querySelector('.nk-v2864-track');if(!b){b=document.createElement('button');b.className='order-btn-check nk-v2864-track';b.style.cssText='background:#7c3aed;min-width:calc(50% - 4px)';actions.appendChild(b)}b.textContent=code?`🚚 ${type||'Vận đơn'} · Kiểm tra`:'➕ Thêm vận đơn';b.onclick=()=>window.openNkTracking(Number(o.id),code)});
+ },0);
+};
+
+window.showNkOrderDetail=function(orderId){
+ const o=(window.cachedOrders||cachedOrders||[]).find(x=>Number(x.id)===Number(orderId));if(!o){showModal('Chi tiết đơn','Không tìm thấy đơn hàng.');return}
+ const t=o.tracking||{};const code=S(t.tracking_code||o.tracking_code);const type=carrier(code);const address=[o.shipping_detail,o.shipping_address,o.shipping_ward,o.shipping_district,o.shipping_province].filter(Boolean).filter((v,i,a)=>a.indexOf(v)===i).join(', ');
+ let html='<div style="text-align:left;font-size:12px;line-height:1.55">';
+ html+=row('📦 Mã đơn:',o.order_code||o.shopee_order_sn);html+=row('🏷️ Nguồn:',o.source);html+=row('🛍️ Sản phẩm:',o.product_name);html+=row('🏪 Shop:',o.shop_name||o.shop_username);html+=row('👤 Người nhận:',o.recipient_name);html+=row('📱 SĐT nhận hàng:',o.recipient_phone);html+=row('🏠 Địa chỉ chi tiết:',address);html+=row('📧 Email:',o.email);html+=row('💰 Số tiền:',money(o.amount||o.total_amount||o.price));html+=row('💳 Thanh toán:',o.payment_method);html+=row('🚚 Hãng vận chuyển:',type||o.carrier||o.shipping_carrier);html+=row('🔎 Mã vận đơn:',code);html+=row('📍 Trạng thái:',t.tracking_status||o.status_label||o.status);html+=row('🏢 Vị trí hiện tại:',t.current_location);html+=row('➡️ Điểm tiếp:',t.next_location);html+=row('🕒 Tạo đơn:',fmt(o.created_at));html+=row('🔄 Cập nhật:',fmt(o.updated_at));html+=row('✅ Giao lúc:',fmt(o.delivered_at||t.delivered_at));
+ const candidates=[['🛍️ Sản phẩm / Items',o.items_json||o.items],['🏪 Shop',o.shop_json||o.shops_json||o.shops],['📦 Kiện hàng',o.parcels_json||o.parcels],['💳 Thanh toán',o.payment_json||o.payment],['🚚 Vận chuyển',o.shipping_json||o.shipping],['👤 Người nhận',o.recipient_json],['📋 Dữ liệu đơn đầy đủ',o.order_json||o.full_order_json],['🧾 Dữ liệu Vubel gốc',o.vubel_raw||o.raw_json]];
+ candidates.forEach(x=>{html+=jsonBlock(x[0],x[1])});
+ const finalState=(typeof nkIsCancelled==='function'&&nkIsCancelled(o))?{bg:'#fef2f2',txt:'❌ ĐƠN BỊ HỦY'}:(typeof nkIsDelivered==='function'&&nkIsDelivered(o))?{bg:'#ecfdf5',txt:'✅ ĐÃ GIAO'}:{bg:'#f8fafc',txt:'🚚 ĐANG VẬN CHUYỂN'};html+=`<div style="margin-top:12px;padding:10px;border-radius:10px;background:${finalState.bg};font-weight:900">${finalState.txt}</div></div>`;showModal('📦 Chi tiết đơn hàng','',false,null,html)
+};
+})();
+</script>
+
 </body>
 </html>
