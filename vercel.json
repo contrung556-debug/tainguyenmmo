@@ -1,4 +1,9 @@
 {
+  "functions": {
+    "api/shopee-cookie-orders.js": {
+      "maxDuration": 60
+    }
+  },
   "rewrites": [
     {
       "source": "/api/otp",
