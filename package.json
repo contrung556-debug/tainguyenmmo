@@ -1,9 +1,1 @@
-{
-  "name": "NK-mmo-store",
-  "version": "1.0.0",
-  "dependencies": {
-    "@supabase/supabase-js": "^2.39.0",
-    "undici": "^7.0.0",
-    "socks-proxy-agent": "^8.0.5"
-  }
-} 
+{"name":"nk-mmo-v28-6-2","private":true,"engines":{"node":">=18"},"dependencies":{"@supabase/supabase-js":"^2.57.4","undici":"^6.21.3"}}
