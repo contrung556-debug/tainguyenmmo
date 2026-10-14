@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- NK MMO Store V28.6.6 - Cookie Display Mapping + Single Top Add Tracking + Full Detail + Auto Carrier Tracking + GHN Phone4 Auto Check | HomeProxy 61s -->
+<!-- NK MMO Store V28.6.7 - Cookie Display Mapping + Single Top Add Tracking + Full Detail + Auto Carrier Tracking + GHN Phone4 Auto Check | HomeProxy 61s -->
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
@@ -4840,6 +4840,21 @@ function nkV2865First(obj,paths){for(const path of paths){let cur=obj;for(const 
 function nkV2865Product(o){if(o&&o.product_name&&String(o.product_name).trim()&&String(o.product_name).trim()!=='Đơn Shopee')return String(o.product_name).trim();const raw=nkV2865Obj(o?.vubel_raw)||nkV2865Obj(o?.full_order_json)||nkV2865Obj(o?.order_json)||{};let pools=[raw?.items,raw?.item_list,raw?.order_items,raw?.products].filter(Array.isArray);if(Array.isArray(raw?.parcels))pools.push(raw.parcels.flatMap(p=>p?.items||p?.item_list||[]));const names=pools.flat().map(x=>nkV2865First(x,['name','itemName','item_name','productName','product_name','title','model.name','model_name','item.name','product.name'])).filter(Boolean).map(String);return [...new Set(names)].join(' • ')||String(o?.product_name||'Đơn Shopee')}
 function nkV2865Email(o){if(o&&o.email&&String(o.email).trim())return String(o.email).trim();const a=nkV2865Obj(o?.vubel_account_json)||{};return String(nkV2865First(a,['email','email_address','emailAddress','data.email','data.data.email','user.email','account.email'])||'').trim()}
 
+function nkV2867VubelStatus(o){
+    const raw=nkV2865Obj(o?.vubel_raw)||nkV2865Obj(o?.full_order_json)||nkV2865Obj(o?.order_json)||{};
+    // Với đơn Cookie: ưu tiên nguyên văn trạng thái nằm trong dữ liệu Vubel gốc.
+    const rawStatus=nkV2865First(raw,[
+        'statusLabel','status_label',
+        'processing.statusLabel','processing.status_label',
+        'status'
+    ]);
+    if(String(o?.source||'').toLowerCase()==='cookie' && rawStatus){
+        return String(rawStatus).trim();
+    }
+    return String(o?.status_label||o?.status||rawStatus||'Đang chờ giao').trim();
+}
+
+
 function renderOrders(
     ordersToRender
 ) {
@@ -5001,8 +5016,7 @@ function renderOrders(
 
             const safeStatus =
                 escapeHtml(
-                    o.status ||
-                    'Đang chờ giao'
+                    nkV2867VubelStatus(o)
                 );
 
             const safeProd =
@@ -10357,7 +10371,7 @@ window.showNkOrderDetail=function(orderId){
  const o=(window.cachedOrders||cachedOrders||[]).find(x=>Number(x.id)===Number(orderId));if(!o){showModal('Chi tiết đơn','Không tìm thấy đơn hàng.');return}
  const t=o.tracking||{};const code=S(t.tracking_code||o.tracking_code);const type=carrier(code);const address=[o.shipping_detail,o.shipping_address,o.shipping_ward,o.shipping_district,o.shipping_province].filter(Boolean).filter((v,i,a)=>a.indexOf(v)===i).join(', ');
  let html='<div style="text-align:left;font-size:12px;line-height:1.55">';
- html+=row('📦 Mã đơn:',o.order_code||o.shopee_order_sn);html+=row('🏷️ Nguồn:',o.source);html+=row('🛍️ Sản phẩm:',nkV2865Product(o));html+=row('🏪 Shop:',o.shop_name||o.shop_username);html+=row('👤 Người nhận:',o.recipient_name);html+=row('📱 SĐT nhận hàng:',o.recipient_phone);html+=row('🏠 Địa chỉ chi tiết:',address);html+=row('📧 Email:',nkV2865Email(o));html+=row('💰 Số tiền:',money(o.amount||o.total_amount||o.price));html+=row('💳 Thanh toán:',o.payment_method);html+=row('🚚 Hãng vận chuyển:',type||o.carrier||o.shipping_carrier);html+=row('🔎 Mã vận đơn:',code);html+=row('📍 Trạng thái:',t.tracking_status||o.status_label||o.status);html+=row('🏢 Vị trí hiện tại:',t.current_location);html+=row('➡️ Điểm tiếp:',t.next_location);html+=row('🕒 Tạo đơn:',fmt(o.created_at));html+=row('🔄 Cập nhật:',fmt(o.updated_at));html+=row('✅ Giao lúc:',fmt(o.delivered_at||t.delivered_at));
+ html+=row('📦 Mã đơn:',o.order_code||o.shopee_order_sn);html+=row('🏷️ Nguồn:',o.source);html+=row('🛍️ Sản phẩm:',nkV2865Product(o));html+=row('🏪 Shop:',o.shop_name||o.shop_username);html+=row('👤 Người nhận:',o.recipient_name);html+=row('📱 SĐT nhận hàng:',o.recipient_phone);html+=row('🏠 Địa chỉ chi tiết:',address);html+=row('📧 Email:',nkV2865Email(o));html+=row('💰 Số tiền:',money(o.amount||o.total_amount||o.price));html+=row('💳 Thanh toán:',o.payment_method);html+=row('🚚 Hãng vận chuyển:',type||o.carrier||o.shipping_carrier);html+=row('🔎 Mã vận đơn:',code);html+=row('📍 Trạng thái:',(type&&t.tracking_status)?t.tracking_status:nkV2867VubelStatus(o));html+=row('🏢 Vị trí hiện tại:',t.current_location);html+=row('➡️ Điểm tiếp:',t.next_location);html+=row('🕒 Tạo đơn:',fmt(o.created_at));html+=row('🔄 Cập nhật:',fmt(o.updated_at));html+=row('✅ Giao lúc:',fmt(o.delivered_at||t.delivered_at));
  const candidates=[['🛍️ Sản phẩm / Items',o.items_json||o.items],['🏪 Shop',o.shop_json||o.shops_json||o.shops],['📦 Kiện hàng',o.parcels_json||o.parcels],['💳 Thanh toán',o.payment_json||o.payment],['🚚 Vận chuyển',o.shipping_json||o.shipping],['👤 Người nhận',o.recipient_json],['📋 Dữ liệu đơn đầy đủ',o.order_json||o.full_order_json],['🧾 Dữ liệu Vubel gốc',o.vubel_raw||o.raw_json]];
  candidates.forEach(x=>{html+=jsonBlock(x[0],x[1])});
  const finalState=(typeof nkIsCancelled==='function'&&nkIsCancelled(o))?{bg:'#fef2f2',txt:'❌ ĐƠN BỊ HỦY'}:(typeof nkIsDelivered==='function'&&nkIsDelivered(o))?{bg:'#ecfdf5',txt:'✅ ĐÃ GIAO'}:{bg:'#f8fafc',txt:'🚚 ĐANG VẬN CHUYỂN'};html+=`<div style="margin-top:12px;padding:10px;border-radius:10px;background:${finalState.bg};font-weight:900">${finalState.txt}</div></div>`;showModal('📦 Chi tiết đơn hàng','',false,null,html)
