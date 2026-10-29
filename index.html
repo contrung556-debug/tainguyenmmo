@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- NK MMO Store V28.7.9 - Clean OTP guide UI + Shopee CTA link extraction + OTP no-billing: Shopee/Facebook/TikTok do not deduct wallet balance; keep iCloud IMAP + legacy /api/otp flow | Cookie Display Mapping + Single Top Add Tracking + Full Detail + Auto Carrier Tracking + GHN Phone4 Auto Check | HomeProxy 61s -->
+<!-- NK MMO Store V28.7.10 - Fix legacy /api/otp parallel link: allow valid OTP/link from legacy source to win for @icloud.com; keep all V28.7.9 UI/order/OCR/cookie/tracking logic unchanged | Clean OTP guide UI + Shopee CTA link extraction + OTP no-billing: Shopee/Facebook/TikTok do not deduct wallet balance; keep iCloud IMAP + legacy /api/otp flow | Cookie Display Mapping + Single Top Add Tracking + Full Detail + Auto Carrier Tracking + GHN Phone4 Auto Check | HomeProxy 61s -->
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
@@ -9487,7 +9487,7 @@ function render(data,res){
 }
 
 /* ============================================================
-   OTP ROUTER V28.7.9
+   OTP ROUTER V28.7.10
    - GIỮ NGUYÊN cách cũ: /api/otp?hide=...
    - @icloud.com: chạy /api/mail + /api/otp song song
    - @nkstore.io.vn: chỉ chạy /api/mail
@@ -9558,10 +9558,9 @@ async function fetchLegacyOtp(val, signal){
 function sanitizeLegacyParallelResult(data){
   if(!data||typeof data!=='object') return data;
   var clean=Object.assign({},data);
-  /* @icloud.com: nguồn cũ chỉ được đóng góp OTP.
-     Link chỉ được phép đến từ iCloud IMAP, nơi xác minh được anchor "TẠI ĐÂY". */
-  clean.link_xac_thuc_tai_day='';
-  clean._legacy_link_ignored=true;
+  /* V28.7.10: giữ nguyên OTP + link hợp lệ mà nguồn cũ /api/otp trả về.
+     Khi chạy song song cho @icloud.com, nguồn nào có kết quả hợp lệ trước thì được dùng. */
+  clean._legacy_link_allowed=true;
   return clean;
 }
 
@@ -9622,8 +9621,8 @@ function fetchFirstValidParallel(val){
     fetchLegacyOtp(val,legacyCtl.signal).then(function(data){
       data=sanitizeLegacyParallelResult(data);
       if(!hasValidOtpResult(data)) throw new Error('NO_VALID_RESULT');
-      /* Không cho nguồn cũ quyết định link của @icloud.com.
-         Nếu nguồn cũ có OTP thì hiển thị OTP ngay; link (nếu có) phải do /api/mail xác nhận từ chữ "TẠI ĐÂY". */
+      /* V28.7.10: nguồn cũ có OTP hoặc link hợp lệ đều có thể thắng.
+         Không xóa link_xac_thuc_tai_day của /api/otp nữa. */
       mailCtl.abort();
       resolve(data);
     }).catch(fail);
