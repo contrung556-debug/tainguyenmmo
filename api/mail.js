@@ -1,15 +1,16 @@
 // ============================================================
 // NK MMO STORE - ICLOUD CUSTOM DOMAIN MAIL API
-// VERSION: MAIL-1.2.0
+// VERSION: MAIL-1.4.1
 //
 // Purpose:
-// - Read OTP/link for @nkstore.io.vn through iCloud IMAP
+// - Read OTP/link for @icloud.com and @nkstore.io.vn through iCloud IMAP
 // - Facebook / Shopee / TikTok
 // - Search INBOX + Junk/Spam
 // - Keep MAIL_API_KEY server-side
 // - Web users authenticate with existing Supabase session token
+// - No wallet deduction / no OTP billing
 //
-// GET /api/mail?email=abc@nkstore.io.vn
+// GET /api/mail?email=alias@icloud.com or abc@nkstore.io.vn
 // Web header: Authorization: Bearer <supabase_access_token>
 // External/server header: x-api-key: <MAIL_API_KEY>
 //
@@ -23,7 +24,7 @@ const { ImapFlow } = require('imapflow');
 const { simpleParser } = require('mailparser');
 const { createClient } = require('@supabase/supabase-js');
 
-const DOMAIN = '@nkstore.io.vn';
+const ALLOWED_DOMAINS = ['@icloud.com', '@nkstore.io.vn'];
 const MAX_MESSAGES = 100;
 
 // Public project identifiers. These are already present in index.html.
@@ -163,6 +164,40 @@ function extractLinks(text = '') {
     .slice(0, 20);
 }
 
+function verificationContext(text = '') {
+  return /(?:verify|verification|confirm|confirmation|security|login|one[-\s]*time|otp|code|activate|activation|xác\s*nhận|xác\s*minh|mã\s*(?:otp|xác|bảo\s*mật))/i.test(
+    String(text || '')
+  );
+}
+
+function pickVerificationLinks(links = [], provider = 'unknown', context = '') {
+  const providerHints = {
+    facebook: ['facebook.com', 'facebookmail.com', 'meta.com'],
+    shopee: ['shopee.vn', 'shopee.com'],
+    tiktok: ['tiktok.com', 'byteoversea.com'],
+  }[provider] || [];
+
+  const noise = /(?:unsubscribe|privacy|terms|help|support|preferences|notification-settings|legal)/i;
+  const verify = /(?:verify|verification|confirm|confirmation|activate|activation|security|checkpoint|login|auth|code|email)/i;
+  const contextLooksRight = verificationContext(context);
+
+  const ranked = (Array.isArray(links) ? links : [])
+    .filter((url) => url && !noise.test(url))
+    .map((url, index) => {
+      const lower = String(url).toLowerCase();
+      let score = 0;
+      if (verify.test(lower)) score += 6;
+      if (providerHints.some((hint) => lower.includes(hint))) score += 3;
+      if (contextLooksRight) score += 1;
+      return { url, score, index };
+    })
+    .filter((item) => item.score > 0)
+    .sort((a, b) => b.score - a.score || a.index - b.index)
+    .map((item) => item.url);
+
+  return [...new Set(ranked)].slice(0, 5);
+}
+
 function getRecipients(parsed) {
   const recipients = [];
 
@@ -290,7 +325,11 @@ async function searchMailbox(client, mailboxName, targetEmail) {
       const htmlText = htmlToText(parsed.html);
       const bodyText = [parsed.subject || '', plainText, htmlText].join('\n');
       const otp = extractOtp(bodyText, provider);
-      const links = extractLinks([plainText, parsed.html || ''].join('\n'));
+      const allLinks = extractLinks([plainText, parsed.html || ''].join('\n'));
+      const links = pickVerificationLinks(allLinks, provider, bodyText);
+
+      // Do not count a normal marketing/account email as a successful OTP lookup.
+      if (!otp && !links.length) continue;
 
       return {
         mailbox: mailboxName,
@@ -338,11 +377,11 @@ module.exports = async function handler(req, res) {
     });
   }
 
-  if (!targetEmail.endsWith(DOMAIN)) {
+  if (!ALLOWED_DOMAINS.some((domain) => targetEmail.endsWith(domain))) {
     return res.status(400).json({
       ok: false,
       error: 'INVALID_DOMAIN',
-      message: `API này chỉ đọc email ${DOMAIN}.`,
+      message: `API này chỉ đọc email ${ALLOWED_DOMAINS.join(' hoặc ')}.`,
     });
   }
 
