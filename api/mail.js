@@ -1,6 +1,6 @@
 // ============================================================
 // NK MMO STORE - ICLOUD CUSTOM DOMAIN MAIL API
-// VERSION: MAIL-1.4.1
+// VERSION: MAIL-1.4.2
 //
 // Purpose:
 // - Read OTP/link for @icloud.com and @nkstore.io.vn through iCloud IMAP
@@ -9,6 +9,8 @@
 // - Keep MAIL_API_KEY server-side
 // - Web users authenticate with existing Supabase session token
 // - No wallet deduction / no OTP billing
+// - Prefer CTA anchor links such as “TẠI ĐÂY” / verify / confirm
+// - Avoid treating dates/times in link-only emails as OTP
 //
 // GET /api/mail?email=alias@icloud.com or abc@nkstore.io.vn
 // Web header: Authorization: Bearer <supabase_access_token>
@@ -110,10 +112,12 @@ function detectProvider(parsed) {
 function extractOtp(text = '', provider = 'unknown') {
   const source = String(text || '');
 
-  // Prefer codes next to OTP/verification wording.
+  // Only accept numbers that are actually tied to OTP / verification-code wording.
+  // This intentionally avoids generic "first 4-8 digits" fallbacks because
+  // security-link emails often contain dates/times such as 29/10/2026 18:55.
   const contextual = [
-    /(?:confirmation\s*code|verification\s*code|security\s*code|verify\s*code|login\s*code|one[-\s]*time\s*(?:password|code)|otp|mã\s*xác\s*nhận|mã\s*xác\s*minh|mã\s*bảo\s*mật|mã\s*otp)[^\d]{0,100}(\d{4,8})/i,
-    /(\d{4,8})[^\d]{0,100}(?:confirmation\s*code|verification\s*code|security\s*code|login\s*code|otp|mã\s*xác\s*nhận|mã\s*xác\s*minh|mã\s*bảo\s*mật)/i,
+    /(?:confirmation\s*code|verification\s*code|security\s*code|verify\s*code|login\s*code|one[-\s]*time\s*(?:password|code)|otp|mã\s*xác\s*nhận|mã\s*xác\s*minh|mã\s*bảo\s*mật|mã\s*otp)[^\d]{0,120}(\d{4,8})/i,
+    /(\d{4,8})[^\d]{0,120}(?:confirmation\s*code|verification\s*code|security\s*code|login\s*code|otp|mã\s*xác\s*nhận|mã\s*xác\s*minh|mã\s*bảo\s*mật)/i,
   ];
 
   for (const pattern of contextual) {
@@ -121,81 +125,121 @@ function extractOtp(text = '', provider = 'unknown') {
     if (match?.[1]) return match[1];
   }
 
-  // Provider-specific fallback.
-  const specific = {
-    facebook: [
-      /(?:facebook|meta)[\s\S]{0,350}?\b(\d{5,8})\b/i,
-      /\b(\d{5,8})\b[\s\S]{0,180}?(?:facebook|meta)/i,
-    ],
-    shopee: [
-      /shopee[\s\S]{0,350}?\b(\d{4,8})\b/i,
-      /\b(\d{4,8})\b[\s\S]{0,180}?shopee/i,
-    ],
-    tiktok: [
-      /tiktok[\s\S]{0,350}?\b(\d{4,8})\b/i,
-      /\b(\d{4,8})\b[\s\S]{0,180}?tiktok/i,
-    ],
-  }[provider] || [];
-
-  for (const pattern of specific) {
-    const match = source.match(pattern);
-    if (match?.[1]) return match[1];
-  }
-
-  // Last resort: usual OTP lengths, longest confidence first.
-  for (const pattern of [
-    /\b(\d{6})\b/,
-    /\b(\d{5})\b/,
-    /\b(\d{4})\b/,
-    /\b(\d{7})\b/,
-    /\b(\d{8})\b/,
-  ]) {
-    const match = source.match(pattern);
-    if (match?.[1]) return match[1];
-  }
-
+  // Facebook commonly places the code directly in the subject, e.g.
+  // "18494 là mã xác nhận Facebook của bạn"; the patterns above catch it.
+  // Do not guess any other standalone number.
   return null;
+}
+
+function decodeHtmlEntities(value = '') {
+  return String(value || '')
+    .replace(/&amp;/gi, '&')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;|&apos;/gi, "'")
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&#(\d+);/g, (_, n) => {
+      try { return String.fromCodePoint(Number(n)); } catch (_) { return _; }
+    })
+    .replace(/&#x([0-9a-f]+);/gi, (_, n) => {
+      try { return String.fromCodePoint(parseInt(n, 16)); } catch (_) { return _; }
+    });
 }
 
 function extractLinks(text = '') {
   const links = String(text || '').match(/https?:\/\/[^\s<>"')\]}]+/gi) || [];
   return [...new Set(links)]
-    .map((url) => url.replace(/&amp;/gi, '&').replace(/[.,;]+$/, ''))
-    .slice(0, 20);
+    .map((url) => decodeHtmlEntities(url).replace(/[.,;]+$/, ''))
+    .slice(0, 30);
+}
+
+function extractAnchors(html = '') {
+  const source = String(html || '');
+  const anchors = [];
+  const re = /<a\b([^>]*?)\bhref\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))([^>]*)>([\s\S]*?)<\/a\s*>/gi;
+  let match;
+
+  while ((match = re.exec(source))) {
+    const href = decodeHtmlEntities(match[2] || match[3] || match[4] || '').trim();
+    if (!/^https?:\/\//i.test(href)) continue;
+
+    const label = htmlToText(match[6] || '')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+    anchors.push({ href, label });
+    if (anchors.length >= 80) break;
+  }
+
+  return anchors;
 }
 
 function verificationContext(text = '') {
-  return /(?:verify|verification|confirm|confirmation|security|login|one[-\s]*time|otp|code|activate|activation|xác\s*nhận|xác\s*minh|mã\s*(?:otp|xác|bảo\s*mật))/i.test(
+  return /(?:verify|verification|confirm|confirmation|security|login|one[-\s]*time|otp|code|activate|activation|xác\s*nhận|xác\s*minh|mã\s*(?:otp|xác|bảo\s*mật)|đăng\s*nhập)/i.test(
     String(text || '')
   );
 }
 
-function pickVerificationLinks(links = [], provider = 'unknown', context = '') {
+function pickVerificationLinks({ anchors = [], links = [], provider = 'unknown', context = '' } = {}) {
   const providerHints = {
     facebook: ['facebook.com', 'facebookmail.com', 'meta.com'],
     shopee: ['shopee.vn', 'shopee.com'],
     tiktok: ['tiktok.com', 'byteoversea.com'],
   }[provider] || [];
 
-  const noise = /(?:unsubscribe|privacy|terms|help|support|preferences|notification-settings|legal)/i;
-  const verify = /(?:verify|verification|confirm|confirmation|activate|activation|security|checkpoint|login|auth|code|email)/i;
+  const strongCta = /^(?:tại\s*đây|xác\s*nhận|xác\s*minh|mở\s*link|tiếp\s*tục|verify|confirm|continue|log\s*in|login)$/i;
+  const ctaWords = /(?:tại\s*đây|xác\s*nhận|xác\s*minh|verify|verification|confirm|confirmation|activate|activation|đăng\s*nhập|login|security|continue)/i;
+  const hrefVerify = /(?:verify|verification|confirm|confirmation|activate|activation|security|checkpoint|login|auth|token|code|email|universal-link|deeplink|redirect|redir)/i;
+  const noiseLabel = /(?:trợ\s*giúp|help|support|privacy|terms|điều\s*khoản|chính\s*sách|unsubscribe|hủy\s*đăng\s*ký|preferences)/i;
+  const noiseHref = /(?:unsubscribe|privacy|terms|help(?:\.|\/)|support(?:\.|\/)|preferences|notification-settings|legal)/i;
   const contextLooksRight = verificationContext(context);
 
-  const ranked = (Array.isArray(links) ? links : [])
-    .filter((url) => url && !noise.test(url))
-    .map((url, index) => {
-      const lower = String(url).toLowerCase();
-      let score = 0;
-      if (verify.test(lower)) score += 6;
-      if (providerHints.some((hint) => lower.includes(hint))) score += 3;
-      if (contextLooksRight) score += 1;
-      return { url, score, index };
-    })
-    .filter((item) => item.score > 0)
-    .sort((a, b) => b.score - a.score || a.index - b.index)
-    .map((item) => item.url);
+  const candidates = [];
 
-  return [...new Set(ranked)].slice(0, 5);
+  for (let i = 0; i < anchors.length; i++) {
+    const item = anchors[i] || {};
+    const url = String(item.href || '').trim();
+    const label = String(item.label || '').replace(/\s+/g, ' ').trim();
+    if (!url) continue;
+
+    const lower = url.toLowerCase();
+    let score = 0;
+
+    // The Shopee mail shown by the user uses exactly “TẠI ĐÂY”.
+    if (strongCta.test(label)) score += 30;
+    else if (ctaWords.test(label)) score += 18;
+
+    if (hrefVerify.test(lower)) score += 8;
+    if (providerHints.some((hint) => lower.includes(hint))) score += 5;
+    if (contextLooksRight) score += 2;
+
+    if (noiseLabel.test(label)) score -= 24;
+    if (noiseHref.test(lower)) score -= 10;
+
+    candidates.push({ url, score, index: i, source: 'anchor' });
+  }
+
+  const anchorUrls = new Set(candidates.map((item) => item.url));
+  for (let i = 0; i < links.length; i++) {
+    const url = String(links[i] || '').trim();
+    if (!url || anchorUrls.has(url)) continue;
+
+    const lower = url.toLowerCase();
+    let score = 0;
+    if (hrefVerify.test(lower)) score += 7;
+    if (providerHints.some((hint) => lower.includes(hint))) score += 4;
+    if (contextLooksRight) score += 1;
+    if (noiseHref.test(lower)) score -= 12;
+
+    candidates.push({ url, score, index: anchors.length + i, source: 'raw' });
+  }
+
+  return [...new Set(
+    candidates
+      .filter((item) => item.score > 0)
+      .sort((a, b) => b.score - a.score || a.index - b.index)
+      .map((item) => item.url)
+  )].slice(0, 5);
 }
 
 function getRecipients(parsed) {
@@ -326,7 +370,13 @@ async function searchMailbox(client, mailboxName, targetEmail) {
       const bodyText = [parsed.subject || '', plainText, htmlText].join('\n');
       const otp = extractOtp(bodyText, provider);
       const allLinks = extractLinks([plainText, parsed.html || ''].join('\n'));
-      const links = pickVerificationLinks(allLinks, provider, bodyText);
+      const anchors = extractAnchors(parsed.html || '');
+      const links = pickVerificationLinks({
+        anchors,
+        links: allLinks,
+        provider,
+        context: bodyText,
+      });
 
       // Do not count a normal marketing/account email as a successful OTP lookup.
       if (!otp && !links.length) continue;
