@@ -1,1 +1,13 @@
-{"name":"nk-mmo-v28-6-2","private":true,"engines":{"node":">=18"},"dependencies":{"@supabase/supabase-js":"^2.57.4","undici":"^6.21.3"}}
+{
+  "name": "nk-mmo-v28-6-2",
+  "private": true,
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.57.4",
+    "undici": "^6.21.3",
+    "imapflow": "^2.9.1",
+    "mailparser": "^3.12.4"
+  }
+}
