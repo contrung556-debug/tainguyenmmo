@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- NK MMO Store V28.7.0 - Cookie Display Mapping + Single Top Add Tracking + Full Detail + Auto Carrier Tracking + GHN Phone4 Auto Check | HomeProxy 61s -->
+<!-- NK MMO Store V28.7.1 - Add nkstore.io.vn iCloud IMAP OTP route; preserve legacy /api/otp flow | Cookie Display Mapping + Single Top Add Tracking + Full Detail + Auto Carrier Tracking + GHN Phone4 Auto Check | HomeProxy 61s -->
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
@@ -9385,8 +9385,8 @@ function buildStatic(){
   if(!inp||!btn||!res) return;
 
   var info=document.createElement('div'); info.className='nkvo-info';
-  info.innerHTML=I.apple+'<div><b>Chỉ hỗ trợ Email iCloud</b>Nhập đúng địa chỉ Email iCloud<br>(ví dụ: example@icloud.com)</div>';
-  var lab=document.createElement('label'); lab.className='nkvo-lab'; lab.textContent='Nhập Email iCloud'; lab.setAttribute('for','fetchInputEmail');
+  info.innerHTML=I.apple+'<div><b>Hỗ trợ Email iCloud + @nkstore.io.vn</b>Email iCloud cũ vẫn lấy như trước; email @nkstore.io.vn dùng hộp thư iCloud mới.</div>';
+  var lab=document.createElement('label'); lab.className='nkvo-lab'; lab.textContent='Nhập Email'; lab.setAttribute('for','fetchInputEmail');
 
   var field=document.createElement('div'); field.className='nkvo-field';
   var fi=document.createElement('span'); fi.className='nkvo-fi'; fi.innerHTML=I.mailO;
@@ -9396,7 +9396,7 @@ function buildStatic(){
   inp.parentNode.insertBefore(lab,inp);
   inp.parentNode.insertBefore(field,inp);
   field.appendChild(fi); field.appendChild(inp); field.appendChild(clr);
-  inp.placeholder='example@icloud.com';
+  inp.placeholder='example@icloud.com hoặc abc@nkstore.io.vn';
   inp.setAttribute('autocomplete','off'); inp.setAttribute('autocapitalize','off'); inp.setAttribute('spellcheck','false');
   var sync=function(){clr.classList.toggle('show',!!inp.value)};
   inp.addEventListener('input',sync); sync();
@@ -9407,7 +9407,8 @@ function buildStatic(){
 
   var g=document.createElement('div'); g.className='nkvo-guide';
   g.innerHTML='<span class="nkvo-bulb">'+I.bulb+'</span><div><b>Hướng dẫn sử dụng</b><ul>'+
-    '<li>Nhập đúng địa chỉ Email iCloud (ví dụ: example@icloud.com)</li>'+
+    '<li>Email iCloud cũ vẫn dùng cách lấy cũ như trước</li>'+
+    '<li>Email @nkstore.io.vn sẽ đọc từ iCloud IMAP mới</li>'+
     '<li>Bấm “Lấy Mã OTP / Link” để nhận thông tin mới nhất</li>'+
     '<li>Mã OTP có hiệu lực trong vài phút</li>'+
     '<li>Nhấn “Mở Link Xác Thực” để truy cập (nếu có link)</li>'+
@@ -9441,6 +9442,7 @@ function render(data,res){
   var raw=String(data.link_xac_thuc_tai_day||'').trim(), low=raw.toLowerCase();
   var hasLink=(low.indexOf('http://')===0||low.indexOf('https://')===0);
   var email=data.hide_email_tin?String(data.hide_email_tin):'';
+  var provider=data.provider?String(data.provider):'';
 
   if(!hasOtp&&!hasLink){
     res.innerHTML='<div class="nkvo-err">'+I.warn+'<span>Chưa có mã OTP hoặc link xác thực mới cho email này. Vui lòng thử lại sau ít phút.</span></div>';
@@ -9448,12 +9450,12 @@ function render(data,res){
   }
   var title=hasOtp&&hasLink?'Đã nhận được OTP & link':(hasOtp?'Đã nhận được mã OTP':'Đã nhận được link xác thực');
   var h='<div class="nkvo-res"><div class="nkvo-rh"><span class="nkvo-ok">'+I.check+'</span>'+
-    '<div class="nkvo-rt"><b>'+title+'</b><small>Thời gian: '+nowStr()+(email?' · '+esc(email):'')+'</small></div>';
+    '<div class="nkvo-rt"><b>'+title+'</b><small>Thời gian: '+nowStr()+(email?' · '+esc(email):'')+(provider?' · '+esc(provider):'')+'</small></div>';
   if(hasOtp) h+='<div class="nkvo-valid">'+I.clock+'<div>Hiệu lực<b>5 phút</b></div></div>';
   h+='</div>';
 
   if(hasOtp){
-    h+='<div class="nkvo-sub">Mã OTP iCloud</div><div class="nkvo-code">'+
+    h+='<div class="nkvo-sub">Mã OTP</div><div class="nkvo-code">'+
       otp.split('').map(function(c){return c===' '?'':'<span>'+esc(c)+'</span>'}).join('')+'</div>'+
       '<div class="nkvo-acts"><button type="button" class="nkvo-btn" data-a="copyotp">'+I.copy+'<span>Sao chép</span></button>'+
       '<button type="button" class="nkvo-btn" data-a="retry">'+I.redo+'<span>Lấy lại OTP</span></button></div>'+
@@ -9461,7 +9463,7 @@ function render(data,res){
   }
   if(hasLink){
     h+='<div class="nkvo-link"><div class="nkvo-lh"><span class="nkvo-li">'+I.link+'</span>'+
-      '<div><b>Link xác thực iCloud</b><small>Nhấn nút bên dưới để mở link (đã thu gọn)</small></div></div>'+
+      '<div><b>Link xác thực</b><small>Nhấn nút bên dưới để mở link (đã thu gọn)</small></div></div>'+
       '<a class="nkvo-open" id="nkvoOpenLink" target="_blank" rel="noopener noreferrer">'+I.ext+'<span>Mở Link Xác Thực</span></a>'+
       '<details class="nkvo-det"><summary><span>Xem chi tiết link</span>'+I.chev+'</summary>'+
       '<div class="nkvo-url" id="nkvoUrl"></div>'+
@@ -9486,7 +9488,55 @@ function render(data,res){
   });
 }
 
-/* Ghi đè hàm lấy OTP: giữ nguyên API /api/otp?hide=... */
+/* ============================================================
+   OTP ROUTER V28.7.1
+   - GIỮ NGUYÊN cách cũ: /api/otp?hide=...
+   - CHỈ THÊM nhánh @nkstore.io.vn -> /api/mail
+   - MAIL_API_KEY KHÔNG đưa xuống trình duyệt.
+   - Web dùng Supabase access token hiện có để xác thực /api/mail.
+============================================================ */
+async function fetchNkStoreDomainMail(val){
+  if(typeof _supabase==='undefined'){
+    throw new Error('SUPABASE_NOT_READY');
+  }
+
+  var sess=await _supabase.auth.getSession();
+  var token=sess&&sess.data&&sess.data.session&&sess.data.session.access_token;
+  if(!token){
+    throw new Error('LOGIN_REQUIRED');
+  }
+
+  var r=await fetch('/api/mail?email='+encodeURIComponent(val),{
+    method:'GET',
+    cache:'no-store',
+    headers:{
+      'Authorization':'Bearer '+token,
+      'Accept':'application/json'
+    }
+  });
+
+  var data=await r.json().catch(function(){return {}});
+  if(!r.ok||!data||data.ok!==true){
+    var err=new Error(data.message||data.error||('HTTP '+r.status));
+    err.status=r.status;
+    throw err;
+  }
+
+  var otp=String(data.otp||(data.mail&&data.mail.otp)||'').trim();
+  var links=Array.isArray(data.links)?data.links:((data.mail&&Array.isArray(data.mail.links))?data.mail.links:[]);
+  var provider=String(data.provider||(data.mail&&data.mail.provider)||'').trim();
+
+  /* Đổi dữ liệu API mới về đúng shape render cũ đang dùng. */
+  return {
+    status:'success',
+    otp:otp||'Không có',
+    link_xac_thuc_tai_day:links[0]||'',
+    hide_email_tin:val,
+    provider:provider
+  };
+}
+
+/* Ghi đè hàm lấy OTP: cách cũ được giữ nguyên 100% cho mọi email khác. */
 window.fetchOtpLink=async function(btnEl){
   var inp=document.getElementById('fetchInputEmail'), res=document.getElementById('fetchResult');
   if(!inp||!res||busy) return;
@@ -9495,18 +9545,37 @@ window.fetchOtpLink=async function(btnEl){
     if(typeof showModal==='function') showModal('Thông Báo','Vui lòng nhập tên hoặc email!');
     return;
   }
+
   busy=true;
   var btn=btnEl||document.getElementById('btnFetchOtp'), old=btn?btn.innerHTML:'';
   if(btn){btn.disabled=true;btn.innerHTML='<span>Đang kết nối...</span>'}
   res.innerHTML='<div class="nkvo-loading"><span class="nkvo-spin"></span><span>Đang kết nối...</span></div>';
+
   try{
-    var r=await fetch('/api/otp?hide='+encodeURIComponent(val));
-    if(!r.ok) throw new Error('Lỗi server: '+r.status);
-    var data=await r.json();
-    if(data.status==='success') render(data,res);
-    else res.innerHTML='<div class="nkvo-err">'+I.warn+'<span>'+esc(data.message||'Không tìm thấy dữ liệu')+'</span></div>';
+    var normalized=String(val).trim().toLowerCase();
+    var data;
+
+    if(normalized.endsWith('@nkstore.io.vn')){
+      /* NHÁNH MỚI - iCloud Custom Domain */
+      data=await fetchNkStoreDomainMail(normalized);
+    }else{
+      /* NHÁNH CŨ - GIỮ NGUYÊN */
+      var r=await fetch('/api/otp?hide='+encodeURIComponent(val));
+      if(!r.ok) throw new Error('Lỗi server: '+r.status);
+      data=await r.json();
+    }
+
+    if(data.status==='success'){
+      render(data,res);
+    }else{
+      res.innerHTML='<div class="nkvo-err">'+I.warn+'<span>'+esc(data.message||'Không tìm thấy dữ liệu')+'</span></div>';
+    }
   }catch(e){
-    res.innerHTML='<div class="nkvo-err">'+I.warn+'<span>Không thể kết nối server hoặc dữ liệu không hợp lệ.</span></div>';
+    var msg='Không thể kết nối server hoặc dữ liệu không hợp lệ.';
+    if(e&&e.message==='LOGIN_REQUIRED') msg='Vui lòng đăng nhập để lấy OTP của email @nkstore.io.vn.';
+    else if(e&&e.message==='MAIL_NOT_FOUND') msg='Chưa tìm thấy thư Facebook, Shopee hoặc TikTok mới cho email này.';
+    else if(e&&e.status===404) msg='Chưa tìm thấy thư Facebook, Shopee hoặc TikTok mới cho email này.';
+    res.innerHTML='<div class="nkvo-err">'+I.warn+'<span>'+esc(msg)+'</span></div>';
   }finally{
     busy=false;
     if(btn){btn.disabled=false;btn.innerHTML=I.key+'<span>Lấy Mã OTP / Link</span>'}
