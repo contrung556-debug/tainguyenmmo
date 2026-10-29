@@ -1800,7 +1800,11 @@ function openRegister() {
             <input
                 type="text"
                 id="regUser"
-                placeholder="Tên đăng nhập (Username)..."
+                placeholder="Tên đăng nhập (viết liền, không dấu)..."
+                autocomplete="off"
+                autocapitalize="none"
+                spellcheck="false"
+                oninput="this.value=this.value.normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/đ/g,'d').replace(/Đ/g,'D').replace(/[^A-Za-z0-9_]/g,'')"
             >
 
             <input
@@ -1884,6 +1888,16 @@ async function handleReg(res) {
         showModal(
             "Lỗi",
             "Vui lòng nhập đầy đủ thông tin!"
+        );
+
+        return;
+    }
+
+    if (!/^[A-Za-z0-9_]+$/.test(username)) {
+
+        showModal(
+            "Lỗi",
+            "Tên đăng nhập chỉ được viết liền, không dấu, không khoảng trắng (chỉ gồm chữ a-z, số 0-9 và dấu _)!"
         );
 
         return;
