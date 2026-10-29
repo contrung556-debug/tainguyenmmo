@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- NK MMO Store V28.7.5 - OTP no-billing: Shopee/Facebook/TikTok do not deduct wallet balance; keep iCloud IMAP + legacy /api/otp flow | Cookie Display Mapping + Single Top Add Tracking + Full Detail + Auto Carrier Tracking + GHN Phone4 Auto Check | HomeProxy 61s -->
+<!-- NK MMO Store V28.7.6 - OTP no-billing: Shopee/Facebook/TikTok do not deduct wallet balance; keep iCloud IMAP + legacy /api/otp flow | Cookie Display Mapping + Single Top Add Tracking + Full Detail + Auto Carrier Tracking + GHN Phone4 Auto Check | HomeProxy 61s -->
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
@@ -9489,7 +9489,7 @@ function render(data,res){
 }
 
 /* ============================================================
-   OTP ROUTER V28.7.5
+   OTP ROUTER V28.7.6
    - GIỮ NGUYÊN cách cũ: /api/otp?hide=...
    - @icloud.com: chạy /api/mail + /api/otp song song
    - @nkstore.io.vn: chỉ chạy /api/mail
@@ -9593,7 +9593,12 @@ function fetchFirstValidParallel(val){
       errors.push(err);
       pending--;
       if(pending<=0){
-        var best=errors.find(function(e){return e&&e.message==='LOGIN_REQUIRED';})||
+        /* Ưu tiên lỗi cấu hình/server của /api/mail. Không để 404 từ nguồn cũ che lỗi thật. */
+        var best=errors.find(function(e){return e&&['MISSING_ICLOUD_ENV','ICLOUD_IMAP_ERROR','UNAUTHORIZED','INVALID_DOMAIN'].includes(e.code);})||
+                 errors.find(function(e){return e&&Number(e.status)>=500;})||
+                 errors.find(function(e){return e&&e.message==='LOGIN_REQUIRED';})||
+                 errors.find(function(e){return e&&e.status===401;})||
+                 errors.find(function(e){return e&&e.status===400;})||
                  errors.find(function(e){return e&&e.status===404;})||
                  errors[0]||new Error('NO_VALID_RESULT');
         reject(best);
@@ -9648,7 +9653,13 @@ window.fetchOtpLink=async function(btnEl){
     }
   }catch(e){
     var msg='Không thể kết nối server hoặc chưa có OTP/link hợp lệ.';
+    var code=e&&e.code?String(e.code):'';
     if(e&&e.message==='LOGIN_REQUIRED') msg='Nguồn iCloud yêu cầu đăng nhập; nguồn OTP cũ cũng chưa có kết quả.';
+    else if(code==='UNAUTHORIZED'||(e&&e.status===401)) msg='Phiên đăng nhập không được /api/mail xác thực. Hãy đăng xuất rồi đăng nhập lại.';
+    else if(code==='MISSING_ICLOUD_ENV') msg='Vercel đang thiếu ICLOUD_USER hoặc ICLOUD_APP_PASSWORD cho project hiện tại.';
+    else if(code==='INVALID_DOMAIN') msg='/api/mail đang là bản cũ hoặc chưa cho phép email @icloud.com. Hãy thay api/mail.js V28.7.5+.';
+    else if(code==='ICLOUD_IMAP_ERROR') msg='iCloud IMAP kết nối thất bại. Kiểm tra ICLOUD_USER, App-Specific Password và Vercel Logs.';
+    else if(e&&Number(e.status)>=500) msg='API /api/mail đang lỗi HTTP '+e.status+'. Kiểm tra package.json có imapflow + mailparser và xem Vercel Logs.';
     else if(e&&(e.message==='MAIL_NOT_FOUND'||e.status===404||e.message==='NO_VALID_RESULT')) msg='Chưa tìm thấy thư Facebook, Shopee hoặc TikTok có OTP/link mới cho email này.';
     res.innerHTML='<div class="nkvo-err">'+I.warn+'<span>'+esc(msg)+'</span></div>';
   }finally{
