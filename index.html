@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- NK MMO Store V28.7.7 - Shopee CTA link extraction + OTP no-billing: Shopee/Facebook/TikTok do not deduct wallet balance; keep iCloud IMAP + legacy /api/otp flow | Cookie Display Mapping + Single Top Add Tracking + Full Detail + Auto Carrier Tracking + GHN Phone4 Auto Check | HomeProxy 61s -->
+<!-- NK MMO Store V28.7.9 - Clean OTP guide UI + Shopee CTA link extraction + OTP no-billing: Shopee/Facebook/TikTok do not deduct wallet balance; keep iCloud IMAP + legacy /api/otp flow | Cookie Display Mapping + Single Top Add Tracking + Full Detail + Auto Carrier Tracking + GHN Phone4 Auto Check | HomeProxy 61s -->
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
@@ -9407,8 +9407,6 @@ function buildStatic(){
 
   var g=document.createElement('div'); g.className='nkvo-guide';
   g.innerHTML='<span class="nkvo-bulb">'+I.bulb+'</span><div><b>Hướng dẫn sử dụng</b><ul>'+
-    '<li>Email @icloud.com sẽ kiểm tra đồng thời iCloud IMAP + nguồn OTP cũ</li><li>Email @nkstore.io.vn dùng iCloud IMAP trực tiếp</li>'+
-    '<li>Kết quả OTP/link hợp lệ nào về trước sẽ được hiển thị ngay</li>'+
     '<li>Bấm “Lấy Mã OTP / Link” để nhận thông tin mới nhất</li>'+
     '<li>Mã OTP có hiệu lực trong vài phút</li>'+
     '<li>Nhấn “Mở Link Xác Thực” để truy cập (nếu có link)</li>'+
@@ -9489,7 +9487,7 @@ function render(data,res){
 }
 
 /* ============================================================
-   OTP ROUTER V28.7.7
+   OTP ROUTER V28.7.9
    - GIỮ NGUYÊN cách cũ: /api/otp?hide=...
    - @icloud.com: chạy /api/mail + /api/otp song song
    - @nkstore.io.vn: chỉ chạy /api/mail
@@ -9557,6 +9555,16 @@ async function fetchLegacyOtp(val, signal){
   return data;
 }
 
+function sanitizeLegacyParallelResult(data){
+  if(!data||typeof data!=='object') return data;
+  var clean=Object.assign({},data);
+  /* @icloud.com: nguồn cũ chỉ được đóng góp OTP.
+     Link chỉ được phép đến từ iCloud IMAP, nơi xác minh được anchor "TẠI ĐÂY". */
+  clean.link_xac_thuc_tai_day='';
+  clean._legacy_link_ignored=true;
+  return clean;
+}
+
 function hasValidOtpResult(data){
   if(!data||data.status!=='success') return false;
   var otp=String(data.otp==null?'':data.otp).trim();
@@ -9612,7 +9620,10 @@ function fetchFirstValidParallel(val){
     }).catch(fail);
 
     fetchLegacyOtp(val,legacyCtl.signal).then(function(data){
+      data=sanitizeLegacyParallelResult(data);
       if(!hasValidOtpResult(data)) throw new Error('NO_VALID_RESULT');
+      /* Không cho nguồn cũ quyết định link của @icloud.com.
+         Nếu nguồn cũ có OTP thì hiển thị OTP ngay; link (nếu có) phải do /api/mail xác nhận từ chữ "TẠI ĐÂY". */
       mailCtl.abort();
       resolve(data);
     }).catch(fail);
