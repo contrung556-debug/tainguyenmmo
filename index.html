@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- NK MMO Store V28.7.1 - Add nkstore.io.vn iCloud IMAP OTP route; preserve legacy /api/otp flow | Cookie Display Mapping + Single Top Add Tracking + Full Detail + Auto Carrier Tracking + GHN Phone4 Auto Check | HomeProxy 61s -->
+<!-- NK MMO Store V28.7.5 - OTP no-billing: Shopee/Facebook/TikTok do not deduct wallet balance; keep iCloud IMAP + legacy /api/otp flow | Cookie Display Mapping + Single Top Add Tracking + Full Detail + Auto Carrier Tracking + GHN Phone4 Auto Check | HomeProxy 61s -->
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
@@ -9385,7 +9385,7 @@ function buildStatic(){
   if(!inp||!btn||!res) return;
 
   var info=document.createElement('div'); info.className='nkvo-info';
-  info.innerHTML=I.apple+'<div><b>Hỗ trợ Email iCloud + @nkstore.io.vn</b>Email iCloud cũ vẫn lấy như trước; email @nkstore.io.vn dùng hộp thư iCloud mới.</div>';
+  info.innerHTML=I.apple+'<div><b>Hỗ trợ Email iCloud</b>Email @icloud.com được kiểm tra đồng thời qua iCloud IMAP + nguồn OTP cũ; @nkstore.io.vn dùng iCloud IMAP trực tiếp.</div>';
   var lab=document.createElement('label'); lab.className='nkvo-lab'; lab.textContent='Nhập Email'; lab.setAttribute('for','fetchInputEmail');
 
   var field=document.createElement('div'); field.className='nkvo-field';
@@ -9407,8 +9407,8 @@ function buildStatic(){
 
   var g=document.createElement('div'); g.className='nkvo-guide';
   g.innerHTML='<span class="nkvo-bulb">'+I.bulb+'</span><div><b>Hướng dẫn sử dụng</b><ul>'+
-    '<li>Email iCloud cũ vẫn dùng cách lấy cũ như trước</li>'+
-    '<li>Email @nkstore.io.vn sẽ đọc từ iCloud IMAP mới</li>'+
+    '<li>Email @icloud.com sẽ kiểm tra đồng thời iCloud IMAP + nguồn OTP cũ</li><li>Email @nkstore.io.vn dùng iCloud IMAP trực tiếp</li>'+
+    '<li>Kết quả OTP/link hợp lệ nào về trước sẽ được hiển thị ngay</li>'+
     '<li>Bấm “Lấy Mã OTP / Link” để nhận thông tin mới nhất</li>'+
     '<li>Mã OTP có hiệu lực trong vài phút</li>'+
     '<li>Nhấn “Mở Link Xác Thực” để truy cập (nếu có link)</li>'+
@@ -9489,13 +9489,14 @@ function render(data,res){
 }
 
 /* ============================================================
-   OTP ROUTER V28.7.1
+   OTP ROUTER V28.7.5
    - GIỮ NGUYÊN cách cũ: /api/otp?hide=...
-   - CHỈ THÊM nhánh @nkstore.io.vn -> /api/mail
+   - @icloud.com: chạy /api/mail + /api/otp song song
+   - @nkstore.io.vn: chỉ chạy /api/mail
    - MAIL_API_KEY KHÔNG đưa xuống trình duyệt.
    - Web dùng Supabase access token hiện có để xác thực /api/mail.
 ============================================================ */
-async function fetchNkStoreDomainMail(val){
+async function fetchNkStoreDomainMail(val, signal){
   if(typeof _supabase==='undefined'){
     throw new Error('SUPABASE_NOT_READY');
   }
@@ -9509,6 +9510,7 @@ async function fetchNkStoreDomainMail(val){
   var r=await fetch('/api/mail?email='+encodeURIComponent(val),{
     method:'GET',
     cache:'no-store',
+    signal:signal,
     headers:{
       'Authorization':'Bearer '+token,
       'Accept':'application/json'
@@ -9519,6 +9521,7 @@ async function fetchNkStoreDomainMail(val){
   if(!r.ok||!data||data.ok!==true){
     var err=new Error(data.message||data.error||('HTTP '+r.status));
     err.status=r.status;
+    err.code=data&&data.error;
     throw err;
   }
 
@@ -9526,17 +9529,92 @@ async function fetchNkStoreDomainMail(val){
   var links=Array.isArray(data.links)?data.links:((data.mail&&Array.isArray(data.mail.links))?data.mail.links:[]);
   var provider=String(data.provider||(data.mail&&data.mail.provider)||'').trim();
 
-  /* Đổi dữ liệu API mới về đúng shape render cũ đang dùng. */
   return {
     status:'success',
     otp:otp||'Không có',
     link_xac_thuc_tai_day:links[0]||'',
     hide_email_tin:val,
-    provider:provider
+    provider:provider,
+    _source:'icloud-imap'
   };
 }
 
-/* Ghi đè hàm lấy OTP: cách cũ được giữ nguyên 100% cho mọi email khác. */
+async function fetchLegacyOtp(val, signal){
+  var r=await fetch('/api/otp?hide='+encodeURIComponent(val),{
+    method:'GET',
+    cache:'no-store',
+    signal:signal,
+    headers:{'Accept':'application/json'}
+  });
+  var data=await r.json().catch(function(){return {}});
+  if(!r.ok){
+    var err=new Error(data.message||('Lỗi server: '+r.status));
+    err.status=r.status;
+    err.code=data&&data.error;
+    throw err;
+  }
+  if(data&&typeof data==='object') data._source='legacy-otp';
+  return data;
+}
+
+function hasValidOtpResult(data){
+  if(!data||data.status!=='success') return false;
+  var otp=String(data.otp==null?'':data.otp).trim();
+  var hasOtp=!!otp && otp.toLowerCase()!=='không có';
+  var link=String(data.link_xac_thuc_tai_day||'').trim().toLowerCase();
+  var hasLink=link.indexOf('http://')===0||link.indexOf('https://')===0;
+  return hasOtp||hasLink;
+}
+
+function isParallelIcloudEmail(val){
+  var v=String(val||'').trim().toLowerCase();
+  return v.endsWith('@icloud.com');
+}
+
+function isNkStoreDomainEmail(val){
+  var v=String(val||'').trim().toLowerCase();
+  return v.endsWith('@nkstore.io.vn');
+}
+
+/*
+ * Chạy hai nguồn song song CHỈ cho email @icloud.com.
+ * Chỉ kết quả thực sự có OTP hoặc link mới thắng.
+ * Khi một nguồn thắng, request còn lại bị hủy để giảm tải.
+ */
+function fetchFirstValidParallel(val){
+  var mailCtl=new AbortController();
+  var legacyCtl=new AbortController();
+
+  return new Promise(function(resolve,reject){
+    var pending=2, errors=[];
+
+    function fail(err){
+      if(err&&err.name==='AbortError') return;
+      errors.push(err);
+      pending--;
+      if(pending<=0){
+        var best=errors.find(function(e){return e&&e.message==='LOGIN_REQUIRED';})||
+                 errors.find(function(e){return e&&e.status===404;})||
+                 errors[0]||new Error('NO_VALID_RESULT');
+        reject(best);
+      }
+    }
+
+    fetchNkStoreDomainMail(val,mailCtl.signal).then(function(data){
+      if(!hasValidOtpResult(data)) throw new Error('NO_VALID_RESULT');
+      legacyCtl.abort();
+      resolve(data);
+    }).catch(fail);
+
+    fetchLegacyOtp(val,legacyCtl.signal).then(function(data){
+      if(!hasValidOtpResult(data)) throw new Error('NO_VALID_RESULT');
+      mailCtl.abort();
+      resolve(data);
+    }).catch(fail);
+  });
+}
+
+/* Ghi đè hàm lấy OTP: @icloud.com chạy song song; @nkstore.io.vn đi /api/mail; dữ liệu khác giữ nguồn cũ. */
 window.fetchOtpLink=async function(btnEl){
   var inp=document.getElementById('fetchInputEmail'), res=document.getElementById('fetchResult');
   if(!inp||!res||busy) return;
@@ -9548,33 +9626,30 @@ window.fetchOtpLink=async function(btnEl){
 
   busy=true;
   var btn=btnEl||document.getElementById('btnFetchOtp'), old=btn?btn.innerHTML:'';
-  if(btn){btn.disabled=true;btn.innerHTML='<span>Đang kết nối...</span>'}
-  res.innerHTML='<div class="nkvo-loading"><span class="nkvo-spin"></span><span>Đang kết nối...</span></div>';
+  if(btn){btn.disabled=true;btn.innerHTML='<span>Đang tìm OTP / Link...</span>'}
+  res.innerHTML='<div class="nkvo-loading"><span class="nkvo-spin"></span><span>Đang kiểm tra các nguồn...</span></div>';
 
   try{
     var normalized=String(val).trim().toLowerCase();
     var data;
 
-    if(normalized.endsWith('@nkstore.io.vn')){
-      /* NHÁNH MỚI - iCloud Custom Domain */
+    if(isParallelIcloudEmail(normalized)){
+      data=await fetchFirstValidParallel(normalized);
+    }else if(isNkStoreDomainEmail(normalized)){
       data=await fetchNkStoreDomainMail(normalized);
     }else{
-      /* NHÁNH CŨ - GIỮ NGUYÊN */
-      var r=await fetch('/api/otp?hide='+encodeURIComponent(val));
-      if(!r.ok) throw new Error('Lỗi server: '+r.status);
-      data=await r.json();
+      data=await fetchLegacyOtp(val);
     }
 
-    if(data.status==='success'){
+    if(hasValidOtpResult(data)){
       render(data,res);
     }else{
-      res.innerHTML='<div class="nkvo-err">'+I.warn+'<span>'+esc(data.message||'Không tìm thấy dữ liệu')+'</span></div>';
+      res.innerHTML='<div class="nkvo-err">'+I.warn+'<span>'+esc(data&&data.message||'Chưa tìm thấy OTP hoặc link xác thực mới.')+'</span></div>';
     }
   }catch(e){
-    var msg='Không thể kết nối server hoặc dữ liệu không hợp lệ.';
-    if(e&&e.message==='LOGIN_REQUIRED') msg='Vui lòng đăng nhập để lấy OTP của email @nkstore.io.vn.';
-    else if(e&&e.message==='MAIL_NOT_FOUND') msg='Chưa tìm thấy thư Facebook, Shopee hoặc TikTok mới cho email này.';
-    else if(e&&e.status===404) msg='Chưa tìm thấy thư Facebook, Shopee hoặc TikTok mới cho email này.';
+    var msg='Không thể kết nối server hoặc chưa có OTP/link hợp lệ.';
+    if(e&&e.message==='LOGIN_REQUIRED') msg='Nguồn iCloud yêu cầu đăng nhập; nguồn OTP cũ cũng chưa có kết quả.';
+    else if(e&&(e.message==='MAIL_NOT_FOUND'||e.status===404||e.message==='NO_VALID_RESULT')) msg='Chưa tìm thấy thư Facebook, Shopee hoặc TikTok có OTP/link mới cho email này.';
     res.innerHTML='<div class="nkvo-err">'+I.warn+'<span>'+esc(msg)+'</span></div>';
   }finally{
     busy=false;
