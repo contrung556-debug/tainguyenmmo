@@ -10540,5 +10540,116 @@ window.showNkOrderDetail=function(orderId){
 })();
 </script>
 
+<!-- NK MMO: GHN phone_last4 lưu thẳng Supabase + auto check SPX/GHN -->
+<script id="nk-ghn-phone4-supabase">
+(function(){
+  const KEY='nk_ghn_phone4_v1';
+  const clean4=v=>String(v||'').replace(/\D/g,'').slice(-4);
+  const orders=()=>(window.cachedOrders||(typeof cachedOrders!=='undefined'?cachedOrders:[])||[]);
+
+  window.nkSavePhone4DB=async function(id,p4){
+    p4=clean4(p4);
+    if(!/^\d{4}$/.test(p4)||!id) return false;
+    const o=orders().find(x=>Number(x.id)===Number(id));
+    if(o) o.phone_last4=p4;
+    const {error}=await _supabase.from('shopee_orders').update({phone_last4:p4}).eq('id',Number(id));
+    if(error){ console.warn('Lưu phone_last4 lỗi:',error.message); return false; }
+    return true;
+  };
+
+  const _set=Storage.prototype.setItem, _get=Storage.prototype.getItem;
+  Storage.prototype.setItem=function(k,v){
+    if(k!==KEY) return _set.apply(this,arguments);
+    try{
+      const m=JSON.parse(v)||{};
+      Object.keys(m).forEach(id=>{
+        const o=orders().find(x=>String(x.id)===String(id));
+        if(!o||clean4(o.phone_last4)!==clean4(m[id])) window.nkSavePhone4DB(id,m[id]);
+      });
+    }catch(e){}
+  };
+  Storage.prototype.getItem=function(k){
+    if(k!==KEY) return _get.apply(this,arguments);
+    const m={};
+    orders().forEach(o=>{ if(/^\d{4}$/.test(clean4(o.phone_last4))) m[String(o.id)]=clean4(o.phone_last4); });
+    return JSON.stringify(m);
+  };
+
+  async function migrateOnce(){
+    let m={}; try{ m=JSON.parse(_get.call(localStorage,KEY)||'{}')||{}; }catch(e){}
+    if(!Object.keys(m).length) return;
+    for(const o of orders()){
+      if(!o.phone_last4 && m[String(o.id)]) await window.nkSavePhone4DB(o.id,m[String(o.id)]);
+    }
+    localStorage.removeItem(KEY);
+  }
+
+  window.nkGetPhone4=function(o){
+    const p=clean4(o.phone_last4);
+    if(/^\d{4}$/.test(p)) return p;
+    const raw=String(o.recipient_phone||'');
+    if(!/[*•x]/i.test(raw)){
+      const d=raw.replace(/\D/g,'');
+      if(d.length>=9) return d.slice(-4);
+    }
+    return '';
+  };
+
+  async function backfill(){
+    for(const o of orders()){
+      if(!o.phone_last4){
+        const p=window.nkGetPhone4(o);
+        if(p) await window.nkSavePhone4DB(o.id,p);
+      }
+    }
+  }
+
+  async function runAll(btnEl){
+    let ok=0,fail=0,need=0;
+    const targets=orders().filter(o=>o.tracking?.tracking_code && !o.tracking?.delivered);
+    for(let i=0;i<targets.length;i++){
+      const o=targets[i], code=String(o.tracking.tracking_code).toUpperCase();
+      if(btnEl) btnEl.innerText=`⏳ ${i+1}/${targets.length}`;
+      try{
+        if(/^SPXVN/.test(code)) await window.checkSpxForOrder(o.id,code,false);
+        else if(window.isGhnCode(code)){
+          const p4=window.nkGetPhone4(o);
+          if(!p4){ need++; continue; }
+          await window.checkGhnForOrder(o.id,code,p4,false);
+        } else continue;
+        ok++;
+      }catch(e){ fail++; console.warn('CHECK:',o.order_code,e.message||e); }
+      if(i<targets.length-1) await new Promise(r=>setTimeout(r,800));
+    }
+    return {ok,fail,need,total:targets.length};
+  }
+
+  window.autoCheckAllOrdersSilent=async function(){
+    if(!currentUser||window.nkAutoRunning) return;
+    window.nkAutoRunning=true;
+    try{
+      try{ await fetch(location.origin+'/api/order?action=check_all',{cache:'no-store'}); }catch(e){}
+      await window.loadOrdersFromSupabase();
+      await migrateOnce(); await backfill();
+      await runAll(null);
+      await window.loadOrdersFromSupabase();
+    } finally { window.nkAutoRunning=false; }
+  };
+
+  window.checkAllSpxOrders=async function(btnEl){
+    if(!currentUser){ showModal('Lỗi','Vui lòng đăng nhập!'); return; }
+    if(btnEl) btnEl.disabled=true;
+    try{
+      await migrateOnce(); await backfill();
+      const r=await runAll(btnEl);
+      await window.loadOrdersFromSupabase();
+      showModal('Quét vận đơn xong',`Đã kiểm tra: ${r.ok}/${r.total}\nGHN thiếu 4 số: ${r.need}\nLỗi: ${r.fail}`);
+    } finally { if(btnEl){ btnEl.disabled=false; btnEl.innerText='🚚 Quét Trạng Thái Vận Đơn'; } }
+  };
+  const b=document.getElementById('btnCheckAllSpxOrders'); if(b) b.onclick=()=>window.checkAllSpxOrders(b);
+  setTimeout(()=>{const x=document.getElementById('btnCheckAllSpxOrders'); if(x) x.onclick=()=>window.checkAllSpxOrders(x);},1500);
+})();
+</script>
+
 </body>
 </html>
