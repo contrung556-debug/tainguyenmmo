@@ -1,6 +1,6 @@
 // ============================================================
 // NK MMO STORE - ICLOUD CUSTOM DOMAIN MAIL API
-// VERSION: MAIL-1.4.3
+// VERSION: MAIL-1.4.4
 //
 // Purpose:
 // - Read OTP/link for @icloud.com and @nkstore.io.vn through iCloud IMAP
@@ -11,6 +11,7 @@
 // - No wallet deduction / no OTP billing
 // - Only return links whose visible anchor text is exactly “TẠI ĐÂY”
 // - Avoid treating dates/times in link-only emails as OTP
+// - MAIL-1.4.4: TikTok "mã gồm 6 chữ số" OTP pattern
 //
 // GET /api/mail?email=alias@icloud.com or abc@nkstore.io.vn
 // Web header: Authorization: Bearer <supabase_access_token>
@@ -119,6 +120,22 @@ function extractOtp(text = '', provider = 'unknown') {
     /(?:confirmation\s*code|verification\s*code|security\s*code|verify\s*code|login\s*code|one[-\s]*time\s*(?:password|code)|otp|mã\s*xác\s*nhận|mã\s*xác\s*minh|mã\s*bảo\s*mật|mã\s*otp)[^\d]{0,120}(\d{4,8})/i,
     /(\d{4,8})[^\d]{0,120}(?:confirmation\s*code|verification\s*code|security\s*code|login\s*code|otp|mã\s*xác\s*nhận|mã\s*xác\s*minh|mã\s*bảo\s*mật)/i,
   ];
+
+  // MAIL-1.4.4: TikTok (VN/EN). Subject: "483297 là mã gồm 6 chữ số của bạn",
+  // body: "Mã gồm 6 chữ số của bạn là: 483297". Exactly 6 digits, tied to wording,
+  // so the "Thời gian: Oct 30, 2026 6:38 AM PDT" line is never taken as a code.
+  const tiktok = [
+    /(?<!\d)(\d{6})(?!\d)\s*(?:là\s*)?mã\s*gồm\s*6\s*chữ\s*số/i,
+    /mã\s*gồm\s*6\s*chữ\s*số[^\d]{0,80}?(?<!\d)(\d{6})(?!\d)/i,
+    /(?<!\d)(\d{6})(?!\d)\s*is\s*your\s*(?:tiktok\s*)?(?:6[-\s]*digit\s*)?(?:verification\s*)?code/i,
+    /6[-\s]*digit\s*code[^\d]{0,80}?(?<!\d)(\d{6})(?!\d)/i,
+  ];
+  if (provider === 'tiktok' || provider === 'unknown') {
+    for (const pattern of tiktok) {
+      const match = source.match(pattern);
+      if (match?.[1]) return match[1];
+    }
+  }
 
   for (const pattern of contextual) {
     const match = source.match(pattern);
