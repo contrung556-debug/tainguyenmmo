@@ -9385,7 +9385,7 @@ function buildStatic(){
   if(!inp||!btn||!res) return;
 
   var info=document.createElement('div'); info.className='nkvo-info';
-  info.innerHTML=I.apple+'<div><b>Hỗ trợ Email iCloud</b>Email @icloud.com được kiểm tra đồng thời qua iCloud IMAP + nguồn OTP cũ; @nkstore.io.vn dùng iCloud IMAP trực tiếp.</div>';
+  info.innerHTML=I.apple+'<div><b>Hỗ trợ Email iCloud</b>Hỗ trợ email @icloud.com và @nkstore.io.vn. Hệ thống tự động tìm mã OTP / link xác thực mới nhất của Facebook, Shopee, TikTok.</div>';
   var lab=document.createElement('label'); lab.className='nkvo-lab'; lab.textContent='Nhập Email'; lab.setAttribute('for','fetchInputEmail');
 
   var field=document.createElement('div'); field.className='nkvo-field';
@@ -9429,6 +9429,17 @@ function copyText(txt,btn,label){
   }
 }
 
+function mailTimeStr(v){
+  if(!v) return nowStr();
+  var d=new Date(v); if(isNaN(d.getTime())) return nowStr();
+  try{
+    return new Intl.DateTimeFormat('vi-VN',{timeZone:'Asia/Ho_Chi_Minh',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}).format(d);
+  }catch(e){
+    var u=new Date(d.getTime()+7*3600000), p=function(n){return String(n).padStart(2,'0')};
+    return p(u.getUTCHours())+':'+p(u.getUTCMinutes())+':'+p(u.getUTCSeconds());
+  }
+}
+
 function nowStr(){
   var d=new Date(), p=function(n){return String(n).padStart(2,'0')};
   return p(d.getHours())+':'+p(d.getMinutes())+':'+p(d.getSeconds());
@@ -9448,7 +9459,7 @@ function render(data,res){
   }
   var title=hasOtp&&hasLink?'Đã nhận được OTP & link':(hasOtp?'Đã nhận được mã OTP':'Đã nhận được link xác thực');
   var h='<div class="nkvo-res"><div class="nkvo-rh"><span class="nkvo-ok">'+I.check+'</span>'+
-    '<div class="nkvo-rt"><b>'+title+'</b><small>Thời gian: '+nowStr()+(email?' · '+esc(email):'')+(provider?' · '+esc(provider):'')+'</small></div>';
+    '<div class="nkvo-rt"><b>'+title+'</b><small>Thời gian: '+mailTimeStr(data.mail_date)+(email?' · '+esc(email):'')+(provider?' · '+esc(provider):'')+'</small></div>';
   if(hasOtp) h+='<div class="nkvo-valid">'+I.clock+'<div>Hiệu lực<b>5 phút</b></div></div>';
   h+='</div>';
 
@@ -9533,6 +9544,7 @@ async function fetchNkStoreDomainMail(val, signal){
     link_xac_thuc_tai_day:links[0]||'',
     hide_email_tin:val,
     provider:provider,
+    mail_date:(data.mail&&data.mail.date)||'',
     _source:'icloud-imap'
   };
 }
