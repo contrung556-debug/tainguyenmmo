@@ -1,6 +1,6 @@
 // ============================================================
 // NK MMO STORE - ICLOUD CUSTOM DOMAIN MAIL API
-// VERSION: MAIL-1.4.4
+// VERSION: MAIL-1.4.5
 //
 // Purpose:
 // - Read OTP/link for @icloud.com and @nkstore.io.vn through iCloud IMAP
@@ -11,7 +11,7 @@
 // - No wallet deduction / no OTP billing
 // - Only return links whose visible anchor text is exactly “TẠI ĐÂY”
 // - Avoid treating dates/times in link-only emails as OTP
-// - MAIL-1.4.4: TikTok "mã gồm 6 chữ số" OTP pattern
+// - MAIL-1.4.5: TikTok "mã gồm 6 chữ số" OTP pattern
 //
 // GET /api/mail?email=alias@icloud.com or abc@nkstore.io.vn
 // Web header: Authorization: Bearer <supabase_access_token>
@@ -28,7 +28,9 @@ const { simpleParser } = require('mailparser');
 const { createClient } = require('@supabase/supabase-js');
 
 const ALLOWED_DOMAINS = ['@icloud.com', '@nkstore.io.vn'];
-const MAX_MESSAGES = 100;
+const MAX_MESSAGES = 40;      // envelope-only scan window (cheap)
+const MAX_CANDIDATES = 12;    // full-source downloads at most
+const PROVIDER_HINT = /facebook|meta|shopee|tiktok|bytedance/i;
 
 // Public project identifiers. These are already present in index.html.
 // Optional env values can override them later without changing source.
@@ -121,7 +123,7 @@ function extractOtp(text = '', provider = 'unknown') {
     /(\d{4,8})[^\d]{0,120}(?:confirmation\s*code|verification\s*code|security\s*code|login\s*code|otp|mã\s*xác\s*nhận|mã\s*xác\s*minh|mã\s*bảo\s*mật)/i,
   ];
 
-  // MAIL-1.4.4: TikTok (VN/EN). Subject: "483297 là mã gồm 6 chữ số của bạn",
+  // MAIL-1.4.5: TikTok (VN/EN). Subject: "483297 là mã gồm 6 chữ số của bạn",
   // body: "Mã gồm 6 chữ số của bạn là: 483297". Exactly 6 digits, tied to wording,
   // so the "Thời gian: Oct 30, 2026 6:38 AM PDT" line is never taken as a code.
   const tiktok = [
@@ -302,20 +304,34 @@ async function searchMailbox(client, mailboxName, targetEmail) {
     if (!total) return null;
 
     const start = Math.max(1, total - MAX_MESSAGES + 1);
-    const messages = [];
-
+    // Stage 1: lightweight scan (envelope only, no body download).
+    const uids = [];
     for await (const message of client.fetch(`${start}:*`, {
       uid: true,
       envelope: true,
-      source: true,
-      internalDate: true,
     })) {
-      messages.push(message);
+      const env = message.envelope || {};
+      const fromText = (env.from || [])
+        .map((a) => `${a?.name || ''} ${a?.address || ''}`)
+        .join(' ');
+      if (PROVIDER_HINT.test(`${fromText} ${env.subject || ''}`)) uids.push(message.uid);
     }
 
-    messages.reverse(); // newest first
+    uids.sort((a, b) => b - a); // newest first
+    const candidates = uids.slice(0, MAX_CANDIDATES);
 
-    for (const message of messages) {
+    // Stage 2: download full source only for likely OTP mails, stop at first hit.
+    for (const uid of candidates) {
+      let message;
+      try {
+        message = await client.fetchOne(String(uid), {
+          uid: true,
+          source: true,
+          internalDate: true,
+        }, { uid: true });
+      } catch (_) {
+        continue;
+      }
       if (!message.source) continue;
 
       let parsed;
@@ -436,7 +452,10 @@ module.exports = async function handler(req, res) {
     for (const mailbox of mailboxes) {
       try {
         const mail = await searchMailbox(client, mailbox, targetEmail);
-        if (mail) found.push(mail);
+        if (mail) {
+          found.push(mail);
+          break; // found in INBOX -> skip Junk to save time
+        }
       } catch (error) {
         console.error('MAILBOX_ERROR:', mailbox, error?.message || error);
       }
