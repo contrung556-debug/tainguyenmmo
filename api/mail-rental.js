@@ -1,10 +1,11 @@
 // ============================================================
-// NK MMO Store V28.8.5 - Mail Rental API
+// NK MMO Store V28.8.6 - Mail Rental API + Wallet Billing
 // GET  /api/mail-rental?action=plans
 // GET  /api/mail-rental?action=my
 // POST /api/mail-rental  {action:'rent', service:'shopee', days:7}
 // ============================================================
 const { createClient } = require('@supabase/supabase-js');
+const { randomUUID } = require('crypto');
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
@@ -80,16 +81,23 @@ module.exports = async function handler(req,res){
       if(!service) return res.status(400).json({ok:false,error:'INVALID_SERVICE'});
       if(!days) return res.status(400).json({ok:false,error:'INVALID_DAYS'});
 
-      const {data,error}=await admin.rpc('nk_rent_icloud_service',{
-        p_user_id:user.id,p_service:service,p_days:days
+      const requestId=String(req.body?.request_id||'').trim() || randomUUID();
+      const {data,error}=await admin.rpc('nk_rent_icloud_service_paid',{
+        p_user_id:user.id,p_service:service,p_days:days,p_request_id:requestId
       });
       if(error){
         const msg=String(error.message||'');
         if(msg.includes('OUT_OF_MAIL_STOCK')) return res.status(409).json({ok:false,error:'OUT_OF_MAIL_STOCK',message:'Kho iCloud hiện đã hết mail trống.'});
-        if(msg.includes('PLAN_DISABLED')) return res.status(409).json({ok:false,error:'PLAN_DISABLED'});
+        if(msg.includes('PLAN_DISABLED')) return res.status(409).json({ok:false,error:'PLAN_DISABLED',message:'Gói thuê này hiện không khả dụng.'});
+        if(msg.includes('REQUEST_ID_CONFLICT')) return res.status(409).json({ok:false,error:'REQUEST_ID_CONFLICT',message:'Mã giao dịch không hợp lệ.'});
         throw error;
       }
-      return res.status(200).json({ok:true,rental:data});
+      if(!data?.success){
+        const code=String(data?.error||'RENTAL_FAILED');
+        const status=code==='INSUFFICIENT_BALANCE'?402:(code==='PLAN_PRICE_NOT_CONFIGURED'||code==='PLAN_DISABLED'?409:400);
+        return res.status(status).json({ok:false,...data});
+      }
+      return res.status(200).json({ok:true,rental:data,billing:{charged:!!data.charged,duplicate:!!data.duplicate,price_vnd:Number(data.price_vnd||0),balance:Number(data.balance||0),request_id:data.request_id||requestId}});
     }
 
     return res.status(405).json({ok:false,error:'METHOD_NOT_ALLOWED'});
