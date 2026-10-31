@@ -1,5 +1,5 @@
 // ============================================================
-// NK MMO Store V28.7.20 - Telegram Tracking Bot webhook
+// NK MMO Store V28.7.21 - Telegram multi-user Tracking Bot webhook
 // Commands:
 // /track <tracking_code> [phone4]
 // /order <shopee_order_code>
@@ -117,7 +117,26 @@ function resultHtml(n, title='📦 Trạng thái vận đơn') {
 function parseCommand(text) {
   const raw=String(text||'').trim(); const parts=raw.split(/\s+/); const cmd=String(parts.shift()||'').split('@')[0].toLowerCase(); return {cmd,args:parts};
 }
-function allowedSet() { return new Set(String(process.env.TELEGRAM_ALLOWED_CHAT_IDS||'').split(',').map(x=>x.trim()).filter(Boolean)); }
+function adminSet() { return new Set(String(process.env.TELEGRAM_ADMIN_CHAT_IDS||'').split(',').map(x=>x.trim()).filter(Boolean)); }
+function planWatchLimit(plan, role) {
+  if (role === 'admin') return 100000;
+  if (plan === 'pro') return 100;
+  return 5;
+}
+async function getTelegramUser(base,key,chatId) {
+  const q=new URLSearchParams(); q.set('select','chat_id,telegram_username,telegram_name,active,role,plan,nk_user_id,created_at,last_seen_at'); q.set('chat_id',`eq.${chatId}`); q.set('limit','1');
+  const rows=await sbGet(base,key,'telegram_users',q.toString()); return rows?.[0]||null;
+}
+async function ensureTelegramUser(base,key,msg,adminIds) {
+  const chatId=String(msg.chat.id), isAdmin=adminIds.has(chatId), now=new Date().toISOString();
+  const name=[msg.from?.first_name,msg.from?.last_name].filter(Boolean).join(' ').trim();
+  const current=await getTelegramUser(base,key,chatId);
+  const body={chat_id:chatId,telegram_username:msg.from?.username||null,telegram_name:name||null,last_seen_at:now,updated_at:now};
+  if(!current){body.active=true;body.role=isAdmin?'admin':'user';body.plan=isAdmin?'admin':'free';}
+  else if(isAdmin && current.role!=='admin'){body.role='admin';body.plan='admin';}
+  await sbUpsert(base,key,'telegram_users',body,'chat_id');
+  return await getTelegramUser(base,key,chatId);
+}
 async function checkTracking({code,phone4,siteUrl,internalSecret}) {
   const carrier=carrierOf(code); if(!carrier) throw new Error('Mã vận đơn không hợp lệ.');
   let raw;
@@ -142,11 +161,11 @@ module.exports = async function handler(req,res){
     const supabaseUrl=env('SUPABASE_URL').replace(/\/$/,''); const serviceKey=env('SUPABASE_SERVICE_ROLE_KEY');
     const internalSecret=env('TRACKING_INTERNAL_SECRET'); const siteUrl=getSiteUrl(req);
 
-    // /id is always available so the owner can discover the chat ID before enabling an allowlist.
-    if(cmd==='/id'){ await send(token,chatId,`Telegram chat ID của bạn: <code>${esc(chatId)}</code>`); return res.status(200).json({ok:true}); }
+    const admins=adminSet();
+    const tgUser=await ensureTelegramUser(supabaseUrl,serviceKey,msg,admins);
 
-    const allowed=allowedSet();
-    if(allowed.size && !allowed.has(chatId)) { await send(token,chatId,'⛔ Bot này chỉ dành cho người được phép sử dụng.'); return res.status(200).json({ok:true}); }
+    if(cmd==='/id'){ await send(token,chatId,`Telegram chat ID của bạn: <code>${esc(chatId)}</code>`); return res.status(200).json({ok:true}); }
+    if(!tgUser?.active){ await send(token,chatId,'⛔ Tài khoản bot của bạn đang bị tạm khóa.'); return res.status(200).json({ok:true}); }
 
     // DB-backed anti-spam: 12 commands/10s and 60/minute per chat.
     for (const [key,sec,limit] of [[`tg10:${chatId}`,10,12],[`tg60:${chatId}`,60,60]]) {
@@ -155,17 +174,28 @@ module.exports = async function handler(req,res){
     }
 
     if(cmd==='/start'||cmd==='/help'){
+      const limit=planWatchLimit(tgUser?.plan,tgUser?.role);
       await send(token,chatId,[
-        '<b>🤖 NK Store Tracking Bot</b>',
-        '',
+        '<b>🤖 NK Store Tracking Bot</b>','',
+        `Tài khoản: <b>${esc(tgUser?.plan||'free')}</b> · tối đa ${limit>=100000?'không giới hạn':limit} mã đang theo dõi`,'',
         '<code>/track SPXVN...</code> — tra SPX ngay',
         '<code>/track GYRA83K3 1234</code> — tra GHN (4 số cuối SĐT)',
         '<code>/watch SPXVN...</code> — theo dõi, bot tự báo khi đổi trạng thái',
         '<code>/watch GYRA83K3 1234</code> — theo dõi GHN',
         '<code>/unwatch MÃ_VẬN_ĐƠN</code> — dừng theo dõi',
         '<code>/list</code> — danh sách đang theo dõi',
-        '<code>/order MÃ_ĐƠN_SHOPEE</code> — xem đơn đã lưu trong NK Store',
+        '<code>/me</code> — xem gói/quyền tài khoản',
+        '<code>/order MÃ_ĐƠN_SHOPEE</code> — xem đơn NK Store đã liên kết',
         '<code>/id</code> — xem Telegram chat ID'
+      ].join('\n')); return res.status(200).json({ok:true});
+    }
+
+    if(cmd==='/me'){
+      const q=new URLSearchParams();q.set('select','id');q.set('chat_id',`eq.${chatId}`);q.set('active','eq.true');q.set('tracking_finished','eq.false');
+      const rows=await sbGet(supabaseUrl,serviceKey,'telegram_tracking_watch',q.toString());
+      const limit=planWatchLimit(tgUser?.plan,tgUser?.role);
+      await send(token,chatId,[
+        '<b>👤 Tài khoản Telegram</b>',`ID: <code>${esc(chatId)}</code>`,`Gói: <b>${esc(tgUser?.plan||'free')}</b>`,`Quyền: <b>${esc(tgUser?.role||'user')}</b>`,`Đang theo dõi: <b>${rows?.length||0}</b> / ${limit>=100000?'∞':limit}`,tgUser?.nk_user_id?'✅ Đã liên kết tài khoản NK Store':'ℹ️ Chưa liên kết tài khoản NK Store'
       ].join('\n')); return res.status(200).json({ok:true});
     }
 
@@ -180,6 +210,11 @@ module.exports = async function handler(req,res){
       const code=String(args[0]||'').trim().toUpperCase(); const phone4=digits(args[1]).slice(-4); const carrier=carrierOf(code);
       if(!carrier){await send(token,chatId,'Dùng: <code>/watch MÃ_VẬN_ĐƠN</code>\nGHN: <code>/watch MÃ_GHN 1234</code>');return res.status(200).json({ok:true});}
       if(carrier==='GHN'&&!/^\d{4}$/.test(phone4)){await send(token,chatId,'GHN cần 4 số cuối SĐT. Ví dụ: <code>/watch GYRA83K3 1234</code>');return res.status(200).json({ok:true});}
+      const limit=planWatchLimit(tgUser?.plan,tgUser?.role);
+      const cq=new URLSearchParams();cq.set('select','tracking_code');cq.set('chat_id',`eq.${chatId}`);cq.set('active','eq.true');cq.set('tracking_finished','eq.false');cq.set('limit',String(limit>=100000?10000:limit+1));
+      const currentWatches=await sbGet(supabaseUrl,serviceKey,'telegram_tracking_watch',cq.toString());
+      const alreadyWatching=(currentWatches||[]).some(r=>String(r.tracking_code||'').toUpperCase()===code);
+      if(!alreadyWatching && (currentWatches?.length||0)>=limit){await send(token,chatId,`⚠️ Gói <b>${esc(tgUser?.plan||'free')}</b> được theo dõi tối đa <b>${limit}</b> mã cùng lúc. Dùng /list hoặc /unwatch để bỏ bớt.`);return res.status(200).json({ok:true});}
       try{
         const n=await checkTracking({code,phone4,siteUrl,internalSecret});
         if(n.finished){await send(token,chatId,resultHtml(n,'📦 Vận đơn đã kết thúc')+'\n\nKhông cần theo dõi thêm.');return res.status(200).json({ok:true});}
@@ -204,10 +239,10 @@ module.exports = async function handler(req,res){
     }
 
     if(cmd==='/order'){
-      // Stored-order lookup can expose private customer/order information, so only enable it when an allowlist is configured.
-      if(!allowed.size){await send(token,chatId,'🔒 Lệnh /order đang khóa. Hãy cấu hình TELEGRAM_ALLOWED_CHAT_IDS trên Vercel trước.');return res.status(200).json({ok:true});}
+      // Privacy: users may only query their linked NK Store account; admins may query all.
       const orderCode=String(args[0]||'').trim().replace(/^#/,''); if(!orderCode){await send(token,chatId,'Dùng: <code>/order MÃ_ĐƠN_SHOPEE</code>');return res.status(200).json({ok:true});}
-      const q=new URLSearchParams();q.set('select','id,order_code,product_name,status,amount,recipient_name,shipping_address,shipping_detail,shipping_ward,shipping_district,shipping_province,created_at,delivered_at');q.set('order_code',`eq.${orderCode}`);q.set('limit','1');
+      if(tgUser?.role!=='admin' && !tgUser?.nk_user_id){await send(token,chatId,'🔒 Bạn chưa liên kết tài khoản NK Store nên chưa thể dùng /order.');return res.status(200).json({ok:true});}
+      const q=new URLSearchParams();q.set('select','id,order_code,product_name,status,amount,recipient_name,shipping_address,shipping_detail,shipping_ward,shipping_district,shipping_province,created_at,delivered_at,user_id');q.set('order_code',`eq.${orderCode}`);if(tgUser?.role!=='admin')q.set('user_id',`eq.${tgUser.nk_user_id}`);q.set('limit','1');
       const orders=await sbGet(supabaseUrl,serviceKey,'shopee_orders',q.toString()); const o=orders?.[0];
       if(!o){await send(token,chatId,`Không tìm thấy đơn <code>${esc(orderCode)}</code>.`);return res.status(200).json({ok:true});}
       const tq=new URLSearchParams();tq.set('select','tracking_code,tracking_status,current_location,next_location,delivered,tracking_finished,finished_reason,last_event_at');tq.set('order_id',`eq.${o.id}`);tq.set('limit','1');const tracks=await sbGet(supabaseUrl,serviceKey,'shopee_tracking',tq.toString());const t=tracks?.[0]||{};
