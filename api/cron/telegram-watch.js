@@ -1,7 +1,8 @@
 // ============================================================
-// NK MMO Store V28.7.20 - Telegram watch cron
-// - Claims up to 80 watches/run, 8 concurrent lookups.
-// - Sends a Telegram message only when status/location/event changes.
+// NK MMO Store V28.7.23 - Telegram auto-watch cron
+// - Claims up to 80 subscriptions/run.
+// - Deduplicates identical carrier/code/phone4 across users: one carrier API lookup per unique shipment.
+// - Sends each user a Telegram message only when their saved signature changes.
 // - Stops automatically on delivered/cancelled/returned terminal states.
 // ============================================================
 
@@ -27,4 +28,94 @@ async function check(row,site,secret){const code=String(row.tracking_code||'').t
 function iso(v){if(!v)return null;const n=Number(v),d=Number.isFinite(n)&&n>0?new Date(n>1e12?n:n*1000):new Date(v);return Number.isNaN(d.getTime())?null:d.toISOString()}
 async function pool(items,n,fn){const out=new Array(items.length);let c=0;async function run(){while(true){const i=c++;if(i>=items.length)return;try{out[i]=await fn(items[i])}catch(e){out[i]={__e:e,row:items[i]}}}}await Promise.all(Array.from({length:Math.min(n,items.length)},run));return out}
 
-module.exports=async function handler(req,res){res.setHeader('Cache-Control','no-store');if(req.method!=='POST'){res.setHeader('Allow','POST');return res.status(405).json({success:false,error:'Method not allowed'})}try{const cron=env('CRON_SECRET');if(String(req.headers.authorization||'')!==`Bearer ${cron}`)return res.status(401).json({success:false,error:'Unauthorized'});const base=env('SUPABASE_URL').replace(/\/$/,''),key=env('SUPABASE_SERVICE_ROLE_KEY'),secret=env('TRACKING_INTERNAL_SECRET'),token=env('TELEGRAM_BOT_TOKEN'),site=getSiteUrl(req),lock=crypto.randomUUID(),rows=await rpc(base,key,'nk_claim_telegram_watch_batch',{p_limit:Math.min(200,Math.max(1,Number(process.env.TELEGRAM_WATCH_BATCH_SIZE||DEFAULT_BATCH_SIZE))),p_lock_id:lock,p_lease_seconds:LEASE_SECONDS});if(!Array.isArray(rows)||!rows.length)return res.status(200).json({success:true,checked:0,message:'No active Telegram watches'});const raw=await pool(rows,Math.min(16,Math.max(1,Number(process.env.TELEGRAM_WATCH_CONCURRENCY||DEFAULT_CONCURRENCY))),async row=>{const n=await check(row,site,secret),signature=sig(n),changed=!row.last_signature||row.last_signature!==signature,now=new Date().toISOString();if(changed)await tg(token,row.chat_id,msg(n));await patch(base,key,row.id,{last_status:n.status||'',last_status_code:n.statusCode||'',last_milestone:n.milestone||'',last_current_location:n.current||'',last_next_location:n.next||'',last_event_at:iso(n.time),last_signature:signature,active:n.finished?false:true,tracking_finished:n.finished===true,finished_reason:n.reason||null,finished_at:n.finished?(iso(n.time)||now):null,last_checked_at:now,next_check_at:n.finished?null:new Date(Date.now()+55000).toISOString(),check_fail_count:0,check_lock_id:null,check_locked_until:null,updated_at:now});return{code:n.code,chat_id:row.chat_id,ok:true,changed,finished:n.finished,reason:n.reason}});const results=[];for(const x of raw){if(!x?.__e){results.push(x);continue}const row=x.row,e=x.__e,fc=Math.max(0,Number(row.check_fail_count||0))+1,retry=Math.min(900,60*Math.pow(2,Math.min(fc-1,4))),now=new Date();try{await patch(base,key,row.id,{last_checked_at:now.toISOString(),next_check_at:new Date(now.getTime()+retry*1000).toISOString(),check_fail_count:fc,check_lock_id:null,check_locked_until:null,updated_at:now.toISOString(),...(Number(e?.status)===403?{active:false}: {})})}catch(_){}results.push({code:row.tracking_code,chat_id:row.chat_id,ok:false,error:String(e?.message||e),retry_after_seconds:retry})}return res.status(200).json({success:true,claimed:rows.length,checked:results.length,ok:results.filter(x=>x.ok).length,changed:results.filter(x=>x.changed).length,finished:results.filter(x=>x.finished).length,failed:results.filter(x=>!x.ok).length,results})}catch(e){console.error('TELEGRAM WATCH CRON:',e);return res.status(500).json({success:false,error:String(e?.message||e)})}}
+module.exports=async function handler(req,res){
+  res.setHeader('Cache-Control','no-store');
+  if(req.method!=='POST'){
+    res.setHeader('Allow','POST');
+    return res.status(405).json({success:false,error:'Method not allowed'});
+  }
+  try{
+    const cron=env('CRON_SECRET');
+    if(String(req.headers.authorization||'')!==`Bearer ${cron}`) return res.status(401).json({success:false,error:'Unauthorized'});
+
+    const base=env('SUPABASE_URL').replace(/\/$/,''), key=env('SUPABASE_SERVICE_ROLE_KEY');
+    const secret=env('TRACKING_INTERNAL_SECRET'), token=env('TELEGRAM_BOT_TOKEN'), site=getSiteUrl(req);
+    const lock=crypto.randomUUID();
+    const rows=await rpc(base,key,'nk_claim_telegram_watch_batch',{
+      p_limit:Math.min(200,Math.max(1,Number(process.env.TELEGRAM_WATCH_BATCH_SIZE||DEFAULT_BATCH_SIZE))),
+      p_lock_id:lock,p_lease_seconds:LEASE_SECONDS
+    });
+    if(!Array.isArray(rows)||!rows.length) return res.status(200).json({success:true,checked:0,api_lookups:0,message:'No active Telegram watches'});
+
+    // One external lookup per unique shipment, not per Telegram user.
+    const groupsMap=new Map();
+    for(const row of rows){
+      const code=String(row.tracking_code||'').trim().toUpperCase();
+      const carrier=carrierOf(code);
+      const phone4=carrier==='GHN'?digits(row.phone_last4).slice(-4):'';
+      const keyName=`${carrier}|${code}|${phone4}`;
+      if(!groupsMap.has(keyName)) groupsMap.set(keyName,{key:keyName,rows:[]});
+      groupsMap.get(keyName).rows.push(row);
+    }
+    const groups=[...groupsMap.values()];
+    const concurrency=Math.min(16,Math.max(1,Number(process.env.TELEGRAM_WATCH_CONCURRENCY||DEFAULT_CONCURRENCY)));
+    const checkedGroups=await pool(groups,concurrency,async group=>{
+      const n=await check(group.rows[0],site,secret);
+      return {group,n,signature:sig(n)};
+    });
+
+    const results=[];
+    let notifications=0;
+    for(const g of checkedGroups){
+      if(g?.__e){
+        const group=g.row;
+        for(const row of group.rows){
+          const e=g.__e,fc=Math.max(0,Number(row.check_fail_count||0))+1;
+          const retry=Math.min(900,60*Math.pow(2,Math.min(fc-1,4))),now=new Date();
+          try{
+            await patch(base,key,row.id,{
+              last_checked_at:now.toISOString(),next_check_at:new Date(now.getTime()+retry*1000).toISOString(),
+              check_fail_count:fc,check_lock_id:null,check_locked_until:null,updated_at:now.toISOString(),
+              ...(Number(e?.status)===403?{active:false}:{})
+            });
+          }catch(_){}
+          results.push({code:row.tracking_code,chat_id:row.chat_id,ok:false,error:String(e?.message||e),retry_after_seconds:retry});
+        }
+        continue;
+      }
+
+      const {group,n,signature}=g;
+      for(const row of group.rows){
+        const changed=!row.last_signature||row.last_signature!==signature;
+        const now=new Date().toISOString();
+        let notifyError='';
+        if(changed){
+          try{await tg(token,row.chat_id,msg(n));notifications++;}
+          catch(e){notifyError=String(e?.message||e);}
+        }
+        try{
+          await patch(base,key,row.id,{
+            last_status:n.status||'',last_status_code:n.statusCode||'',last_milestone:n.milestone||'',
+            last_current_location:n.current||'',last_next_location:n.next||'',last_event_at:iso(n.time),last_signature:signature,
+            active:n.finished?false:true,tracking_finished:n.finished===true,finished_reason:n.reason||null,
+            finished_at:n.finished?(iso(n.time)||now):null,last_checked_at:now,
+            next_check_at:n.finished?null:new Date(Date.now()+55000).toISOString(),check_fail_count:0,
+            check_lock_id:null,check_locked_until:null,updated_at:now
+          });
+          results.push({code:n.code,chat_id:row.chat_id,ok:true,changed,finished:n.finished,reason:n.reason,notify_error:notifyError||undefined});
+        }catch(e){
+          results.push({code:n.code,chat_id:row.chat_id,ok:false,error:String(e?.message||e)});
+        }
+      }
+    }
+
+    return res.status(200).json({
+      success:true,claimed:rows.length,unique_shipments:groups.length,api_lookups:groups.length,
+      checked:results.length,ok:results.filter(x=>x.ok).length,changed:results.filter(x=>x.changed).length,
+      notifications,finished:results.filter(x=>x.finished).length,failed:results.filter(x=>!x.ok).length,results
+    });
+  }catch(e){
+    console.error('TELEGRAM WATCH CRON:',e);
+    return res.status(500).json({success:false,error:String(e?.message||e)});
+  }
+}
