@@ -1,10 +1,11 @@
 // ============================================================
-// NK MMO Store V28.7.16 - PARALLEL AUTO TRACKING + TERMINAL STOP
+// NK MMO Store V28.7.18 - PARALLEL AUTO TRACKING + CANCEL HARD STOP
 // - Up to 80 tracking codes per run by default.
 // - 8 concurrent carrier lookups by default.
 // - Atomic Supabase claim/lease prevents overlapping cron runs.
 // - Exponential retry backoff on failures.
 // - SPX/GHN by tracking code only; no Shopee cookie.
+// - Final carrier states sync back to shopee_orders.status.
 // ============================================================
 
 const crypto = require('crypto');
@@ -79,6 +80,21 @@ function foldText(value) {
     .toLowerCase()
     .replace(/\s+/g, ' ')
     .trim();
+}
+
+function businessOrderTerminal(order) {
+  const s = foldText(order?.status || '');
+  if (!s) return { terminal: false, delivered: false, reason: '' };
+  if (s === 'da giao' || s.includes('giao hang thanh cong') || s.includes('da giao thanh cong')) {
+    return { terminal: true, delivered: true, reason: 'delivered' };
+  }
+  if (s.includes('da huy') || s.includes('bi huy') || s.includes('don huy') || s.includes('cancelled') || s.includes('canceled')) {
+    return { terminal: true, delivered: false, reason: 'cancelled' };
+  }
+  if (s.includes('hoan tra thanh cong') || s.includes('tra hang thanh cong') || s.includes('returned successfully') || s.includes('return completed')) {
+    return { terminal: true, delivered: false, reason: 'returned' };
+  }
+  return { terminal: false, delivered: false, reason: '' };
 }
 
 function terminalState({ carrier, x, latest, text, code, milestone }) {
@@ -217,6 +233,34 @@ async function processOne({ row, order, siteUrl, supabaseUrl, serviceKey, intern
   const now = new Date();
   const nowIso = now.toISOString();
 
+  // HARD STOP: if the business order is already final, never call the carrier again.
+  // This catches manual/admin cancellation immediately even if the tracking row has
+  // not yet been synchronized by a previous cron cycle.
+  const orderFinal = businessOrderTerminal(order);
+  if (orderFinal.terminal) {
+    await releaseRow(supabaseUrl, serviceKey, row, {
+      delivered: orderFinal.delivered === true,
+      tracking_finished: true,
+      finished_reason: orderFinal.reason,
+      finished_at: row.finished_at || order?.delivered_at || nowIso,
+      last_checked_at: row.last_checked_at || nowIso,
+      next_check_at: null,
+      check_fail_count: 0,
+      updated_at: nowIso
+    });
+    return {
+      order_id: row.order_id,
+      code,
+      carrier,
+      ok: true,
+      delivered: orderFinal.delivered === true,
+      finished: true,
+      finished_reason: orderFinal.reason,
+      carrier_request: false,
+      status: String(order?.status || '')
+    };
+  }
+
   if (!carrier) {
     await releaseRow(supabaseUrl, serviceKey, row, {
       last_checked_at: nowIso,
@@ -270,14 +314,37 @@ async function processOne({ row, order, siteUrl, supabaseUrl, serviceKey, intern
     updated_at: nowIso
   });
 
-  if (result.delivered === true) {
-    await patchMinimal(
-      supabaseUrl,
-      serviceKey,
-      'shopee_orders',
-      `id=eq.${encodeURIComponent(row.order_id)}&user_id=eq.${encodeURIComponent(row.user_id)}`,
-      { status: 'Đã giao', delivered_at: result.last_event_at || nowIso }
-    );
+  // Keep the business-order row in sync with terminal carrier state.
+  // IMPORTANT: cancelled/returned are terminal but NOT delivered.
+  if (result.tracking_finished === true) {
+    let orderPatch = null;
+    if (result.finished_reason === 'delivered') {
+      orderPatch = {
+        status: 'Đã giao',
+        delivered_at: result.last_event_at || nowIso,
+        updated_at: nowIso
+      };
+    } else if (result.finished_reason === 'cancelled') {
+      orderPatch = {
+        status: 'Đã hủy',
+        updated_at: nowIso
+      };
+    } else if (result.finished_reason === 'returned') {
+      orderPatch = {
+        status: 'Hoàn trả thành công',
+        updated_at: nowIso
+      };
+    }
+
+    if (orderPatch) {
+      await patchMinimal(
+        supabaseUrl,
+        serviceKey,
+        'shopee_orders',
+        `id=eq.${encodeURIComponent(row.order_id)}&user_id=eq.${encodeURIComponent(row.user_id)}`,
+        orderPatch
+      );
+    }
   }
 
   return { order_id: row.order_id, code, carrier, ok: true, delivered: result.delivered === true, finished: result.tracking_finished === true, finished_reason: result.finished_reason || '', status: result.tracking_status || '' };
