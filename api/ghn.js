@@ -1,6 +1,28 @@
+// ============================================================
+// NK MMO Store V28.7.14 - GHN INTERNAL-ONLY ENDPOINT
+// Calls are allowed only from trusted NK Store server functions.
+// Public/browser traffic must go through /api/track.
+// ============================================================
+
+function hasInternalAccess(req) {
+  const expected = String(process.env.TRACKING_INTERNAL_SECRET || "");
+  const received = String(req.headers?.["x-nk-internal-secret"] || "");
+  return expected.length >= 24 && received.length === expected.length && received === expected;
+}
+
 // /api/ghn.js
 
 export default async function handler(req, res) {
+  res.setHeader("Cache-Control", "no-store");
+  res.setHeader("X-Content-Type-Options", "nosniff");
+
+  if (!hasInternalAccess(req)) {
+    return res.status(403).json({
+      success: false,
+      error: "Forbidden"
+    });
+  }
+
   if (req.method !== "POST") {
     return res.status(405).json({
       success: false,
