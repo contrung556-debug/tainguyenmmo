@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+<!-- NK MMO Store V28.7.19 - Terminal UI Hard Stop: delivered/cancelled/returned/tracking_finished rows never count as active shipping; manual/browser bulk scans skip terminal rows. -->
 <!-- NK MMO Store V28.7.18 - Cancel Hard Stop: cancelled orders stop tracking immediately and are excluded from all active-shipping views. -->
 <!-- NK MMO Store V28.7.16 - Auto tracking terminal-stop: delivered/cancelled/returned shipments stop Cron checks; no UI logic removed. -->
 <!-- NK MMO Store V28.7.15 - Parallel Auto Tracking + Anti-Spam | Cron 80/batch, concurrency 8, Supabase claim lease, DB-backed user/IP/code rate limit | Based on V28.7.12 / V28.7.10 UI -->
@@ -6268,7 +6269,7 @@ if (typeof Tesseract === 'undefined') { showModal('Lỗi OCR','Không tải đư
 
     window.checkAllSpxOrders = async function (btnEl) {
         if(!currentUser){showModal('Lỗi','Vui lòng đăng nhập!');return;}
-        const targets=cachedOrders.filter(o=>o.tracking?.tracking_code && !o.tracking?.delivered);
+        const targets=cachedOrders.filter(o=>o.tracking?.tracking_code && !o.tracking?.delivered && !o.tracking?.tracking_finished);
         if(!targets.length){showModal('SPX','Không có đơn SPX nào cần quét.');return;}
         if(btnEl){btnEl.disabled=true;btnEl.innerText='⏳ Đang quét SPX...';}
         let ok=0,delivered=0,fail=0;
@@ -6374,7 +6375,7 @@ if (typeof Tesseract === 'undefined') { showModal('Lỗi OCR','Không tải đư
                 mailMsg=res.message||'Đã quét Mail xong.';
             } catch(e){ mailMsg='Quét Mail thất bại: '+(e.message||e); }
             await window.loadOrdersFromSupabase();
-            const targets=cachedOrders.filter(o=>o.tracking?.tracking_code && !o.tracking?.delivered);
+            const targets=cachedOrders.filter(o=>o.tracking?.tracking_code && !o.tracking?.delivered && !o.tracking?.tracking_finished);
             for(let i=0;i<targets.length;i++){
                 if(btnEl)btnEl.innerText=`⏳ SPX ${i+1}/${targets.length}`;
                 try { const d=await window.checkSpxForOrder(targets[i].id,targets[i].tracking.tracking_code,false); scanned++; if(d?.delivered)delivered++; }
@@ -6889,7 +6890,7 @@ if (typeof Tesseract === 'undefined') { showModal('Lỗi OCR','Không tải đư
 
     window.checkAllSpxOrders=async function(btnEl){
         if(!currentUser){showModal('Lỗi','Vui lòng đăng nhập!');return;}
-        const targets=cachedOrders.filter(o=>o.tracking?.tracking_code && !o.tracking?.delivered);
+        const targets=cachedOrders.filter(o=>o.tracking?.tracking_code && !o.tracking?.delivered && !o.tracking?.tracking_finished);
         if(!targets.length){showModal('Vận đơn','Không có vận đơn nào cần quét.');return;}
         if(btnEl){btnEl.disabled=true;btnEl.innerText='⏳ Đang quét vận đơn...';}
         let ok=0,delivered=0,fail=0,needPhone=0;
@@ -8350,7 +8351,15 @@ if(typeof Tesseract==='undefined'){showModal('Lỗi OCR','Không tải được 
  function norm(x){return S(x).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'')}
  function isDelivered(o){return window.nkOrderState ? window.nkOrderState(o)==='delivered' : (function(){const x=norm(st(o));return x.includes('giao hang thanh cong')||x.includes('da giao thanh cong')||x.includes('giao thanh cong')||x==='da giao'||x.includes('delivered')})()}
  function isCancelled(o){return window.nkOrderState ? window.nkOrderState(o)==='cancelled' : (function(){if(isDelivered(o))return false;const x=norm(st(o));return x.includes('da huy')||x.includes('bi huy')||x.includes('cancel')})()}
- function active(o){return !!track(o)&&!isDelivered(o)&&!isCancelled(o)}
+ function isTerminal(o){
+   const t=o?.tracking||{};
+   if(t.tracking_finished===true) return true;
+   const r=norm(t.finished_reason||'');
+   if(r==='delivered'||r==='cancelled'||r==='returned') return true;
+   const x=norm([st(o),t.milestone,o?.status].filter(Boolean).join(' | '));
+   return x.includes('hoan tra thanh cong')||x.includes('tra hang thanh cong');
+ }
+ function active(o){return !!track(o)&&!isTerminal(o)&&!isDelivered(o)&&!isCancelled(o)}
  function carrier(o){
    const c=track(o); if(c.startsWith('SPXVN'))return 'SPX';
    const x=S(o?.tracking?.carrier||o?.tracking?.carrier_code||o?.carrier||o?.carrier_code).toUpperCase();
@@ -8772,7 +8781,7 @@ if(typeof Tesseract==='undefined'){showModal('Lỗi OCR','Không tải được 
     return tracking(o)?'active':'waiting';
   };
   function orders(){try{if(typeof cachedOrders!=='undefined'&&Array.isArray(cachedOrders))return cachedOrders}catch(e){}return Array.isArray(window.cachedOrders)?window.cachedOrders:[]}
-  function split(){const b={active:[],delivered:[],cancelled:[],waiting:[]};orders().forEach(o=>b[window.nkOrderState(o)].push(o));return b}
+  function split(){const b={active:[],delivered:[],cancelled:[],waiting:[],terminal:[]};orders().forEach(o=>{const st=window.nkOrderState(o);(b[st]||b.terminal).push(o)});return b}
   const keys=['active','delivered','cancelled','waiting'];
   const meta={active:['📦','Đang vận chuyển'],delivered:['✅','Đã giao'],cancelled:['❌','Đơn bị hủy'],waiting:['🟣','Chờ lấy hàng']};
   const esc=v=>S(v).replace(/[&<>\"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;'}[m]||m));
@@ -10638,7 +10647,7 @@ window.showNkOrderDetail=function(orderId){
 
   async function runAll(btnEl){
     let ok=0,fail=0,need=0;
-    const targets=orders().filter(o=>o.tracking?.tracking_code && !o.tracking?.delivered);
+    const targets=orders().filter(o=>o.tracking?.tracking_code && !o.tracking?.delivered && !o.tracking?.tracking_finished);
     for(let i=0;i<targets.length;i++){
       const o=targets[i], code=String(o.tracking.tracking_code).toUpperCase();
       if(btnEl) btnEl.innerText=`⏳ ${i+1}/${targets.length}`;
@@ -10692,7 +10701,7 @@ window.showNkOrderDetail=function(orderId){
    ============================================================ */
 (function(){
   'use strict';
-  window.NK_STORE_BUILD='V28.7.18';
+  window.NK_STORE_BUILD='V28.7.19';
 
   function S(v){return String(v==null?'':v).trim()}
   function digits(v){return S(v).replace(/\D/g,'')}
@@ -10769,7 +10778,7 @@ window.showNkOrderDetail=function(orderId){
 
 <script id="nk-v28718-cancel-hard-stop-ui">
 /* ============================================================
-   NK MMO Store V28.7.18 - CANCEL HARD STOP UI
+   NK MMO Store V28.7.19 - TERMINAL UI HARD STOP
    - Cancelled/final tracking rows never appear as active shipping.
    - Hide manual tracking actions for terminal orders.
    ============================================================ */
@@ -10797,6 +10806,7 @@ window.showNkOrderDetail=function(orderId){
     const r=terminalReason(o);
     if(r==='cancelled') return 'cancelled';
     if(r==='delivered') return 'delivered';
+    if(r==='returned'||r==='terminal') return 'terminal';
     return typeof previousState==='function' ? previousState(o) : (o?.tracking?.tracking_code?'active':'waiting');
   };
 
