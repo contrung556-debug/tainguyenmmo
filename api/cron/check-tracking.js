@@ -1,5 +1,5 @@
 // ============================================================
-// NK MMO Store V28.7.14 - PARALLEL AUTO TRACKING CRON
+// NK MMO Store V28.7.16 - PARALLEL AUTO TRACKING + TERMINAL STOP
 // - Up to 80 tracking codes per run by default.
 // - 8 concurrent carrier lookups by default.
 // - Atomic Supabase claim/lease prevents overlapping cron runs.
@@ -70,31 +70,81 @@ function latestEvent(x) {
   return { events, latest: events[0] || {} };
 }
 
+function foldText(value) {
+  return String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/đ/g, 'd')
+    .replace(/Đ/g, 'D')
+    .toLowerCase()
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function terminalState({ carrier, x, latest, text, code, milestone }) {
+  const all = foldText([text, code, milestone, latest?.description, latest?.statusText].filter(Boolean).join(' | '));
+
+  // IMPORTANT: terminal != delivered. GHN can report isTerminal=true for
+  // cancelled/returned shipments too, so delivery must be detected separately.
+  const delivered =
+    x?.delivered === true ||
+    /(^|[^a-z])delivered([^a-z]|$)/.test(all) ||
+    /giao hang thanh cong/.test(all) ||
+    /da giao thanh cong/.test(all) ||
+    /da giao hang thanh cong/.test(all);
+
+  const cancelled =
+    /da bi huy/.test(all) ||
+    /don hang da huy/.test(all) ||
+    /don da huy/.test(all) ||
+    /(^|[^a-z])cancelled([^a-z]|$)/.test(all) ||
+    /(^|[^a-z])canceled([^a-z]|$)/.test(all);
+
+  const returned =
+    /hoan tra thanh cong/.test(all) ||
+    /da hoan tra thanh cong/.test(all) ||
+    /tra hang thanh cong/.test(all) ||
+    /returned successfully/.test(all) ||
+    /return completed/.test(all);
+
+  const terminal = delivered || cancelled || returned || (carrier === 'GHN' && x?.isTerminal === true);
+  const reason = delivered ? 'delivered' : cancelled ? 'cancelled' : returned ? 'returned' : terminal ? 'terminal' : '';
+  return { delivered, terminal, reason };
+}
+
 function normalizeTrackingResult(carrier, raw) {
   const x = raw?.data || raw || {};
   const { latest } = latestEvent(x);
   if (carrier === 'GHN') {
     const text = x.statusText || latest.statusText || latest.description || x.status || '';
     const code = x.status || latest.status || x.tracking_status_code || '';
+    const milestone = latest.description || latest.statusText || x.milestone || '';
+    const state = terminalState({ carrier, x, latest, text, code, milestone });
     return {
       tracking_status: text,
       tracking_status_code: code,
-      milestone: latest.description || latest.statusText || x.milestone || '',
+      milestone,
       current_location: latest?.location?.name || latest?.location?.address || x.current_location || '',
       next_location: x.next_location || '',
-      delivered: x.isTerminal === true || /DELIVERED|ĐÃ GIAO|DA GIAO/i.test(`${text} ${code}`),
+      delivered: state.delivered,
+      tracking_finished: state.terminal,
+      finished_reason: state.reason,
       last_event_at: toIsoTimestamp(latest.timestamp || x.latestUpdate || x.time)
     };
   }
   const text = x.status || x.statusText || latest.status || latest.statusText || latest.description || '';
   const code = x.tracking_status_code || x.status_code || latest.status_code || latest.status || '';
+  const milestone = x.milestone || latest.description || latest.statusText || '';
+  const state = terminalState({ carrier, x, latest, text, code, milestone });
   return {
     tracking_status: text,
     tracking_status_code: code,
-    milestone: x.milestone || latest.description || latest.statusText || '',
+    milestone,
     current_location: x.current_location || latest?.location?.name || latest?.location?.address || '',
     next_location: x.next_location || '',
-    delivered: x.delivered === true || /DELIVERED|ĐÃ GIAO|DA GIAO/i.test(`${text} ${code}`),
+    delivered: state.delivered,
+    tracking_finished: state.terminal,
+    finished_reason: state.reason,
     last_event_at: toIsoTimestamp(x.time || latest.timestamp || x.latestUpdate)
   };
 }
@@ -202,7 +252,7 @@ async function processOne({ row, order, siteUrl, supabaseUrl, serviceKey, intern
   }
 
   const result = normalizeTrackingResult(carrier, raw);
-  const nextCheck = result.delivered ? null : new Date(now.getTime() + 55 * 1000).toISOString();
+  const nextCheck = result.tracking_finished ? null : new Date(now.getTime() + 55 * 1000).toISOString();
   await releaseRow(supabaseUrl, serviceKey, row, {
     tracking_status: result.tracking_status || '',
     tracking_status_code: result.tracking_status_code || '',
@@ -210,6 +260,9 @@ async function processOne({ row, order, siteUrl, supabaseUrl, serviceKey, intern
     current_location: result.current_location || '',
     next_location: result.next_location || '',
     delivered: result.delivered === true,
+    tracking_finished: result.tracking_finished === true,
+    finished_reason: result.finished_reason || null,
+    finished_at: result.tracking_finished ? (result.last_event_at || nowIso) : null,
     last_event_at: result.last_event_at,
     last_checked_at: nowIso,
     next_check_at: nextCheck,
@@ -223,11 +276,11 @@ async function processOne({ row, order, siteUrl, supabaseUrl, serviceKey, intern
       serviceKey,
       'shopee_orders',
       `id=eq.${encodeURIComponent(row.order_id)}&user_id=eq.${encodeURIComponent(row.user_id)}`,
-      { status: 'Đã giao', delivered_at: result.last_event_at || nowIso, updated_at: nowIso }
+      { status: 'Đã giao', delivered_at: result.last_event_at || nowIso }
     );
   }
 
-  return { order_id: row.order_id, code, carrier, ok: true, delivered: result.delivered === true, status: result.tracking_status || '' };
+  return { order_id: row.order_id, code, carrier, ok: true, delivered: result.delivered === true, finished: result.tracking_finished === true, finished_reason: result.finished_reason || '', status: result.tracking_status || '' };
 }
 
 async function runPool(items, concurrency, worker) {
@@ -316,6 +369,7 @@ module.exports = async function handler(req, res) {
 
     const ok = results.filter(x => x.ok).length;
     const delivered = results.filter(x => x.delivered).length;
+    const finished = results.filter(x => x.finished).length;
     const skipped = results.filter(x => x.skipped).length;
     const failed = results.length - ok - skipped;
 
@@ -327,6 +381,7 @@ module.exports = async function handler(req, res) {
       checked: results.length,
       ok,
       delivered,
+      finished,
       skipped,
       failed,
       results
