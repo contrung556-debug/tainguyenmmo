@@ -1,17 +1,24 @@
 // ============================================================
-// NK MMO Store V28.7.21 - Telegram multi-user Tracking Bot webhook
+// NK MMO Store V28.7.23 - Telegram batch /track + Auto Watch + Full Anti-Spam
 // Commands:
-// /track <tracking_code> [phone4]
-// /order <shopee_order_code>
-// /watch <tracking_code> [phone4]
+// /track -> bot asks for up to 5 codes in the next message
+// SPX line: SPXVN...
+// GHN line: GYRA83K3|1234
+// Submitted active shipments are watched automatically
 // /unwatch <tracking_code>
-// /list
-// /id
+// /list /order /me /id
+// Anti-spam additions:
+// - Telegram update_id dedupe
+// - /track cooldown
+// - shared short-lived tracking cache
+// - existing per-user DB quotas remain enabled
 // ============================================================
 
 const crypto = require('crypto');
 
 const REQUEST_TIMEOUT_MS = 15000;
+const TRACK_COOLDOWN_SECONDS = 8;
+const TRACK_CACHE_TTL_SECONDS = 15;
 
 function env(name, required = true) {
   const value = String(process.env[name] || '').trim();
@@ -63,6 +70,41 @@ async function sbUpsert(base,key,table,body,onConflict) {
 async function sbPatch(base,key,table,query,body) {
   const r = await fetch(`${base}/rest/v1/${table}?${query}`, { method:'PATCH', headers:sbHeaders(key,{Prefer:'return=minimal'}), body:JSON.stringify(body), cache:'no-store' });
   if (!r.ok) { const d=await r.json().catch(()=>null); throw new Error(d?.message||d?.error||`Supabase PATCH HTTP ${r.status}`); }
+}
+
+function trackingCacheKey(code, phone4='') {
+  const carrier=carrierOf(code);
+  return crypto.createHash('sha256').update(`${carrier}|${String(code||'').trim().toUpperCase()}|${String(phone4||'')}`).digest('hex');
+}
+async function getTrackingCache(base,key,code,phone4='') {
+  const q=new URLSearchParams();
+  q.set('select','payload,expires_at');
+  q.set('cache_key',`eq.${trackingCacheKey(code,phone4)}`);
+  q.set('expires_at',`gt.${new Date().toISOString()}`);
+  q.set('limit','1');
+  const rows=await sbGet(base,key,'telegram_tracking_cache',q.toString());
+  const row=rows?.[0];
+  if(!row?.payload) return null;
+  return { ...row.payload, _cache_hit:true };
+}
+async function setTrackingCache(base,key,item,n) {
+  const now=Date.now();
+  await sbUpsert(base,key,'telegram_tracking_cache',{
+    cache_key:trackingCacheKey(item.code,item.phone4),
+    tracking_code:item.code,
+    carrier:item.carrier,
+    phone_last4:item.carrier==='GHN'?item.phone4:null,
+    payload:n,
+    cached_at:new Date(now).toISOString(),
+    expires_at:new Date(now+TRACK_CACHE_TTL_SECONDS*1000).toISOString()
+  },'cache_key');
+}
+async function checkTrackingCached({base,key,code,phone4,siteUrl,internalSecret}) {
+  const cached=await getTrackingCache(base,key,code,phone4);
+  if(cached) return cached;
+  const n=await checkTracking({code,phone4,siteUrl,internalSecret});
+  try{ await setTrackingCache(base,key,{code,carrier:carrierOf(code),phone4},n); }catch(e){ console.warn('TRACK CACHE WRITE:',e?.message||e); }
+  return { ...n, _cache_hit:false };
 }
 async function tg(token, method, body) {
   const r = await fetch(`https://api.telegram.org/bot${token}/${method}`, {
@@ -124,7 +166,7 @@ function planWatchLimit(plan, role) {
   return 5;
 }
 async function getTelegramUser(base,key,chatId) {
-  const q=new URLSearchParams(); q.set('select','chat_id,telegram_username,telegram_name,active,role,plan,nk_user_id,created_at,last_seen_at'); q.set('chat_id',`eq.${chatId}`); q.set('limit','1');
+  const q=new URLSearchParams(); q.set('select','chat_id,telegram_username,telegram_name,active,role,plan,nk_user_id,created_at,last_seen_at,awaiting_track_until'); q.set('chat_id',`eq.${chatId}`); q.set('limit','1');
   const rows=await sbGet(base,key,'telegram_users',q.toString()); return rows?.[0]||null;
 }
 async function ensureTelegramUser(base,key,msg,adminIds) {
@@ -137,15 +179,91 @@ async function ensureTelegramUser(base,key,msg,adminIds) {
   await sbUpsert(base,key,'telegram_users',body,'chat_id');
   return await getTelegramUser(base,key,chatId);
 }
+async function maybeSendRateLimitWarning(base,key,token,chatId,retryAfter) {
+  try{
+    const q=await sbRpc(base,key,'nk_take_tracking_quota',{
+      p_key:`tgspamwarn:${chatId}`,p_window_seconds:10,p_limit:1
+    });
+    if(q?.allowed===true){
+      await send(token,chatId,`⏳ Bạn thao tác quá nhanh. Thử lại sau ${Math.max(1,Number(retryAfter||1))} giây.`);
+    }
+  }catch(e){ console.warn('RATE LIMIT WARNING:',e?.message||e); }
+}
 async function checkTracking({code,phone4,siteUrl,internalSecret}) {
   const carrier=carrierOf(code); if(!carrier) throw new Error('Mã vận đơn không hợp lệ.');
   let raw;
   if(carrier==='SPX') raw=await fetchJson(`${siteUrl}/api/spx?code=${encodeURIComponent(code)}`,{headers:{'x-nk-internal-secret':internalSecret,Accept:'application/json'}});
   else {
-    if(!/^\d{4}$/.test(phone4)) throw new Error('GHN cần thêm đúng 4 số cuối SĐT. Ví dụ: /track GYRA83K3 1234');
+    if(!/^\d{4}$/.test(phone4)) throw new Error('GHN cần đúng 4 số cuối SĐT theo dạng MÃGHN|1234.');
     raw=await fetchJson(`${siteUrl}/api/ghn`,{method:'POST',headers:{'Content-Type':'application/json',Accept:'application/json','x-nk-internal-secret':internalSecret},body:JSON.stringify({trackingNumber:code,phoneLast4:phone4})});
   }
   return normalize(raw,carrier,code);
+}
+
+function toIso(v) {
+  if(!v) return null;
+  const n=Number(v);
+  const d=Number.isFinite(n)&&n>0 ? new Date(n>1e12?n:n*1000) : new Date(v);
+  return Number.isNaN(d.getTime()) ? null : d.toISOString();
+}
+function parseTrackingBatch(text) {
+  const rawLines=String(text||'').split(/\r?\n/).map(x=>x.trim()).filter(Boolean);
+  if(!rawLines.length) throw new Error('Bạn chưa gửi mã vận đơn.');
+  if(rawLines.length>5) throw new Error('Mỗi lần chỉ gửi tối đa 5 mã, mỗi mã một dòng.');
+  const out=[]; const seen=new Set(); let duplicates=0;
+  for(const line of rawLines){
+    const parts=line.split('|').map(x=>x.trim());
+    if(parts.length>2) throw new Error(`Sai định dạng: ${line}`);
+    const code=String(parts[0]||'').toUpperCase();
+    const carrier=carrierOf(code);
+    if(!carrier) throw new Error(`Mã không hợp lệ: ${code||line}`);
+    let phone4='';
+    if(carrier==='GHN'){
+      phone4=digits(parts[1]).slice(-4);
+      if(!/^\d{4}$/.test(phone4) || String(parts[1]||'').replace(/\D/g,'').length!==4) {
+        throw new Error(`GHN phải nhập dạng ${code}|1234`);
+      }
+    } else if(parts[1]) {
+      throw new Error(`SPX chỉ cần mã vận đơn, không cần |4 số: ${code}`);
+    }
+    if(seen.has(code)){ duplicates++; continue; }
+    seen.add(code); out.push({code,carrier,phone4});
+  }
+  return {items:out,duplicates};
+}
+async function saveAutoWatch(base,key,chatId,item,n) {
+  const now=new Date().toISOString();
+  const signature=crypto.createHash('sha256').update([n.status,n.statusCode,n.milestone,n.current,n.next,n.time].join('|')).digest('hex');
+  await sbUpsert(base,key,'telegram_tracking_watch',{
+    chat_id:String(chatId),tracking_code:item.code,carrier:item.carrier,
+    phone_last4:item.carrier==='GHN'?item.phone4:null,
+    last_status:n.status||'',last_status_code:n.statusCode||'',last_milestone:n.milestone||'',
+    last_current_location:n.current||'',last_next_location:n.next||'',last_event_at:toIso(n.time),last_signature:signature,
+    active:!n.finished,tracking_finished:n.finished===true,finished_reason:n.reason||null,
+    finished_at:n.finished?(toIso(n.time)||now):null,last_checked_at:now,
+    next_check_at:n.finished?null:new Date(Date.now()+55000).toISOString(),check_fail_count:0,
+    check_lock_id:null,check_locked_until:null,updated_at:now
+  },'chat_id,tracking_code');
+}
+function batchSummary(results,duplicates=0) {
+  const lines=[`<b>📦 Kết quả ${results.length} mã</b>`];
+  if(duplicates) lines.push(`ℹ️ Bỏ qua ${duplicates} mã trùng trong tin nhắn.`);
+  lines.push('');
+  results.forEach((r,i)=>{
+    if(!r.ok){
+      lines.push(`${i+1}. <code>${esc(r.code)}</code>`, `❌ ${esc(r.error||'Không tra được')}`,'');
+      return;
+    }
+    const n=r.data;
+    lines.push(`${i+1}. <code>${esc(n.code)}</code> · <b>${esc(n.carrier)}</b>`);
+    lines.push(`${n.finished?'✅':'🚚'} ${esc(String(n.status||'Chưa có trạng thái').slice(0,350))}`);
+    if(n.current) lines.push(`📍 ${esc(String(n.current).slice(0,220))}`);
+    lines.push(n.finished
+      ? (n.reason==='delivered'?'🏁 Đã giao — dừng theo dõi':n.reason==='cancelled'?'🏁 Đã hủy — dừng theo dõi':n.reason==='returned'?'🏁 Hoàn trả thành công — dừng theo dõi':'🏁 Vận đơn đã kết thúc')
+      : '👀 Đã tự động theo dõi, bot sẽ báo khi trạng thái thay đổi.');
+    lines.push('');
+  });
+  return lines.join('\n').trim();
 }
 
 module.exports = async function handler(req,res){
@@ -161,30 +279,73 @@ module.exports = async function handler(req,res){
     const supabaseUrl=env('SUPABASE_URL').replace(/\/$/,''); const serviceKey=env('SUPABASE_SERVICE_ROLE_KEY');
     const internalSecret=env('TRACKING_INTERNAL_SECRET'); const siteUrl=getSiteUrl(req);
 
+    // Telegram may retry the exact same webhook update. Claim update_id once in DB
+    // before user registration, quota accounting, API lookups, or replies.
+    const updateId=Number(update.update_id);
+    if(Number.isSafeInteger(updateId)){
+      const claimed=await sbRpc(supabaseUrl,serviceKey,'nk_claim_telegram_update',{p_update_id:updateId});
+      if(claimed!==true) return res.status(200).json({ok:true,duplicate_update:true});
+    }
+
     const admins=adminSet();
     const tgUser=await ensureTelegramUser(supabaseUrl,serviceKey,msg,admins);
 
     if(cmd==='/id'){ await send(token,chatId,`Telegram chat ID của bạn: <code>${esc(chatId)}</code>`); return res.status(200).json({ok:true}); }
     if(!tgUser?.active){ await send(token,chatId,'⛔ Tài khoản bot của bạn đang bị tạm khóa.'); return res.status(200).json({ok:true}); }
 
-    // DB-backed anti-spam: 12 commands/10s and 60/minute per chat.
+    // DB-backed anti-spam: 12 messages/10s and 60/minute per chat.
     for (const [key,sec,limit] of [[`tg10:${chatId}`,10,12],[`tg60:${chatId}`,60,60]]) {
       const q=await sbRpc(supabaseUrl,serviceKey,'nk_take_tracking_quota',{p_key:key,p_window_seconds:sec,p_limit:limit});
-      if(q?.allowed!==true){ await send(token,chatId,`⏳ Bạn thao tác quá nhanh. Thử lại sau ${Math.max(1,Number(q?.retry_after||1))} giây.`); return res.status(200).json({ok:true}); }
+      if(q?.allowed!==true){
+        await maybeSendRateLimitWarning(supabaseUrl,serviceKey,token,chatId,q?.retry_after);
+        return res.status(200).json({ok:true,rate_limited:true});
+      }
+    }
+
+    // Separate cooldown for opening /track input mode.
+    if(cmd==='/track'){
+      const q=await sbRpc(supabaseUrl,serviceKey,'nk_take_tracking_quota',{
+        p_key:`tgcmd:track:${chatId}`,p_window_seconds:TRACK_COOLDOWN_SECONDS,p_limit:1
+      });
+      if(q?.allowed!==true){
+        await maybeSendRateLimitWarning(supabaseUrl,serviceKey,token,chatId,q?.retry_after);
+        return res.status(200).json({ok:true,cooldown:true});
+      }
+    }
+
+    // When /track has opened input mode, the next non-command message is the batch.
+    const awaitingUntil=tgUser?.awaiting_track_until ? new Date(tgUser.awaiting_track_until).getTime() : 0;
+    if(!String(msg.text||'').trim().startsWith('/') && awaitingUntil>Date.now()){
+      await sbPatch(supabaseUrl,serviceKey,'telegram_users',`chat_id=eq.${encodeURIComponent(chatId)}`,{awaiting_track_until:null,updated_at:new Date().toISOString()});
+      let parsed;
+      try{ parsed=parseTrackingBatch(msg.text); }
+      catch(e){ await send(token,chatId,`⚠️ ${esc(e?.message||e)}\n\nBấm /track rồi gửi lại.\n\nSPX: <code>SPXVN...</code>\nGHN: <code>GYRA83K3|1234</code>`); return res.status(200).json({ok:true}); }
+
+      // Max 5 lookups in one user message. Process concurrently, then auto-watch all non-terminal codes.
+      const settled=await Promise.all(parsed.items.map(async item=>{
+        try{
+          const n=await checkTrackingCached({
+            base:supabaseUrl,key:serviceKey,code:item.code,phone4:item.phone4,siteUrl,internalSecret
+          });
+          await saveAutoWatch(supabaseUrl,serviceKey,chatId,item,n);
+          return {ok:true,code:item.code,data:n,cache_hit:n._cache_hit===true};
+        }catch(e){ return {ok:false,code:item.code,error:String(e?.message||e)}; }
+      }));
+      await send(token,chatId,batchSummary(settled,parsed.duplicates));
+      return res.status(200).json({ok:true,count:settled.length});
     }
 
     if(cmd==='/start'||cmd==='/help'){
-      const limit=planWatchLimit(tgUser?.plan,tgUser?.role);
       await send(token,chatId,[
         '<b>🤖 NK Store Tracking Bot</b>','',
-        `Tài khoản: <b>${esc(tgUser?.plan||'free')}</b> · tối đa ${limit>=100000?'không giới hạn':limit} mã đang theo dõi`,'',
-        '<code>/track SPXVN...</code> — tra SPX ngay',
-        '<code>/track GYRA83K3 1234</code> — tra GHN (4 số cuối SĐT)',
-        '<code>/watch SPXVN...</code> — theo dõi, bot tự báo khi đổi trạng thái',
-        '<code>/watch GYRA83K3 1234</code> — theo dõi GHN',
-        '<code>/unwatch MÃ_VẬN_ĐƠN</code> — dừng theo dõi',
-        '<code>/list</code> — danh sách đang theo dõi',
-        '<code>/me</code> — xem gói/quyền tài khoản',
+        'Bot đang miễn phí. Mã vận đơn chưa kết thúc sẽ được <b>tự động theo dõi</b>.','',
+        '<code>/track</code> — mở chế độ nhập tối đa 5 mã',
+        'Sau đó gửi một tin nhắn, mỗi mã một dòng:','',
+        '<code>SPXVN06854143702A</code>',
+        '<code>GYRA83K3|1234</code>','',
+        '<code>/list</code> — xem mã đang tự theo dõi',
+        '<code>/unwatch MÃ_VẬN_ĐƠN</code> — dừng tự theo dõi một mã',
+        '<code>/me</code> — xem tài khoản bot',
         '<code>/order MÃ_ĐƠN_SHOPEE</code> — xem đơn NK Store đã liên kết',
         '<code>/id</code> — xem Telegram chat ID'
       ].join('\n')); return res.status(200).json({ok:true});
@@ -193,49 +354,42 @@ module.exports = async function handler(req,res){
     if(cmd==='/me'){
       const q=new URLSearchParams();q.set('select','id');q.set('chat_id',`eq.${chatId}`);q.set('active','eq.true');q.set('tracking_finished','eq.false');
       const rows=await sbGet(supabaseUrl,serviceKey,'telegram_tracking_watch',q.toString());
-      const limit=planWatchLimit(tgUser?.plan,tgUser?.role);
       await send(token,chatId,[
-        '<b>👤 Tài khoản Telegram</b>',`ID: <code>${esc(chatId)}</code>`,`Gói: <b>${esc(tgUser?.plan||'free')}</b>`,`Quyền: <b>${esc(tgUser?.role||'user')}</b>`,`Đang theo dõi: <b>${rows?.length||0}</b> / ${limit>=100000?'∞':limit}`,tgUser?.nk_user_id?'✅ Đã liên kết tài khoản NK Store':'ℹ️ Chưa liên kết tài khoản NK Store'
+        '<b>👤 Tài khoản Telegram</b>',`ID: <code>${esc(chatId)}</code>`,`Gói: <b>FREE</b>`,`Đang tự theo dõi: <b>${rows?.length||0}</b> mã`,tgUser?.nk_user_id?'✅ Đã liên kết tài khoản NK Store':'ℹ️ Chưa liên kết tài khoản NK Store'
       ].join('\n')); return res.status(200).json({ok:true});
     }
 
     if(cmd==='/track'){
-      const code=String(args[0]||'').trim().toUpperCase(); const phone4=digits(args[1]).slice(-4);
-      if(!code){await send(token,chatId,'Dùng: <code>/track MÃ_VẬN_ĐƠN</code>\nGHN: <code>/track MÃ_GHN 1234</code>');return res.status(200).json({ok:true});}
-      try{const n=await checkTracking({code,phone4,siteUrl,internalSecret});await send(token,chatId,resultHtml(n));}
-      catch(e){await send(token,chatId,`❌ Không tra được <code>${esc(code)}</code>\n${esc(e?.message||e)}`);} return res.status(200).json({ok:true});
+      const until=new Date(Date.now()+5*60*1000).toISOString();
+      await sbPatch(supabaseUrl,serviceKey,'telegram_users',`chat_id=eq.${encodeURIComponent(chatId)}`,{awaiting_track_until:until,updated_at:new Date().toISOString()});
+      await send(token,chatId,[
+        '<b>📦 Gửi mã vận đơn</b>','',
+        'Gửi tối đa <b>5 mã</b> trong <b>1 tin nhắn</b>.',
+        'Mỗi mã phân biệt bằng <b>xuống dòng</b>.','',
+        '<b>SPX:</b>', '<code>SPXVN06854143702A</code>','',
+        '<b>GHN:</b>', '<code>GYRA83K3|1234</code>','',
+        'GHN bắt buộc: <b>MÃGHN|4 số cuối SĐT</b>.',
+        'Sau khi tra, bot tự theo dõi các mã chưa kết thúc.'
+      ].join('\n')); return res.status(200).json({ok:true});
     }
 
+    // /watch remains removed. Tracking starts automatically after /track batch submission.
     if(cmd==='/watch'){
-      const code=String(args[0]||'').trim().toUpperCase(); const phone4=digits(args[1]).slice(-4); const carrier=carrierOf(code);
-      if(!carrier){await send(token,chatId,'Dùng: <code>/watch MÃ_VẬN_ĐƠN</code>\nGHN: <code>/watch MÃ_GHN 1234</code>');return res.status(200).json({ok:true});}
-      if(carrier==='GHN'&&!/^\d{4}$/.test(phone4)){await send(token,chatId,'GHN cần 4 số cuối SĐT. Ví dụ: <code>/watch GYRA83K3 1234</code>');return res.status(200).json({ok:true});}
-      const limit=planWatchLimit(tgUser?.plan,tgUser?.role);
-      const cq=new URLSearchParams();cq.set('select','tracking_code');cq.set('chat_id',`eq.${chatId}`);cq.set('active','eq.true');cq.set('tracking_finished','eq.false');cq.set('limit',String(limit>=100000?10000:limit+1));
-      const currentWatches=await sbGet(supabaseUrl,serviceKey,'telegram_tracking_watch',cq.toString());
-      const alreadyWatching=(currentWatches||[]).some(r=>String(r.tracking_code||'').toUpperCase()===code);
-      if(!alreadyWatching && (currentWatches?.length||0)>=limit){await send(token,chatId,`⚠️ Gói <b>${esc(tgUser?.plan||'free')}</b> được theo dõi tối đa <b>${limit}</b> mã cùng lúc. Dùng /list hoặc /unwatch để bỏ bớt.`);return res.status(200).json({ok:true});}
-      try{
-        const n=await checkTracking({code,phone4,siteUrl,internalSecret});
-        if(n.finished){await send(token,chatId,resultHtml(n,'📦 Vận đơn đã kết thúc')+'\n\nKhông cần theo dõi thêm.');return res.status(200).json({ok:true});}
-        const signature=crypto.createHash('sha256').update([n.status,n.statusCode,n.milestone,n.current,n.next,n.time].join('|')).digest('hex');
-        const now=new Date().toISOString();
-        await sbUpsert(supabaseUrl,serviceKey,'telegram_tracking_watch',{chat_id:chatId,tracking_code:code,carrier,phone_last4:carrier==='GHN'?phone4:null,last_status:n.status||'',last_status_code:n.statusCode||'',last_milestone:n.milestone||'',last_current_location:n.current||'',last_next_location:n.next||'',last_event_at:n.time?new Date(Number(n.time)>0?(Number(n.time)>1e12?Number(n.time):Number(n.time)*1000):n.time).toISOString():null,last_signature:signature,active:true,tracking_finished:false,finished_reason:null,next_check_at:now,check_fail_count:0,updated_at:now},'chat_id,tracking_code');
-        await send(token,chatId,resultHtml(n,'👀 Đã bắt đầu theo dõi')+'\n\nBot sẽ tự nhắn khi trạng thái thay đổi.');
-      }catch(e){await send(token,chatId,`❌ Không thể theo dõi <code>${esc(code)}</code>\n${esc(e?.message||e)}`);} return res.status(200).json({ok:true});
+      await send(token,chatId,'ℹ️ Không cần /watch nữa. Bấm /track, gửi mã; bot sẽ tự theo dõi.');
+      return res.status(200).json({ok:true});
     }
 
     if(cmd==='/unwatch'){
       const code=String(args[0]||'').trim().toUpperCase(); if(!code){await send(token,chatId,'Dùng: <code>/unwatch MÃ_VẬN_ĐƠN</code>');return res.status(200).json({ok:true});}
       await sbPatch(supabaseUrl,serviceKey,'telegram_tracking_watch',`chat_id=eq.${encodeURIComponent(chatId)}&tracking_code=eq.${encodeURIComponent(code)}`,{active:false,updated_at:new Date().toISOString()});
-      await send(token,chatId,`✅ Đã dừng theo dõi <code>${esc(code)}</code>.`); return res.status(200).json({ok:true});
+      await send(token,chatId,`✅ Đã dừng tự theo dõi <code>${esc(code)}</code>.`); return res.status(200).json({ok:true});
     }
 
     if(cmd==='/list'){
-      const q=new URLSearchParams();q.set('select','tracking_code,carrier,last_status,active,tracking_finished,finished_reason,updated_at');q.set('chat_id',`eq.${chatId}`);q.set('active','eq.true');q.set('order','updated_at.desc');q.set('limit','50');
+      const q=new URLSearchParams();q.set('select','tracking_code,carrier,last_status,active,tracking_finished,finished_reason,updated_at');q.set('chat_id',`eq.${chatId}`);q.set('active','eq.true');q.set('tracking_finished','eq.false');q.set('order','updated_at.desc');q.set('limit','100');
       const rows=await sbGet(supabaseUrl,serviceKey,'telegram_tracking_watch',q.toString());
-      if(!rows?.length){await send(token,chatId,'Chưa có mã vận đơn nào đang theo dõi.');return res.status(200).json({ok:true});}
-      await send(token,chatId,'<b>👀 Đang theo dõi</b>\n\n'+rows.map((r,i)=>`${i+1}. <code>${esc(r.tracking_code)}</code> · ${esc(r.carrier)}\n${esc(r.last_status||'Chưa có trạng thái')}`).join('\n\n')); return res.status(200).json({ok:true});
+      if(!rows?.length){await send(token,chatId,'Chưa có mã vận đơn nào đang tự theo dõi.');return res.status(200).json({ok:true});}
+      await send(token,chatId,'<b>👀 Đang tự theo dõi</b>\n\n'+rows.map((r,i)=>`${i+1}. <code>${esc(r.tracking_code)}</code> · ${esc(r.carrier)}\n${esc(r.last_status||'Chưa có trạng thái')}`).join('\n\n')); return res.status(200).json({ok:true});
     }
 
     if(cmd==='/order'){

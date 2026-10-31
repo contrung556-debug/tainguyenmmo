@@ -1,5 +1,5 @@
 // ============================================================
-// NK MMO Store V28.7.21 - Telegram webhook setup
+// NK MMO Store V28.7.23 - Telegram webhook setup
 // Protected by the existing CRON_SECRET. POST only.
 // ============================================================
 
@@ -62,12 +62,11 @@ module.exports = async function handler(req, res) {
 
     await tg(token, 'setMyCommands', {
       commands: [
-        { command: 'track', description: 'Tra cứu mã vận đơn ngay' },
+        { command: 'track', description: 'Nhập tối đa 5 mã và tự theo dõi' },
+        { command: 'list', description: 'Danh sách mã đang tự theo dõi' },
+        { command: 'unwatch', description: 'Dừng tự theo dõi một mã' },
         { command: 'order', description: 'Xem đơn NK Store theo mã đơn' },
-        { command: 'watch', description: 'Theo dõi và báo khi trạng thái đổi' },
-        { command: 'unwatch', description: 'Dừng theo dõi mã vận đơn' },
-        { command: 'list', description: 'Danh sách mã đang theo dõi' },
-        { command: 'me', description: 'Xem gói và quyền tài khoản' },
+        { command: 'me', description: 'Xem tài khoản bot' },
         { command: 'id', description: 'Xem Telegram chat ID' },
         { command: 'help', description: 'Hướng dẫn sử dụng' }
       ]
