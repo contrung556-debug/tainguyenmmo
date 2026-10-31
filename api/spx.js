@@ -1,5 +1,5 @@
 // ============================================================
-// NK MMO Store V28.7.14 - SPX INTERNAL-ONLY ENDPOINT
+// NK MMO Store V28.7.24 - SPX newest-event fix
 // Calls are allowed only from trusted NK Store server functions.
 // Public/browser traffic must go through /api/track.
 // ============================================================
@@ -56,7 +56,8 @@ export default async function handler(req, res) {
                 },
                 body: JSON.stringify({
                     tracking_id: code
-                })
+                }),
+                cache: "no-store"
             }
         );
 
@@ -88,7 +89,30 @@ export default async function handler(req, res) {
                 ? tracking.records
                 : [];
 
-        const latest = records[0] || null;
+        // Do not assume tracking.records[0] is always the newest event.
+        // Some upstream responses can contain records in a non-strict order.
+        // Pick the event with the greatest actual_time instead.
+        const toTimeMs = (value) => {
+            if (value === null || value === undefined || value === "") return 0;
+
+            const numeric = Number(value);
+            if (Number.isFinite(numeric) && numeric > 0) {
+                return numeric > 1e12 ? numeric : numeric * 1000;
+            }
+
+            const parsed = Date.parse(String(value));
+            return Number.isFinite(parsed) ? parsed : 0;
+        };
+
+        const sortedRecords = records
+            .map((record, index) => ({ record, index, timeMs: toTimeMs(record?.actual_time) }))
+            .sort((a, b) => {
+                if (b.timeMs !== a.timeMs) return b.timeMs - a.timeMs;
+                return a.index - b.index;
+            })
+            .map(item => item.record);
+
+        const latest = sortedRecords[0] || null;
 
         return res.status(200).json({
             success: true,
@@ -119,7 +143,7 @@ export default async function handler(req, res) {
                     .toLowerCase()
                     .includes("delivered"),
 
-            events: records.map(r => ({
+            events: sortedRecords.map(r => ({
                 time: r.actual_time || null,
                 status:
                     r.buyer_description ||
