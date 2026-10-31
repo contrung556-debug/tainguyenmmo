@@ -1,6 +1,6 @@
 // ============================================================
-// NK MMO STORE - ICLOUD CUSTOM DOMAIN MAIL API
-// VERSION: MAIL-1.4.5
+// NK MMO STORE - ICLOUD MAIL API + RENTAL GUARD
+// VERSION: MAIL-1.6.1 - V28.8.9 HOBBY MERGED RENTAL GUARD
 //
 // Purpose:
 // - Read OTP/link for @icloud.com and @nkstore.io.vn through iCloud IMAP
@@ -11,9 +11,11 @@
 // - No wallet deduction / no OTP billing
 // - Only return links whose visible anchor text is exactly “TẠI ĐÂY”
 // - Avoid treating dates/times in link-only emails as OTP
-// - MAIL-1.4.5: TikTok "mã gồm 6 chữ số" OTP pattern
+// - Detect Shopee delivery-success emails and extract order details
+// - V28.8.0: active rental mail requires exact rented service; hides all other providers
+// - V28.8.0: rental mode never exposes messages older than service_started_at
 //
-// GET /api/mail?email=alias@icloud.com or abc@nkstore.io.vn
+// GET /api/mail?email=alias@icloud.com[&rental_id=...&service=shopee]
 // Web header: Authorization: Bearer <supabase_access_token>
 // External/server header: x-api-key: <MAIL_API_KEY>
 //
@@ -28,9 +30,7 @@ const { simpleParser } = require('mailparser');
 const { createClient } = require('@supabase/supabase-js');
 
 const ALLOWED_DOMAINS = ['@icloud.com', '@nkstore.io.vn'];
-const MAX_MESSAGES = 40;      // envelope-only scan window (cheap)
-const MAX_CANDIDATES = 12;    // full-source downloads at most
-const PROVIDER_HINT = /facebook|meta|shopee|tiktok|bytedance/i;
+const MAX_MESSAGES = 100;
 
 // Public project identifiers. These are already present in index.html.
 // Optional env values can override them later without changing source.
@@ -53,6 +53,13 @@ const supabaseAuth = createClient(
     },
   }
 );
+
+const SUPABASE_SERVICE_ROLE_KEY = String(process.env.SUPABASE_SERVICE_ROLE_KEY || '');
+const supabaseAdmin = SUPABASE_SERVICE_ROLE_KEY ? createClient(
+  SUPABASE_URL,
+  SUPABASE_SERVICE_ROLE_KEY,
+  { auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false} }
+) : null;
 
 function normalize(value) {
   return String(value || '').trim().toLowerCase();
@@ -122,22 +129,6 @@ function extractOtp(text = '', provider = 'unknown') {
     /(?:confirmation\s*code|verification\s*code|security\s*code|verify\s*code|login\s*code|one[-\s]*time\s*(?:password|code)|otp|mã\s*xác\s*nhận|mã\s*xác\s*minh|mã\s*bảo\s*mật|mã\s*otp)[^\d]{0,120}(\d{4,8})/i,
     /(\d{4,8})[^\d]{0,120}(?:confirmation\s*code|verification\s*code|security\s*code|login\s*code|otp|mã\s*xác\s*nhận|mã\s*xác\s*minh|mã\s*bảo\s*mật)/i,
   ];
-
-  // MAIL-1.4.5: TikTok (VN/EN). Subject: "483297 là mã gồm 6 chữ số của bạn",
-  // body: "Mã gồm 6 chữ số của bạn là: 483297". Exactly 6 digits, tied to wording,
-  // so the "Thời gian: Oct 30, 2026 6:38 AM PDT" line is never taken as a code.
-  const tiktok = [
-    /(?<!\d)(\d{6})(?!\d)\s*(?:là\s*)?mã\s*gồm\s*6\s*chữ\s*số/i,
-    /mã\s*gồm\s*6\s*chữ\s*số[^\d]{0,80}?(?<!\d)(\d{6})(?!\d)/i,
-    /(?<!\d)(\d{6})(?!\d)\s*is\s*your\s*(?:tiktok\s*)?(?:6[-\s]*digit\s*)?(?:verification\s*)?code/i,
-    /6[-\s]*digit\s*code[^\d]{0,80}?(?<!\d)(\d{6})(?!\d)/i,
-  ];
-  if (provider === 'tiktok' || provider === 'unknown') {
-    for (const pattern of tiktok) {
-      const match = source.match(pattern);
-      if (match?.[1]) return match[1];
-    }
-  }
 
   for (const pattern of contextual) {
     const match = source.match(pattern);
@@ -220,6 +211,47 @@ function pickVerificationLinks({ anchors = [] } = {}) {
   return urls;
 }
 
+
+function parseVndAmount(value = '') {
+  const digits = String(value || '').replace(/[^0-9]/g, '');
+  if (!digits) return null;
+  const n = Number(digits);
+  return Number.isFinite(n) ? n : null;
+}
+
+function extractShopeeDeliverySuccess(text = '', subject = '') {
+  const source = String(text || '').replace(/\r/g, '');
+  const all = `${String(subject || '')}\n${source}`;
+
+  if (!/(?:đã\s+được\s+giao\s+thành\s+công|giao\s+hàng\s+thành\s+công|đơn\s+hàng[^\n]{0,120}giao\s+thành\s+công)/i.test(all)) {
+    return null;
+  }
+
+  const orderMatch =
+    all.match(/(?:mã\s+đơn\s+hàng\s*:\s*|đơn\s+hàng\s+)#?([A-Z0-9][A-Z0-9_-]{5,})/i);
+
+  const deliveredDateMatch = all.match(
+    /(?:đã\s+được\s+giao\s+thành\s+công|giao\s+hàng\s+thành\s+công)(?:\s+vào)?(?:\s+ngày)?[^\d]{0,20}(\d{1,2}\/\d{1,2}\/\d{4}(?:\s+\d{1,2}:\d{2}(?::\d{2})?)?)/i
+  );
+
+  const placedAtMatch = all.match(
+    /ngày\s+đặt\s+hàng\s*:\s*(\d{1,2}\/\d{1,2}\/\d{4}(?:\s+\d{1,2}:\d{2}(?::\d{2})?)?)/i
+  );
+
+  const sellerMatch = all.match(/người\s+bán\s*:\s*([^\n]+)/i);
+  const totalMatch = all.match(/tổng\s+thanh\s+toán\s*:\s*(?:₫|đ|vnd)?\s*([\d.,]+)/i);
+
+  return {
+    status: 'delivered',
+    label: 'Đã giao thành công',
+    order_code: orderMatch ? orderMatch[1].trim() : null,
+    delivered_date: deliveredDateMatch ? deliveredDateMatch[1].trim() : null,
+    placed_at: placedAtMatch ? placedAtMatch[1].trim() : null,
+    seller: sellerMatch ? sellerMatch[1].trim() : null,
+    total_payment: totalMatch ? parseVndAmount(totalMatch[1]) : null,
+  };
+}
+
 function getRecipients(parsed) {
   const recipients = [];
 
@@ -269,6 +301,48 @@ async function authorize(req) {
   }
 }
 
+
+async function resolveRentalAccess(auth, targetEmail, requestedService, requestedRentalId) {
+  // Secret server-to-server API key keeps legacy internal access unchanged.
+  if (auth.type === 'api-key') return { enforced:false };
+  if (!targetEmail.endsWith('@icloud.com')) return { enforced:false };
+  if (!supabaseAdmin) {
+    const err = new Error('MISSING_SUPABASE_SERVICE_ROLE_KEY'); err.status=500; throw err;
+  }
+
+  const now = new Date().toISOString();
+  const { data:rental, error:rErr } = await supabaseAdmin.from('mail_rentals')
+    .select('id,user_id,email,status,started_at,expires_at')
+    .ilike('email', targetEmail)
+    .eq('status','active').gt('expires_at',now)
+    .order('id',{ascending:false}).limit(1).maybeSingle();
+  if (rErr) throw rErr;
+
+  // Not in the rental pool right now => preserve the legacy iCloud OTP flow.
+  if (!rental) return { enforced:false };
+
+  if (!auth.user || String(rental.user_id) !== String(auth.user.id)) {
+    const err=new Error('RENTAL_NOT_OWNER'); err.status=403; throw err;
+  }
+  if (requestedRentalId && Number(requestedRentalId)!==Number(rental.id)) {
+    const err=new Error('INVALID_RENTAL'); err.status=403; throw err;
+  }
+
+  const service=normalize(requestedService);
+  if (!['facebook','shopee','tiktok'].includes(service)) {
+    const err=new Error('SERVICE_REQUIRED'); err.status=403; throw err;
+  }
+
+  const {data:ent,error:sErr}=await supabaseAdmin.from('mail_rental_services')
+    .select('service,started_at,expires_at,status')
+    .eq('rental_id',rental.id).eq('service',service)
+    .eq('status','active').gt('expires_at',now).maybeSingle();
+  if(sErr) throw sErr;
+  if(!ent){ const err=new Error('SERVICE_NOT_RENTED'); err.status=403; throw err; }
+
+  return {enforced:true,rental,service,startedAt:ent.started_at,expiresAt:ent.expires_at};
+}
+
 async function findMailboxes(client) {
   const result = ['INBOX'];
 
@@ -295,7 +369,10 @@ async function findMailboxes(client) {
   return result;
 }
 
-async function searchMailbox(client, mailboxName, targetEmail) {
+async function searchMailbox(client, mailboxName, targetEmail, options = {}) {
+  const providerFilter = normalize(options.provider);
+  const minDateMs = options.minDate ? new Date(options.minDate).getTime() : 0;
+  const allowDelivery = options.allowDelivery !== false;
   let lock = null;
 
   try {
@@ -304,34 +381,20 @@ async function searchMailbox(client, mailboxName, targetEmail) {
     if (!total) return null;
 
     const start = Math.max(1, total - MAX_MESSAGES + 1);
-    // Stage 1: lightweight scan (envelope only, no body download).
-    const uids = [];
+    const messages = [];
+
     for await (const message of client.fetch(`${start}:*`, {
       uid: true,
       envelope: true,
+      source: true,
+      internalDate: true,
     })) {
-      const env = message.envelope || {};
-      const fromText = (env.from || [])
-        .map((a) => `${a?.name || ''} ${a?.address || ''}`)
-        .join(' ');
-      if (PROVIDER_HINT.test(`${fromText} ${env.subject || ''}`)) uids.push(message.uid);
+      messages.push(message);
     }
 
-    uids.sort((a, b) => b - a); // newest first
-    const candidates = uids.slice(0, MAX_CANDIDATES);
+    messages.reverse(); // newest first
 
-    // Stage 2: download full source only for likely OTP mails, stop at first hit.
-    for (const uid of candidates) {
-      let message;
-      try {
-        message = await client.fetchOne(String(uid), {
-          uid: true,
-          source: true,
-          internalDate: true,
-        }, { uid: true });
-      } catch (_) {
-        continue;
-      }
+    for (const message of messages) {
       if (!message.source) continue;
 
       let parsed;
@@ -356,6 +419,10 @@ async function searchMailbox(client, mailboxName, targetEmail) {
 
       const provider = detectProvider(parsed);
       if (!['facebook', 'shopee', 'tiktok'].includes(provider)) continue;
+      if (providerFilter && provider !== providerFilter) continue;
+
+      const msgDate = parsed.date || message.internalDate || null;
+      if (minDateMs && (!msgDate || new Date(msgDate).getTime() < minDateMs)) continue;
 
       const plainText = String(parsed.text || '');
       const htmlText = htmlToText(parsed.html);
@@ -363,9 +430,13 @@ async function searchMailbox(client, mailboxName, targetEmail) {
       const otp = extractOtp(bodyText, provider);
       const anchors = extractAnchors(parsed.html || '');
       const links = pickVerificationLinks({ anchors });
+      const delivery = provider === 'shopee'
+        ? extractShopeeDeliverySuccess(bodyText, parsed.subject || '')
+        : null;
 
-      // Do not count a normal marketing/account email as a successful OTP lookup.
-      if (!otp && !links.length) continue;
+      // Normal marketing/account email is ignored. Shopee delivery-success mail is a valid result
+      // even when it contains neither OTP nor a “TẠI ĐÂY” verification link.
+      if (!otp && !links.length && !(allowDelivery && delivery)) continue;
 
       return {
         mailbox: mailboxName,
@@ -375,9 +446,11 @@ async function searchMailbox(client, mailboxName, targetEmail) {
         from_name: parsed.from?.value?.[0]?.name || null,
         to: recipients,
         subject: parsed.subject || null,
-        date: parsed.date || message.internalDate || null,
+        date: msgDate,
         otp,
         links,
+        event_type: delivery ? 'delivery_success' : null,
+        delivery,
         text: plainText.trim().slice(0, 12000),
       };
     }
@@ -421,6 +494,33 @@ module.exports = async function handler(req, res) {
     });
   }
 
+  let rentalAccess;
+  try {
+    rentalAccess = await resolveRentalAccess(
+      auth,
+      targetEmail,
+      req.query?.service,
+      req.query?.rental_id
+    );
+  } catch (accessError) {
+    if (supabaseAdmin && auth.user) {
+      try { await supabaseAdmin.from('mail_rental_access_log').insert({
+        user_id:auth.user.id,email:targetEmail,service:normalize(req.query?.service),
+        action:'otp',allowed:false,reason:accessError.message
+      }); } catch (_) {}
+    }
+    return res.status(accessError.status || 403).json({
+      ok:false,error:accessError.message,
+      message: accessError.message==='SERVICE_NOT_RENTED'
+        ? 'Bạn chưa thuê dịch vụ này cho mail hiện tại.'
+        : accessError.message==='SERVICE_REQUIRED'
+        ? 'Mail đang được thuê. Hãy chọn đúng dịch vụ đã thuê.'
+        : accessError.message==='RENTAL_NOT_OWNER'
+        ? 'Mail này đang thuộc phiên thuê của người dùng khác.'
+        : accessError.message
+    });
+  }
+
   const user = String(process.env.ICLOUD_USER || '').trim();
   const password = String(process.env.ICLOUD_APP_PASSWORD || '').trim();
 
@@ -451,11 +551,12 @@ module.exports = async function handler(req, res) {
 
     for (const mailbox of mailboxes) {
       try {
-        const mail = await searchMailbox(client, mailbox, targetEmail);
-        if (mail) {
-          found.push(mail);
-          break; // found in INBOX -> skip Junk to save time
-        }
+        const mail = await searchMailbox(client, mailbox, targetEmail, rentalAccess?.enforced ? {
+          provider:rentalAccess.service,
+          minDate:rentalAccess.startedAt,
+          allowDelivery:false
+        } : {});
+        if (mail) found.push(mail);
       } catch (error) {
         console.error('MAILBOX_ERROR:', mailbox, error?.message || error);
       }
@@ -465,7 +566,9 @@ module.exports = async function handler(req, res) {
       return res.status(404).json({
         ok: false,
         error: 'MAIL_NOT_FOUND',
-        message: 'Chưa tìm thấy thư Facebook, Shopee hoặc TikTok mới cho email này.',
+        message: rentalAccess?.enforced
+          ? `Chưa tìm thấy OTP/link ${rentalAccess.service} mới trong thời gian thuê.`
+          : 'Chưa tìm thấy thư Facebook, Shopee hoặc TikTok mới cho email này.',
         email: targetEmail,
         searched: mailboxes,
       });
@@ -474,12 +577,24 @@ module.exports = async function handler(req, res) {
     found.sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
     const newest = found[0];
 
+    if (rentalAccess?.enforced && supabaseAdmin && auth.user) {
+      try { await supabaseAdmin.from('mail_rental_access_log').insert({
+        user_id:auth.user.id,rental_id:rentalAccess.rental.id,email:targetEmail,
+        service:rentalAccess.service,action:'otp',allowed:true,reason:'OK'
+      }); } catch (_) {}
+    }
+
     return res.status(200).json({
       ok: true,
       requested_email: targetEmail,
+      rental_mode: !!rentalAccess?.enforced,
+      rented_service: rentalAccess?.enforced ? rentalAccess.service : null,
+      service_expires_at: rentalAccess?.enforced ? rentalAccess.expiresAt : null,
       provider: newest.provider,
       otp: newest.otp,
       links: newest.links,
+      event_type: newest.event_type || null,
+      delivery: newest.delivery || null,
       mail: newest,
     });
   } catch (error) {
