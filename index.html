@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- NK MMO Store V28.8.5 - Integrated Mail Rental; preserves existing index and adds /mail-rental-v28.8.5.js -->
+<!-- NK MMO Store V28.8.8 - Mail Rental Price 500/1200/2000 + Wallet Billing -->
 <!-- NK MMO Store V28.7.10 - Fix legacy /api/otp parallel link: allow valid OTP/link from legacy source to win for @icloud.com; keep all V28.7.9 UI/order/OCR/cookie/tracking logic unchanged | Clean OTP guide UI + Shopee CTA link extraction + OTP no-billing: Shopee/Facebook/TikTok do not deduct wallet balance; keep iCloud IMAP + legacy /api/otp flow | Cookie Display Mapping + Single Top Add Tracking + Full Detail + Auto Carrier Tracking + GHN Phone4 Auto Check | HomeProxy 61s -->
 <html lang="vi">
 <head>
@@ -10404,9 +10404,13 @@ function dpWatchDeposit(){
             .on('postgres_changes',
                 { event:'INSERT', schema:'public', table:'deposit_history', filter:'user_id=eq.' + currentUser.id },
                 function(p){
-                    var amt = (p && p.new && p.new.amount) || 0;
-                    closeDepositModal();
-                    dpToast('✅ Đã cộng ' + (typeof formatCurrency === 'function' ? formatCurrency(amt) : amt) + ' vào ví', 4000);
+                    var amt = Number((p && p.new && p.new.amount) || 0);
+                    if(amt < 0){
+                        dpToast('💳 Đã trừ ' + (typeof formatCurrency === 'function' ? formatCurrency(Math.abs(amt)) : Math.abs(amt)) + ' từ ví', 4000);
+                    }else{
+                        closeDepositModal();
+                        dpToast('✅ Đã cộng ' + (typeof formatCurrency === 'function' ? formatCurrency(amt) : amt) + ' vào ví', 4000);
+                    }
                     if(typeof updateAuthUI === 'function') updateAuthUI();
                 })
             .subscribe();
@@ -10665,8 +10669,8 @@ window.showNkOrderDetail=function(orderId){
 </script>
 
 
-<!-- NK MMO Store V28.8.5 - Mail Rental integration -->
-<script src="/mail-rental-v28.8.5.js"></script>
+<!-- NK MMO Store V28.8.7 - Mail Rental + Wallet Billing + Always Visible Price -->
+<script src="/mail-rental-v28.8.8.js"></script>
 
 </body>
 </html>
