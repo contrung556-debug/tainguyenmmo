@@ -1,6 +1,6 @@
 // ============================================================
 // NK MMO STORE - ICLOUD MAIL API + RENTAL GUARD
-// VERSION: MAIL-1.6.1 - V28.8.9 HOBBY MERGED RENTAL GUARD
+// VERSION: MAIL-1.6.2 - V28.8.10 NEWEST-FIRST FAST OTP SCAN
 //
 // Purpose:
 // - Read OTP/link for @icloud.com and @nkstore.io.vn through iCloud IMAP
@@ -14,6 +14,7 @@
 // - Detect Shopee delivery-success emails and extract order details
 // - V28.8.0: active rental mail requires exact rented service; hides all other providers
 // - V28.8.0: rental mode never exposes messages older than service_started_at
+// - V28.8.10: keep MAX_MESSAGES=100, scan newest -> oldest with fetchOne(), return immediately on first valid result
 //
 // GET /api/mail?email=alias@icloud.com[&rental_id=...&service=shopee]
 // Web header: Authorization: Bearer <supabase_access_token>
@@ -380,22 +381,26 @@ async function searchMailbox(client, mailboxName, targetEmail, options = {}) {
     const total = Number(client.mailbox?.exists || 0);
     if (!total) return null;
 
+    // Keep the 100-message safety window, but do NOT download all 100 first.
+    // Sequence numbers increase with message position, so total is the newest.
+    // Fetch newest -> oldest and return immediately when a valid OTP/link/event is found.
     const start = Math.max(1, total - MAX_MESSAGES + 1);
-    const messages = [];
 
-    for await (const message of client.fetch(`${start}:*`, {
-      uid: true,
-      envelope: true,
-      source: true,
-      internalDate: true,
-    })) {
-      messages.push(message);
-    }
+    for (let seq = total; seq >= start; seq--) {
+      let message;
+      try {
+        message = await client.fetchOne(seq, {
+          uid: true,
+          envelope: true,
+          source: true,
+          internalDate: true,
+        });
+      } catch (error) {
+        console.error('FETCH_MESSAGE_ERROR:', mailboxName, seq, error?.message || error);
+        continue;
+      }
 
-    messages.reverse(); // newest first
-
-    for (const message of messages) {
-      if (!message.source) continue;
+      if (!message?.source) continue;
 
       let parsed;
       try {
