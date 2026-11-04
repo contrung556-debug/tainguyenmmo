@@ -1,14 +1,15 @@
 // ============================================================
 // NK MMO STORE - ICLOUD MAIL API + PERSISTENT CACHE + DEVICE AUTH
-// VERSION: MAIL-1.7.0 - V28.8.11 INCREMENTAL UID CACHE
+// VERSION: MAIL-1.7.1 - V28.8.12 TIKTOK FRESH-OTP FIX
 //
 // Main changes:
 // - Seed up to 100 newest mails once per IMAP mailbox.
 // - Persist filtered OTP/link/delivery results in Supabase mail_index.
 // - Track UIDVALIDITY + last_uid separately for INBOX/Junk/Spam.
-// - After seed, fetch only new UIDs (with a small overlap for resilience).
+// - After seed, fetch new UIDs and revisit 20 recent UIDs for recovery.
 // - Atomic per-mailbox sync lease prevents concurrent duplicate sync.
-// - Cache-first reads: if requested OTP/link is already indexed, no IMAP call.
+// - Check iCloud before returning cached mail; recheck recent UIDs after parser fixes.
+// - Recognize Vietnamese TikTok OTP subjects and reject expired TikTok codes.
 // - AutoTouch uses revocable x-device-key, NOT MAIL_API_KEY.
 // - Master x-api-key remains server/internal only and preserves legacy bypass.
 // - Web users still authenticate with Supabase Bearer token.
@@ -29,9 +30,11 @@ const { createClient } = require('@supabase/supabase-js');
 const ALLOWED_DOMAINS = ['@icloud.com', '@nkstore.io.vn'];
 const ALLOWED_PROVIDERS = ['facebook', 'shopee', 'tiktok'];
 const MAX_MESSAGES = 100;          // initial seed depth
-const UID_OVERLAP = 10;            // re-check last N UIDs for crash resilience
+const UID_OVERLAP = 20;            // re-check recent UIDs, including previously missed OTPs
 const SYNC_MIN_INTERVAL_MS = 1500; // avoid reconnecting to IMAP on every rapid poll
 const SYNC_LOCK_SECONDS = 25;
+const TIKTOK_OTP_MAX_AGE_MS = 5 * 60 * 1000;
+const MAX_FUTURE_MAIL_DRIFT_MS = 60 * 1000;
 
 const SUPABASE_URL =
   process.env.SUPABASE_URL ||
@@ -117,17 +120,41 @@ function detectProvider(parsed) {
   return 'unknown';
 }
 
-function extractOtp(text = '') {
+function extractOtp(text = '', provider = '') {
   const source = String(text || '');
+  // TikTok Vietnamese notifications commonly have the code before the words
+  // "lÃ  mÃ£ gá»m 6 chá»¯ sá» cá»§a báº¡n". The older generic patterns miss that form.
+  if (provider === 'tiktok') {
+    const tiktokPatterns = [
+      /(?:^|[^\d])(\d{6})(?!\d)\s*lÃ \s+mÃ£(?:\s+gá»m)?\s+6\s+chá»¯\s+sá»/iu,
+      /(?:^|[^\d])(\d{6})(?!\d)\s*(?:is\s+your\s+(?:6[-\s]*digit\s+)?(?:verification\s+)?code)/iu,
+      /mÃ£(?:\s+gá»m)?\s+6\s+chá»¯\s+sá»(?:\s+cá»§a\s+báº¡n)?[^\d]{0,30}(\d{6})(?!\d)/iu,
+    ];
+    for (const pattern of tiktokPatterns) {
+      const match = source.match(pattern);
+      if (match?.[1]) return match[1];
+    }
+  }
   const contextual = [
-    /(?:confirmation\s*code|verification\s*code|security\s*code|verify\s*code|login\s*code|one[-\s]*time\s*(?:password|code)|otp|mã\s*xác\s*nhận|mã\s*xác\s*minh|mã\s*bảo\s*mật|mã\s*otp)[^\d]{0,120}(\d{4,8})/i,
-    /(\d{4,8})[^\d]{0,120}(?:confirmation\s*code|verification\s*code|security\s*code|login\s*code|otp|mã\s*xác\s*nhận|mã\s*xác\s*minh|mã\s*bảo\s*mật)/i,
+    /(?:confirmation\s*code|verification\s*code|security\s*code|verify\s*code|login\s*code|one[-\s]*time\s*(?:password|code)|otp|mÃ£\s*xÃ¡c\s*nháº­n|mÃ£\s*xÃ¡c\s*minh|mÃ£\s*báº£o\s*máº­t|mÃ£\s*otp)[^\d]{0,120}(\d{4,8})(?!\d)/i,
+    /(\d{4,8})(?!\d)[^\d]{0,120}(?:confirmation\s*code|verification\s*code|security\s*code|login\s*code|otp|mÃ£\s*xÃ¡c\s*nháº­n|mÃ£\s*xÃ¡c\s*minh|mÃ£\s*báº£o\s*máº­t)/i,
   ];
   for (const pattern of contextual) {
     const match = source.match(pattern);
     if (match?.[1]) return match[1];
   }
   return null;
+}
+
+function getReceivedDate(message, parsed) {
+  // IMAP INTERNALDATE is set by the receiving server. The message's Date
+  // header is sender-controlled and may be incorrectly in the future.
+  for (const value of [message?.internalDate, parsed?.date]) {
+    if (!value) continue;
+    const date = new Date(value);
+    if (Number.isFinite(date.getTime())) return date.toISOString();
+  }
+  return new Date().toISOString();
 }
 
 function decodeHtmlEntities(value = '') {
@@ -175,7 +202,7 @@ function pickVerificationLinks({ anchors = [] } = {}) {
     const url = String(item?.href || '').trim();
     const label = normalizeAnchorLabel(item?.label || '');
     if (!/^https?:\/\//i.test(url)) continue;
-    if (label !== 'tại đây') continue;
+    if (label !== 'táº¡i ÄÃ¢y') continue;
     if (!urls.includes(url)) urls.push(url);
     if (urls.length >= 5) break;
   }
@@ -193,21 +220,21 @@ function extractShopeeDeliverySuccess(text = '', subject = '') {
   const source = String(text || '').replace(/\r/g, '');
   const all = `${String(subject || '')}\n${source}`;
 
-  if (!/(?:đã\s+được\s+giao\s+thành\s+công|giao\s+hàng\s+thành\s+công|đơn\s+hàng[^\n]{0,120}giao\s+thành\s+công)/i.test(all)) {
+  if (!/(?:ÄÃ£\s+ÄÆ°á»£c\s+giao\s+thÃ nh\s+cÃ´ng|giao\s+hÃ ng\s+thÃ nh\s+cÃ´ng|ÄÆ¡n\s+hÃ ng[^\n]{0,120}giao\s+thÃ nh\s+cÃ´ng)/i.test(all)) {
     return null;
   }
 
-  const orderMatch = all.match(/(?:mã\s+đơn\s+hàng\s*:\s*|đơn\s+hàng\s+)#?([A-Z0-9][A-Z0-9_-]{5,})/i);
+  const orderMatch = all.match(/(?:mÃ£\s+ÄÆ¡n\s+hÃ ng\s*:\s*|ÄÆ¡n\s+hÃ ng\s+)#?([A-Z0-9][A-Z0-9_-]{5,})/i);
   const deliveredDateMatch = all.match(
-    /(?:đã\s+được\s+giao\s+thành\s+công|giao\s+hàng\s+thành\s+công)(?:\s+vào)?(?:\s+ngày)?[^\d]{0,20}(\d{1,2}\/\d{1,2}\/\d{4}(?:\s+\d{1,2}:\d{2}(?::\d{2})?)?)/i
+    /(?:ÄÃ£\s+ÄÆ°á»£c\s+giao\s+thÃ nh\s+cÃ´ng|giao\s+hÃ ng\s+thÃ nh\s+cÃ´ng)(?:\s+vÃ o)?(?:\s+ngÃ y)?[^\d]{0,20}(\d{1,2}\/\d{1,2}\/\d{4}(?:\s+\d{1,2}:\d{2}(?::\d{2})?)?)/i
   );
-  const placedAtMatch = all.match(/ngày\s+đặt\s+hàng\s*:\s*(\d{1,2}\/\d{1,2}\/\d{4}(?:\s+\d{1,2}:\d{2}(?::\d{2})?)?)/i);
-  const sellerMatch = all.match(/người\s+bán\s*:\s*([^\n]+)/i);
-  const totalMatch = all.match(/tổng\s+thanh\s+toán\s*:\s*(?:₫|đ|vnd)?\s*([\d.,]+)/i);
+  const placedAtMatch = all.match(/ngÃ y\s+Äáº·t\s+hÃ ng\s*:\s*(\d{1,2}\/\d{1,2}\/\d{4}(?:\s+\d{1,2}:\d{2}(?::\d{2})?)?)/i);
+  const sellerMatch = all.match(/ngÆ°á»i\s+bÃ¡n\s*:\s*([^\n]+)/i);
+  const totalMatch = all.match(/tá»ng\s+thanh\s+toÃ¡n\s*:\s*(?:â«|Ä|vnd)?\s*([\d.,]+)/i);
 
   return {
     status: 'delivered',
-    label: 'Đã giao thành công',
+    label: 'ÄÃ£ giao thÃ nh cÃ´ng',
     order_code: orderMatch ? orderMatch[1].trim() : null,
     delivered_date: deliveredDateMatch ? deliveredDateMatch[1].trim() : null,
     placed_at: placedAtMatch ? placedAtMatch[1].trim() : null,
@@ -416,7 +443,7 @@ function buildIndexedMail(message, parsed, mailboxName, uidValidity) {
   const plainText = String(parsed.text || '');
   const htmlText = htmlToText(parsed.html);
   const bodyText = [parsed.subject || '', plainText, htmlText].join('\n');
-  const otp = extractOtp(bodyText);
+  const otp = extractOtp(bodyText, provider);
   const anchors = extractAnchors(parsed.html || '');
   const links = pickVerificationLinks({ anchors });
   const delivery = provider === 'shopee'
@@ -425,7 +452,7 @@ function buildIndexedMail(message, parsed, mailboxName, uidValidity) {
 
   if (!otp && !links.length && !delivery) return null;
 
-  const msgDate = parsed.date || message.internalDate || new Date();
+  const msgDate = getReceivedDate(message, parsed);
   const fromEmail = parsed.from?.value?.[0]?.address || null;
   const fromName = parsed.from?.value?.[0]?.name || null;
   const messageId = parsed.messageId || null;
@@ -433,7 +460,7 @@ function buildIndexedMail(message, parsed, mailboxName, uidValidity) {
   const dedupeBasis = messageId || [
     provider,
     normalize(fromEmail),
-    new Date(msgDate).toISOString(),
+    msgDate,
     String(parsed.subject || ''),
     otp || '',
     links.join('|'),
@@ -451,7 +478,7 @@ function buildIndexedMail(message, parsed, mailboxName, uidValidity) {
     from_email: fromEmail,
     from_name: fromName,
     subject: parsed.subject || null,
-    mail_date: new Date(msgDate).toISOString(),
+    mail_date: msgDate,
     otp,
     links,
     event_type: delivery ? 'delivery_success' : null,
@@ -690,14 +717,10 @@ async function syncMailbox(client, mailboxName, owner, force = false) {
     if (isSeed) {
       const startSeq = Math.max(1, total - MAX_MESSAGES + 1);
       range = `${startSeq}:*`;
-    } else if (newestUid <= lastUid) {
-      // UIDNEXT says no new message has been assigned since our last successful sync.
-      await updateSyncState(mailboxName, {
-        uid_validity: uidValidity,
-        last_checked_at: new Date().toISOString(),
-      });
-      return { mailbox: mailboxName, processed: 0, newestUid, lastUid };
     } else {
+      // Revisit a small UID overlap even when UIDNEXT has not advanced:
+      // a previous parser version may have skipped a legitimate TikTok OTP.
+      // ImapFlow accepts { uid: '123:*' } as a search range.
       const startUid = Math.max(1, lastUid - UID_OVERLAP + 1);
       range = { uid: `${startUid}:*` };
     }
@@ -761,33 +784,29 @@ async function findCachedMail(targetEmail, options = {}) {
   let query = supabaseAdmin
     .from('mail_index')
     .select('mailbox,uid,provider,from_email,from_name,recipient_emails,subject,mail_date,otp,links,event_type,delivery,text')
-    .contains('recipient_emails', [targetEmail]);
+    .contains('recipient_emails', [targetEmail])
+    // Ignore old cached rows dated in the future by inaccurate sender clocks.
+    .lte('mail_date', new Date(Date.now() + MAX_FUTURE_MAIL_DRIFT_MS).toISOString());
 
   if (options.provider) query = query.eq('provider', normalize(options.provider));
-  if (options.minDate) query = query.gte('mail_date', options.minDate);
+  const tiktokCutoff = new Date(Date.now() - TIKTOK_OTP_MAX_AGE_MS).toISOString();
+  const minDate = options.provider === 'tiktok'
+    ? maxIsoDate(options.minDate, tiktokCutoff)
+    : options.minDate;
+  if (minDate) query = query.gte('mail_date', minDate);
   if (options.allowDelivery === false) query = query.is('event_type', null);
 
+  // With no service filter, skip expired TikTok OTPs instead of returning one.
+  // Fetch several candidates because the first one might be an expired code.
   const { data, error } = await query
     .order('mail_date', { ascending: false, nullsFirst: false })
-    .limit(1)
-    .maybeSingle();
+    .limit(20);
 
   if (error) throw error;
-  return data ? cacheRowToMail(data) : null;
-}
-
-async function isSyncFresh(maxAgeMs = SYNC_MIN_INTERVAL_MS) {
-  const { data, error } = await supabaseAdmin
-    .from('mail_sync_state')
-    .select('mailbox,last_checked_at');
-  if (error) throw error;
-  if (!Array.isArray(data) || !data.length) return false;
-  const now = Date.now();
-  return data.every((row) => {
-    if (!row.last_checked_at) return false;
-    const t = new Date(row.last_checked_at).getTime();
-    return Number.isFinite(t) && now - t <= maxAgeMs;
-  });
+  const row = (data || []).find((candidate) =>
+    candidate.provider !== 'tiktok' || !candidate.otp || candidate.mail_date >= tiktokCutoff
+  );
+  return row ? cacheRowToMail(row) : null;
 }
 
 function makeImapClient() {
@@ -814,7 +833,7 @@ function makeImapClient() {
   return client;
 }
 
-async function syncAllMailboxes() {
+async function syncAllMailboxes(force = false) {
   const client = makeImapClient();
   const owner = `${process.pid || 0}-${Date.now()}-${crypto.randomBytes(6).toString('hex')}`;
   const results = [];
@@ -823,7 +842,7 @@ async function syncAllMailboxes() {
     const mailboxes = await findMailboxes(client);
     for (const mailbox of mailboxes) {
       try {
-        results.push(await syncMailbox(client, mailbox, owner));
+        results.push(await syncMailbox(client, mailbox, owner, force));
       } catch (error) {
         console.error('MAILBOX_SYNC_ERROR:', mailbox, error?.message || error);
         results.push({ mailbox, error: error?.message || String(error) });
@@ -861,7 +880,7 @@ module.exports = async function handler(req, res) {
     return res.status(500).json({
       ok: false,
       error: 'MISSING_SUPABASE_SERVICE_ROLE_KEY',
-      message: 'Cần SUPABASE_SERVICE_ROLE_KEY để dùng mail cache/device auth.',
+      message: 'Cáº§n SUPABASE_SERVICE_ROLE_KEY Äá» dÃ¹ng mail cache/device auth.',
     });
   }
 
@@ -878,19 +897,19 @@ module.exports = async function handler(req, res) {
     return res.status(401).json({
       ok: false,
       error: auth.error || 'UNAUTHORIZED',
-      message: 'Vui lòng đăng nhập hoặc cung cấp device/server key hợp lệ.',
+      message: 'Vui lÃ²ng ÄÄng nháº­p hoáº·c cung cáº¥p device/server key há»£p lá».',
     });
   }
 
   const targetEmail = normalize(req.query?.email);
   if (!targetEmail) {
-    return res.status(400).json({ ok: false, error: 'EMAIL_REQUIRED', message: 'Thiếu email cần lấy OTP.' });
+    return res.status(400).json({ ok: false, error: 'EMAIL_REQUIRED', message: 'Thiáº¿u email cáº§n láº¥y OTP.' });
   }
   if (!ALLOWED_DOMAINS.some((domain) => targetEmail.endsWith(domain))) {
     return res.status(400).json({
       ok: false,
       error: 'INVALID_DOMAIN',
-      message: `API này chỉ đọc email ${ALLOWED_DOMAINS.join(' hoặc ')}.`,
+      message: `API nÃ y chá» Äá»c email ${ALLOWED_DOMAINS.join(' hoáº·c ')}.`,
     });
   }
 
@@ -919,11 +938,11 @@ module.exports = async function handler(req, res) {
       ok: false,
       error: accessError.message,
       message: accessError.message === 'SERVICE_NOT_RENTED'
-        ? 'Bạn chưa thuê dịch vụ này cho mail hiện tại.'
+        ? 'Báº¡n chÆ°a thuÃª dá»ch vá»¥ nÃ y cho mail hiá»n táº¡i.'
         : accessError.message === 'SERVICE_REQUIRED'
-        ? 'Mail đang được thuê. Hãy chọn đúng dịch vụ đã thuê.'
+        ? 'Mail Äang ÄÆ°á»£c thuÃª. HÃ£y chá»n ÄÃºng dá»ch vá»¥ ÄÃ£ thuÃª.'
         : accessError.message === 'RENTAL_NOT_OWNER'
-        ? 'Mail này đang thuộc phiên thuê của người dùng khác.'
+        ? 'Mail nÃ y Äang thuá»c phiÃªn thuÃª cá»§a ngÆ°á»i dÃ¹ng khÃ¡c.'
         : accessError.message,
     });
   }
@@ -939,40 +958,32 @@ module.exports = async function handler(req, res) {
   };
 
   try {
-    // Fast path: an explicit `after` match is already the requested new mail.
-    // Without `after`, only trust cache when IMAP state was checked very recently;
-    // otherwise sync first so web requests cannot stay indefinitely stale.
-    let newest = await findCachedMail(targetEmail, cacheOptions);
-    const cacheFreshEnough = newest && (explicitAfter || await isSyncFresh());
-    if (cacheFreshEnough) {
-      await logRentalAccess(auth, rentalAccess, targetEmail, effectiveProvider, true, 'CACHE_HIT');
-      return res.status(200).json({
-        ok: true,
-        source: 'cache',
-        requested_email: targetEmail,
-        rental_mode: !!rentalAccess?.enforced,
-        rented_service: rentalAccess?.enforced ? rentalAccess.service : null,
-        service_expires_at: rentalAccess?.enforced ? rentalAccess.expiresAt : null,
-        provider: newest.provider,
-        otp: newest.otp,
-        links: newest.links,
-        event_type: newest.event_type || null,
-        delivery: newest.delivery || null,
-        mail: newest,
+    // Always check whether iCloud has newer UIDs before consulting the cache.
+    // An explicit `after` timestamp must NEVER suppress that sync.
+    // refresh=1 bypasses the short throttle, useful for a manual "Láº¥y láº¡i OTP".
+    const forceRefresh = String(req.query?.refresh || '') === '1';
+    const sync = await syncAllMailboxes(forceRefresh);
+    const incomplete = sync.results.filter((item) =>
+      item.error || item.failedUid || item.skipped === 'locked'
+    );
+    if (incomplete.length) {
+      res.setHeader('Retry-After', '2');
+      return res.status(503).json({
+        ok: false,
+        error: 'MAIL_SYNC_INCOMPLETE',
+        message: 'Äang Äá»ng bá» hoáº·c gáº·p lá»i Äá»c mail; thá»­ láº¡i sau Äá» trÃ¡nh tráº£ OTP cÅ©.',
+        sync: sync.results,
       });
     }
 
-    // Cache miss: check iCloud incrementally. First ever call seeds newest 100.
-    const sync = await syncAllMailboxes();
-
-    newest = await findCachedMail(targetEmail, cacheOptions);
+    const newest = await findCachedMail(targetEmail, cacheOptions);
     if (!newest) {
       return res.status(404).json({
         ok: false,
         error: 'MAIL_NOT_FOUND',
         message: rentalAccess?.enforced
-          ? `Chưa tìm thấy OTP/link ${rentalAccess.service} mới trong thời gian thuê.`
-          : 'Chưa tìm thấy thư Facebook, Shopee hoặc TikTok phù hợp cho email này.',
+          ? `ChÆ°a tÃ¬m tháº¥y OTP/link ${rentalAccess.service} má»i trong thá»i gian thuÃª.`
+          : 'ChÆ°a tÃ¬m tháº¥y thÆ° Facebook, Shopee hoáº·c TikTok phÃ¹ há»£p cho email nÃ y.',
         email: targetEmail,
         after: effectiveMinDate,
         searched: sync.mailboxes,
@@ -1001,7 +1012,7 @@ module.exports = async function handler(req, res) {
     return res.status(error?.status || 500).json({
       ok: false,
       error: code,
-      message: error?.message || 'Không thể đồng bộ mail.',
+      message: error?.message || 'KhÃ´ng thá» Äá»ng bá» mail.',
     });
   }
 };
