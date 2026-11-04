@@ -1,15 +1,16 @@
 // ============================================================
 // NK MMO STORE - ICLOUD MAIL API + PERSISTENT CACHE + DEVICE AUTH
-// VERSION: MAIL-1.7.1 - V28.8.12 TIKTOK FRESH-OTP FIX
+// VERSION: MAIL-1.7.2 - V28.8.13 TIKTOK SYNC DIAGNOSTICS
 //
 // Main changes:
 // - Seed up to 100 newest mails once per IMAP mailbox.
 // - Persist filtered OTP/link/delivery results in Supabase mail_index.
 // - Track UIDVALIDITY + last_uid separately for INBOX/Junk/Spam.
-// - After seed, fetch new UIDs and revisit 20 recent UIDs for recovery.
+// - After seed, fetch only new UIDs. Rescan recent UIDs on demand/cache miss.
 // - Atomic per-mailbox sync lease prevents concurrent duplicate sync.
-// - Check iCloud before returning cached mail; recheck recent UIDs after parser fixes.
+// - Check iCloud before cache; retry a bounded recovery scan when OTP is missing.
 // - Recognize Vietnamese TikTok OTP subjects and reject expired TikTok codes.
+// - Safely diagnose header filters, cache misses and incomplete IMAP sync.
 // - AutoTouch uses revocable x-device-key, NOT MAIL_API_KEY.
 // - Master x-api-key remains server/internal only and preserves legacy bypass.
 // - Web users still authenticate with Supabase Bearer token.
@@ -30,7 +31,9 @@ const { createClient } = require('@supabase/supabase-js');
 const ALLOWED_DOMAINS = ['@icloud.com', '@nkstore.io.vn'];
 const ALLOWED_PROVIDERS = ['facebook', 'shopee', 'tiktok'];
 const MAX_MESSAGES = 100;          // initial seed depth
-const UID_OVERLAP = 20;            // re-check recent UIDs, including previously missed OTPs
+const UID_OVERLAP = 3;             // quick incremental recovery on new messages
+const RECOVERY_MESSAGES = 40;       // deeper recheck only on refresh/cache miss
+const MAIL_VERSION = 'MAIL-1.7.2';
 const SYNC_MIN_INTERVAL_MS = 1500; // avoid reconnecting to IMAP on every rapid poll
 const SYNC_LOCK_SECONDS = 25;
 const TIKTOK_OTP_MAX_AGE_MS = 5 * 60 * 1000;
@@ -574,16 +577,20 @@ async function processMessage(message, mailboxName, uidValidity) {
 
 
 async function quickHeaderCandidate(message) {
-  if (!message?.headers) return false;
+  // At the header stage, only decide whether the sender might be a supported
+  // provider. Do NOT require an address match yet: iCloud aliases/forwarded
+  // messages may hide their original recipient until the full MIME is parsed.
+  // Recipient ownership is still checked in buildIndexedMail before storage.
+  if (!message?.headers) return true; // fail-open for this cheap prefilter
   try {
     const parsed = await simpleParser(message.headers);
     const provider = detectProvider(parsed);
-    if (!ALLOWED_PROVIDERS.includes(provider)) return false;
-    const recipients = getRecipients(parsed, message.headers.toString('utf8'));
-    return recipients.length > 0;
+    if (ALLOWED_PROVIDERS.includes(provider)) return true;
+    // Unrecognized From/Subject? Other headers sometimes preserve TikTok name.
+    const raw = message.headers.toString('utf8').toLowerCase();
+    return /tiktok|bytedance|shopee|facebook|facebookmail\.com/.test(raw);
   } catch (_) {
-    // If header parsing is weird, fetch the source rather than risk missing a valid OTP.
-    return true;
+    return true; // fetch source instead of silently dropping a legitimate code
   }
 }
 
@@ -709,18 +716,23 @@ async function syncMailbox(client, mailboxName, owner, force = false) {
       return { mailbox: mailboxName, seeded: lastUid === 0, processed: 0, newestUid: 0 };
     }
 
-    // First seed/reset: scan only the newest MAX_MESSAGES by sequence number.
-    // Incremental: fetch UIDs from last_uid-overlap through newest.
+    // Initial seed scans the latest 100 by sequence number.
+    // Forced recovery scans the latest 40 by sequence number too: it works even
+    // if UID gaps are large or a previous parser marked a message processed.
+    // Ordinary requests scan only NEW UIDs, avoiding slow IMAP/DB reprocessing.
     let range;
-    let isSeed = lastUid === 0;
-
-    if (isSeed) {
-      const startSeq = Math.max(1, total - MAX_MESSAGES + 1);
+    const isSeed = lastUid === 0;
+    if (isSeed || force) {
+      const count = isSeed ? MAX_MESSAGES : RECOVERY_MESSAGES;
+      const startSeq = Math.max(1, total - count + 1);
       range = `${startSeq}:*`;
+    } else if (newestUid <= lastUid) {
+      await updateSyncState(mailboxName, {
+        uid_validity: uidValidity,
+        last_checked_at: new Date().toISOString(),
+      });
+      return { mailbox: mailboxName, processed: 0, newestUid, lastUid };
     } else {
-      // Revisit a small UID overlap even when UIDNEXT has not advanced:
-      // a previous parser version may have skipped a legitimate TikTok OTP.
-      // ImapFlow accepts { uid: '123:*' } as a search range.
       const startUid = Math.max(1, lastUid - UID_OVERLAP + 1);
       range = { uid: `${startUid}:*` };
     }
@@ -871,6 +883,7 @@ async function logRentalAccess(auth, rentalAccess, targetEmail, service, allowed
 
 module.exports = async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+  res.setHeader('X-NKMail-Version', MAIL_VERSION);
 
   if (req.method !== 'GET') {
     return res.status(405).json({ ok: false, error: 'METHOD_NOT_ALLOWED' });
@@ -958,34 +971,64 @@ module.exports = async function handler(req, res) {
   };
 
   try {
-    // Always check whether iCloud has newer UIDs before consulting the cache.
-    // An explicit `after` timestamp must NEVER suppress that sync.
-    // refresh=1 bypasses the short throttle, useful for a manual "Láº¥y láº¡i OTP".
+    // Always query IMAP for new UIDs before selecting a cached OTP.
+    // refresh=1 forces deeper reprocessing of recent messages.
     const forceRefresh = String(req.query?.refresh || '') === '1';
-    const sync = await syncAllMailboxes(forceRefresh);
-    const incomplete = sync.results.filter((item) =>
+    let sync = await syncAllMailboxes(forceRefresh);
+    let incomplete = sync.results.filter((item) =>
       item.error || item.failedUid || item.skipped === 'locked'
     );
     if (incomplete.length) {
+      console.warn('MAIL_SYNC_INCOMPLETE:', incomplete.map(({ mailbox, error, failedUid, skipped }) =>
+        ({ mailbox, error, failedUid, skipped })));
       res.setHeader('Retry-After', '2');
       return res.status(503).json({
         ok: false,
+        version: MAIL_VERSION,
         error: 'MAIL_SYNC_INCOMPLETE',
-        message: 'Äang Äá»ng bá» hoáº·c gáº·p lá»i Äá»c mail; thá»­ láº¡i sau Äá» trÃ¡nh tráº£ OTP cÅ©.',
+        message: 'IMAP Äang Äá»ng bá» hoáº·c gáº·p lá»i. Thá»­ láº¡i sau 2 giÃ¢y.',
         sync: sync.results,
       });
     }
 
-    const newest = await findCachedMail(targetEmail, cacheOptions);
+    let newest = await findCachedMail(targetEmail, cacheOptions);
+    // The old parser could have skipped a TikTok OTP and advanced last_uid.
+    // If nothing is indexed yet, retry a bounded recovery scan once.
+    if (!newest && !forceRefresh) {
+      sync = await syncAllMailboxes(true);
+      incomplete = sync.results.filter((item) =>
+        item.error || item.failedUid || item.skipped === 'locked'
+      );
+      if (incomplete.length) {
+        res.setHeader('Retry-After', '2');
+        return res.status(503).json({
+          ok: false,
+          version: MAIL_VERSION,
+          error: 'MAIL_RECOVERY_INCOMPLETE',
+          message: 'ChÆ°a hoÃ n thÃ nh quÃ©t phá»¥c há»i OTP, hÃ£y thá»­ láº¡i.',
+          sync: sync.results,
+        });
+      }
+      newest = await findCachedMail(targetEmail, cacheOptions);
+    }
     if (!newest) {
+      // Diagnostics reveal whether we saw candidates, with no OTP or raw body.
+      console.warn('MAIL_NOT_FOUND:', {
+        provider: effectiveProvider || 'any',
+        afterApplied: !!effectiveMinDate,
+        sync: sync.results.map(({ mailbox, processed, relevant, candidates, error }) =>
+          ({ mailbox, processed, relevant, candidates, error })),
+      });
       return res.status(404).json({
         ok: false,
+        version: MAIL_VERSION,
         error: 'MAIL_NOT_FOUND',
         message: rentalAccess?.enforced
           ? `ChÆ°a tÃ¬m tháº¥y OTP/link ${rentalAccess.service} má»i trong thá»i gian thuÃª.`
-          : 'ChÆ°a tÃ¬m tháº¥y thÆ° Facebook, Shopee hoáº·c TikTok phÃ¹ há»£p cho email nÃ y.',
+          : 'ChÆ°a cÃ³ mÃ£ OTP há»£p lá» cÃ²n háº¡n cho email/dá»ch vá»¥ nÃ y.',
         email: targetEmail,
         after: effectiveMinDate,
+        provider_filter: effectiveProvider,
         searched: sync.mailboxes,
         sync: sync.results,
       });
@@ -995,6 +1038,7 @@ module.exports = async function handler(req, res) {
     return res.status(200).json({
       ok: true,
       source: 'sync',
+      version: MAIL_VERSION,
       requested_email: targetEmail,
       rental_mode: !!rentalAccess?.enforced,
       rented_service: rentalAccess?.enforced ? rentalAccess.service : null,
