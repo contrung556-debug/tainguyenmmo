@@ -1,6 +1,8 @@
 // ============================================================
 // NK MMO STORE - ICLOUD MAIL API + PERSISTENT CACHE + DEVICE AUTH
-// VERSION: MAIL-1.7.2 - V28.8.13 TIKTOK SYNC DIAGNOSTICS
+// Encoding: ASCII-only source; Vietnamese patterns use Unicode escapes.
+// This protects regular expressions from corrupted UTF-8 copy/paste.
+// VERSION: MAIL-1.7.4 - V28.8.15 ASCII-SAFE TIKTOK OTP
 //
 // Main changes:
 // - Seed up to 100 newest mails once per IMAP mailbox.
@@ -11,6 +13,8 @@
 // - Check iCloud before cache; retry a bounded recovery scan when OTP is missing.
 // - Recognize Vietnamese TikTok OTP subjects and reject expired TikTok codes.
 // - Safely diagnose header filters, cache misses and incomplete IMAP sync.
+// - Scan Inbox and every discoverable Junk/Spam folder (including localized names).
+// - Fail explicitly if folder listing fails; never silently skip Spam.
 // - AutoTouch uses revocable x-device-key, NOT MAIL_API_KEY.
 // - Master x-api-key remains server/internal only and preserves legacy bypass.
 // - Web users still authenticate with Supabase Bearer token.
@@ -33,7 +37,7 @@ const ALLOWED_PROVIDERS = ['facebook', 'shopee', 'tiktok'];
 const MAX_MESSAGES = 100;          // initial seed depth
 const UID_OVERLAP = 3;             // quick incremental recovery on new messages
 const RECOVERY_MESSAGES = 40;       // deeper recheck only on refresh/cache miss
-const MAIL_VERSION = 'MAIL-1.7.2';
+const MAIL_VERSION = 'MAIL-1.7.4';
 const SYNC_MIN_INTERVAL_MS = 1500; // avoid reconnecting to IMAP on every rapid poll
 const SYNC_LOCK_SECONDS = 25;
 const TIKTOK_OTP_MAX_AGE_MS = 5 * 60 * 1000;
@@ -126,12 +130,12 @@ function detectProvider(parsed) {
 function extractOtp(text = '', provider = '') {
   const source = String(text || '');
   // TikTok Vietnamese notifications commonly have the code before the words
-  // "lÃ  mÃ£ gá»m 6 chá»¯ sá» cá»§a báº¡n". The older generic patterns miss that form.
+  // "l\u00E0 m\u00E3 g\u1ED3m 6 ch\u1EEF s\u1ED1 c\u1EE7a b\u1EA1n". The older generic patterns miss that form.
   if (provider === 'tiktok') {
     const tiktokPatterns = [
-      /(?:^|[^\d])(\d{6})(?!\d)\s*lÃ \s+mÃ£(?:\s+gá»m)?\s+6\s+chá»¯\s+sá»/iu,
+      /(?:^|[^\d])(\d{6})(?!\d)\s*l\u00E0\s+m\u00E3(?:\s+g\u1ED3m)?\s+6\s+ch\u1EEF\s+s\u1ED1/iu,
       /(?:^|[^\d])(\d{6})(?!\d)\s*(?:is\s+your\s+(?:6[-\s]*digit\s+)?(?:verification\s+)?code)/iu,
-      /mÃ£(?:\s+gá»m)?\s+6\s+chá»¯\s+sá»(?:\s+cá»§a\s+báº¡n)?[^\d]{0,30}(\d{6})(?!\d)/iu,
+      /m\u00E3(?:\s+g\u1ED3m)?\s+6\s+ch\u1EEF\s+s\u1ED1(?:\s+c\u1EE7a\s+b\u1EA1n)?[^\d]{0,30}(\d{6})(?!\d)/iu,
     ];
     for (const pattern of tiktokPatterns) {
       const match = source.match(pattern);
@@ -139,8 +143,8 @@ function extractOtp(text = '', provider = '') {
     }
   }
   const contextual = [
-    /(?:confirmation\s*code|verification\s*code|security\s*code|verify\s*code|login\s*code|one[-\s]*time\s*(?:password|code)|otp|mÃ£\s*xÃ¡c\s*nháº­n|mÃ£\s*xÃ¡c\s*minh|mÃ£\s*báº£o\s*máº­t|mÃ£\s*otp)[^\d]{0,120}(\d{4,8})(?!\d)/i,
-    /(\d{4,8})(?!\d)[^\d]{0,120}(?:confirmation\s*code|verification\s*code|security\s*code|login\s*code|otp|mÃ£\s*xÃ¡c\s*nháº­n|mÃ£\s*xÃ¡c\s*minh|mÃ£\s*báº£o\s*máº­t)/i,
+    /(?:confirmation\s*code|verification\s*code|security\s*code|verify\s*code|login\s*code|one[-\s]*time\s*(?:password|code)|otp|m\u00E3\s*x\u00E1c\s*nh\u1EADn|m\u00E3\s*x\u00E1c\s*minh|m\u00E3\s*b\u1EA3o\s*m\u1EADt|m\u00E3\s*otp)[^\d]{0,120}(\d{4,8})(?!\d)/i,
+    /(\d{4,8})(?!\d)[^\d]{0,120}(?:confirmation\s*code|verification\s*code|security\s*code|login\s*code|otp|m\u00E3\s*x\u00E1c\s*nh\u1EADn|m\u00E3\s*x\u00E1c\s*minh|m\u00E3\s*b\u1EA3o\s*m\u1EADt)/i,
   ];
   for (const pattern of contextual) {
     const match = source.match(pattern);
@@ -205,7 +209,7 @@ function pickVerificationLinks({ anchors = [] } = {}) {
     const url = String(item?.href || '').trim();
     const label = normalizeAnchorLabel(item?.label || '');
     if (!/^https?:\/\//i.test(url)) continue;
-    if (label !== 'táº¡i ÄÃ¢y') continue;
+    if (label !== 't\u1EA1i \u0111\u00E2y') continue;
     if (!urls.includes(url)) urls.push(url);
     if (urls.length >= 5) break;
   }
@@ -223,21 +227,21 @@ function extractShopeeDeliverySuccess(text = '', subject = '') {
   const source = String(text || '').replace(/\r/g, '');
   const all = `${String(subject || '')}\n${source}`;
 
-  if (!/(?:ÄÃ£\s+ÄÆ°á»£c\s+giao\s+thÃ nh\s+cÃ´ng|giao\s+hÃ ng\s+thÃ nh\s+cÃ´ng|ÄÆ¡n\s+hÃ ng[^\n]{0,120}giao\s+thÃ nh\s+cÃ´ng)/i.test(all)) {
+  if (!/(?:\u0111\u00E3\s+\u0111\u01B0\u1EE3c\s+giao\s+th\u00E0nh\s+c\u00F4ng|giao\s+h\u00E0ng\s+th\u00E0nh\s+c\u00F4ng|\u0111\u01A1n\s+h\u00E0ng[^\n]{0,120}giao\s+th\u00E0nh\s+c\u00F4ng)/i.test(all)) {
     return null;
   }
 
-  const orderMatch = all.match(/(?:mÃ£\s+ÄÆ¡n\s+hÃ ng\s*:\s*|ÄÆ¡n\s+hÃ ng\s+)#?([A-Z0-9][A-Z0-9_-]{5,})/i);
+  const orderMatch = all.match(/(?:m\u00E3\s+\u0111\u01A1n\s+h\u00E0ng\s*:\s*|\u0111\u01A1n\s+h\u00E0ng\s+)#?([A-Z0-9][A-Z0-9_-]{5,})/i);
   const deliveredDateMatch = all.match(
-    /(?:ÄÃ£\s+ÄÆ°á»£c\s+giao\s+thÃ nh\s+cÃ´ng|giao\s+hÃ ng\s+thÃ nh\s+cÃ´ng)(?:\s+vÃ o)?(?:\s+ngÃ y)?[^\d]{0,20}(\d{1,2}\/\d{1,2}\/\d{4}(?:\s+\d{1,2}:\d{2}(?::\d{2})?)?)/i
+    /(?:\u0111\u00E3\s+\u0111\u01B0\u1EE3c\s+giao\s+th\u00E0nh\s+c\u00F4ng|giao\s+h\u00E0ng\s+th\u00E0nh\s+c\u00F4ng)(?:\s+v\u00E0o)?(?:\s+ng\u00E0y)?[^\d]{0,20}(\d{1,2}\/\d{1,2}\/\d{4}(?:\s+\d{1,2}:\d{2}(?::\d{2})?)?)/i
   );
-  const placedAtMatch = all.match(/ngÃ y\s+Äáº·t\s+hÃ ng\s*:\s*(\d{1,2}\/\d{1,2}\/\d{4}(?:\s+\d{1,2}:\d{2}(?::\d{2})?)?)/i);
-  const sellerMatch = all.match(/ngÆ°á»i\s+bÃ¡n\s*:\s*([^\n]+)/i);
-  const totalMatch = all.match(/tá»ng\s+thanh\s+toÃ¡n\s*:\s*(?:â«|Ä|vnd)?\s*([\d.,]+)/i);
+  const placedAtMatch = all.match(/ng\u00E0y\s+\u0111\u1EB7t\s+h\u00E0ng\s*:\s*(\d{1,2}\/\d{1,2}\/\d{4}(?:\s+\d{1,2}:\d{2}(?::\d{2})?)?)/i);
+  const sellerMatch = all.match(/ng\u01B0\u1EDDi\s+b\u00E1n\s*:\s*([^\n]+)/i);
+  const totalMatch = all.match(/t\u1ED5ng\s+thanh\s+to\u00E1n\s*:\s*(?:\u20AB|\u0111|vnd)?\s*([\d.,]+)/i);
 
   return {
     status: 'delivered',
-    label: 'ÄÃ£ giao thÃ nh cÃ´ng',
+    label: '\u0110\u00E3 giao th\u00E0nh c\u00F4ng',
     order_code: orderMatch ? orderMatch[1].trim() : null,
     delivered_date: deliveredDateMatch ? deliveredDateMatch[1].trim() : null,
     placed_at: placedAtMatch ? placedAtMatch[1].trim() : null,
@@ -412,25 +416,70 @@ async function resolveRentalAccess(auth, targetEmail, requestedService, requeste
   return { enforced: true, rental, service, startedAt: ent.started_at, expiresAt: ent.expires_at };
 }
 
+// Discover junk via IMAP special-use first, then exact known names as fallback.
+// IMPORTANT: Do not infer a Spam folder that the server did not list.
+function isJunkMailbox(mailbox) {
+  const specialUse = String(mailbox?.specialUse || '').toLowerCase();
+  if (specialUse === '\\junk' || specialUse === '\\spam') return true;
+
+  const normalized = String(mailbox?.name || mailbox?.path || '')
+    .normalize('NFD')
+    .replace(/[\u01B0\u01AF]/g, 'u')
+    .replace(/[\u01A1\u01A0]/g, 'o')
+    .replace(/[\u0111\u0110]/g, 'd')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim();
+  const matchesName = (name) => /^(?:junk|spam|junk[ -]?(?:e-?mail|mail)|bulk[ -]?mail|thu[ -]?rac|courrier indesirable|indesirables|correo no deseado|unerwunscht|\u5783\u573E\u90AE\u4EF6)$/.test(name);
+  if (matchesName(normalized)) return true;
+
+  // Nested folder path e.g. \"[Gmail]/Spam\" or \"Mail/Junk\", where mailbox.name is missing.
+  const path = String(mailbox?.path || '')
+    .normalize('NFD')
+    .replace(/[\u01B0\u01AF]/g, 'u')
+    .replace(/[\u01A1\u01A0]/g, 'o')
+    .replace(/[\u0111\u0110]/g, 'd')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase();
+  return path.split(/[\/\\]/).some((segment) => matchesName(segment.trim()));
+}
+
 async function findMailboxes(client) {
-  const result = ['INBOX'];
+  let listed;
   try {
-    const list = await client.list();
-    for (const mailbox of list) {
-      const specialUse = String(mailbox.specialUse || '').toLowerCase();
-      const path = String(mailbox.path || '');
-      const lowerPath = path.toLowerCase();
-      const isJunk =
-        specialUse === '\\junk' ||
-        specialUse.includes('junk') ||
-        lowerPath === 'junk' ||
-        lowerPath.includes('junk') ||
-        lowerPath.includes('spam');
-      if (isJunk && path && !result.includes(path)) result.push(path);
-    }
+    listed = await client.list();
   } catch (error) {
-    console.error('LIST_MAILBOX_ERROR:', error?.message || error);
+    // Previously this was swallowed, leaving INBOX as the only scanned folder.
+    console.error('MAIL_FOLDER_LIST_ERROR:', error?.message || error);
+    const failure = new Error('IMAP_FOLDER_LIST_FAILED');
+    failure.status = 503;
+    throw failure;
   }
+  if (!Array.isArray(listed) || listed.length === 0) {
+    const failure = new Error('IMAP_FOLDER_LIST_EMPTY');
+    failure.status = 503;
+    throw failure;
+  }
+
+  const result = [];
+  const seen = new Set();
+  const add = (name) => {
+    const path = String(name || '').trim();
+    if (!path || seen.has(path.toLowerCase())) return;
+    result.push(path);
+    seen.add(path.toLowerCase());
+  };
+  add('INBOX');
+
+  for (const mailbox of listed) {
+    const path = String(mailbox?.path || '');
+    const flags = mailbox?.flags;
+    if (flags && typeof flags.has === 'function' &&
+        (flags.has('\\Noselect') || flags.has('\\NonExistent'))) continue;
+    if (isJunkMailbox(mailbox)) add(path);
+  }
+
+  console.info('MAIL_FOLDERS_SELECTED:', result);
   return result;
 }
 
@@ -893,7 +942,7 @@ module.exports = async function handler(req, res) {
     return res.status(500).json({
       ok: false,
       error: 'MISSING_SUPABASE_SERVICE_ROLE_KEY',
-      message: 'Cáº§n SUPABASE_SERVICE_ROLE_KEY Äá» dÃ¹ng mail cache/device auth.',
+      message: 'C\u1EA7n SUPABASE_SERVICE_ROLE_KEY \u0111\u1EC3 d\u00F9ng mail cache/device auth.',
     });
   }
 
@@ -910,19 +959,19 @@ module.exports = async function handler(req, res) {
     return res.status(401).json({
       ok: false,
       error: auth.error || 'UNAUTHORIZED',
-      message: 'Vui lÃ²ng ÄÄng nháº­p hoáº·c cung cáº¥p device/server key há»£p lá».',
+      message: 'Vui l\u00F2ng \u0111\u0103ng nh\u1EADp ho\u1EB7c cung c\u1EA5p device/server key h\u1EE3p l\u1EC7.',
     });
   }
 
   const targetEmail = normalize(req.query?.email);
   if (!targetEmail) {
-    return res.status(400).json({ ok: false, error: 'EMAIL_REQUIRED', message: 'Thiáº¿u email cáº§n láº¥y OTP.' });
+    return res.status(400).json({ ok: false, error: 'EMAIL_REQUIRED', message: 'Thi\u1EBFu email c\u1EA7n l\u1EA5y OTP.' });
   }
   if (!ALLOWED_DOMAINS.some((domain) => targetEmail.endsWith(domain))) {
     return res.status(400).json({
       ok: false,
       error: 'INVALID_DOMAIN',
-      message: `API nÃ y chá» Äá»c email ${ALLOWED_DOMAINS.join(' hoáº·c ')}.`,
+      message: `API n\u00E0y ch\u1EC9 \u0111\u1ECDc email ${ALLOWED_DOMAINS.join(' ho\u1EB7c ')}.`,
     });
   }
 
@@ -951,11 +1000,11 @@ module.exports = async function handler(req, res) {
       ok: false,
       error: accessError.message,
       message: accessError.message === 'SERVICE_NOT_RENTED'
-        ? 'Báº¡n chÆ°a thuÃª dá»ch vá»¥ nÃ y cho mail hiá»n táº¡i.'
+        ? 'B\u1EA1n ch\u01B0a thu\u00EA d\u1ECBch v\u1EE5 n\u00E0y cho mail hi\u1EC7n t\u1EA1i.'
         : accessError.message === 'SERVICE_REQUIRED'
-        ? 'Mail Äang ÄÆ°á»£c thuÃª. HÃ£y chá»n ÄÃºng dá»ch vá»¥ ÄÃ£ thuÃª.'
+        ? 'Mail \u0111ang \u0111\u01B0\u1EE3c thu\u00EA. H\u00E3y ch\u1ECDn \u0111\u00FAng d\u1ECBch v\u1EE5 \u0111\u00E3 thu\u00EA.'
         : accessError.message === 'RENTAL_NOT_OWNER'
-        ? 'Mail nÃ y Äang thuá»c phiÃªn thuÃª cá»§a ngÆ°á»i dÃ¹ng khÃ¡c.'
+        ? 'Mail n\u00E0y \u0111ang thu\u1ED9c phi\u00EAn thu\u00EA c\u1EE7a ng\u01B0\u1EDDi d\u00F9ng kh\u00E1c.'
         : accessError.message,
     });
   }
@@ -986,7 +1035,7 @@ module.exports = async function handler(req, res) {
         ok: false,
         version: MAIL_VERSION,
         error: 'MAIL_SYNC_INCOMPLETE',
-        message: 'IMAP Äang Äá»ng bá» hoáº·c gáº·p lá»i. Thá»­ láº¡i sau 2 giÃ¢y.',
+        message: 'IMAP \u0111ang \u0111\u1ED3ng b\u1ED9 ho\u1EB7c g\u1EB7p l\u1ED7i. Th\u1EED l\u1EA1i sau 2 gi\u00E2y.',
         sync: sync.results,
       });
     }
@@ -1005,7 +1054,7 @@ module.exports = async function handler(req, res) {
           ok: false,
           version: MAIL_VERSION,
           error: 'MAIL_RECOVERY_INCOMPLETE',
-          message: 'ChÆ°a hoÃ n thÃ nh quÃ©t phá»¥c há»i OTP, hÃ£y thá»­ láº¡i.',
+          message: 'Ch\u01B0a ho\u00E0n th\u00E0nh qu\u00E9t ph\u1EE5c h\u1ED3i OTP, h\u00E3y th\u1EED l\u1EA1i.',
           sync: sync.results,
         });
       }
@@ -1024,8 +1073,8 @@ module.exports = async function handler(req, res) {
         version: MAIL_VERSION,
         error: 'MAIL_NOT_FOUND',
         message: rentalAccess?.enforced
-          ? `ChÆ°a tÃ¬m tháº¥y OTP/link ${rentalAccess.service} má»i trong thá»i gian thuÃª.`
-          : 'ChÆ°a cÃ³ mÃ£ OTP há»£p lá» cÃ²n háº¡n cho email/dá»ch vá»¥ nÃ y.',
+          ? `Ch\u01B0a t\u00ECm th\u1EA5y OTP/link ${rentalAccess.service} m\u1EDBi trong th\u1EDDi gian thu\u00EA.`
+          : 'Ch\u01B0a c\u00F3 m\u00E3 OTP h\u1EE3p l\u1EC7 c\u00F2n h\u1EA1n cho email/d\u1ECBch v\u1EE5 n\u00E0y.',
         email: targetEmail,
         after: effectiveMinDate,
         provider_filter: effectiveProvider,
@@ -1052,11 +1101,12 @@ module.exports = async function handler(req, res) {
     });
   } catch (error) {
     console.error('MAIL_API_ERROR:', error);
-    const code = error?.message === 'MISSING_ICLOUD_ENV' ? 'MISSING_ICLOUD_ENV' : 'MAIL_API_ERROR';
+    const code = ['MISSING_ICLOUD_ENV', 'IMAP_FOLDER_LIST_FAILED', 'IMAP_FOLDER_LIST_EMPTY'].includes(error?.message)
+      ? error.message : 'MAIL_API_ERROR';
     return res.status(error?.status || 500).json({
       ok: false,
       error: code,
-      message: error?.message || 'KhÃ´ng thá» Äá»ng bá» mail.',
+      message: error?.message || 'Kh\u00F4ng th\u1EC3 \u0111\u1ED3ng b\u1ED9 mail.',
     });
   }
 };
