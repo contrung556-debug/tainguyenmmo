@@ -377,24 +377,27 @@ async function resolveRentalAccess(auth, targetEmail, requestedService, requeste
     const err = new Error('MISSING_SUPABASE_SERVICE_ROLE_KEY'); err.status = 500; throw err;
   }
 
+  // A physical iCloud address can have multiple rental owners on different services.
+  // Never resolve ownership by email alone and NEVER fall through to unrestricted OTP.
+  const id = Number(requestedRentalId);
+  if (!Number.isSafeInteger(id) || id <= 0) {
+    const err = new Error('RENTAL_ID_REQUIRED'); err.status = 403; throw err;
+  }
+  if (!auth.user?.id) {
+    const err = new Error('RENTAL_NOT_OWNER'); err.status = 403; throw err;
+  }
   const now = new Date().toISOString();
   const { data: rental, error: rErr } = await supabaseAdmin
     .from('mail_rentals')
     .select('id,user_id,email,status,started_at,expires_at')
-    .ilike('email', targetEmail)
+    .eq('id', id)
+    .eq('user_id', auth.user.id)
     .eq('status', 'active')
     .gt('expires_at', now)
-    .order('id', { ascending: false })
-    .limit(1)
     .maybeSingle();
   if (rErr) throw rErr;
-  if (!rental) return { enforced: false };
-
-  if (!auth.user || String(rental.user_id) !== String(auth.user.id)) {
+  if (!rental || String(rental.email).trim().toLowerCase() !== targetEmail) {
     const err = new Error('RENTAL_NOT_OWNER'); err.status = 403; throw err;
-  }
-  if (requestedRentalId && Number(requestedRentalId) !== Number(rental.id)) {
-    const err = new Error('INVALID_RENTAL'); err.status = 403; throw err;
   }
 
   const service = normalize(requestedService);
