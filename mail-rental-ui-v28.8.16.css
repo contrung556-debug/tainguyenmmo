@@ -1,0 +1,111 @@
+/* NK MMO Store – Thuê Mail UI refresh v28.8.16
+   Pure presentation layer: no payment/rental/auth changes. */
+#sectionMailRental{font-family:inherit}
+#sectionMailRental .nkr-page{
+  --nk-ink:#18253b;--nk-muted:#718099;--nk-orange:#ef633e;
+  max-width:860px;margin:0 auto;padding:18px 14px 34px;
+  border-radius:24px;background:#f8fafc;
+  background-image:radial-gradient(circle at 96% 0%,#fff0e9 0,transparent 260px);
+}
+#sectionMailRental .nkr-head{grid-template-columns:44px minmax(0,1fr) 64px;gap:12px;padding:8px 2px 18px;border-bottom:1px solid #e7ebf2}
+#sectionMailRental .nkr-back{width:42px;height:42px;border-radius:14px;background:#fff;color:#27374d;border:1px solid #e4e9f1}
+#sectionMailRental .nkr-title h2{font-size:26px;line-height:1.2;font-weight:900;color:var(--nk-ink);letter-spacing:-.7px}
+#sectionMailRental .nkr-title p{font-size:12px;line-height:1.45;color:var(--nk-muted)}
+#sectionMailRental .nkr-art{height:55px}
+#sectionMailRental .nkr-step{margin:22px 2px 12px;align-items:center}
+#sectionMailRental .nkr-step-left{font-size:14px;font-weight:850;letter-spacing:.1px;color:var(--nk-ink);gap:9px}
+#sectionMailRental .nkr-num{width:29px;height:29px;border-radius:10px;font-size:14px;background:#fff0e9;color:#dc5734;box-shadow:inset 0 0 0 1px #ffd3c4}
+#sectionMailRental .nkr-dot{display:none}
+#sectionMailRental .nkr-hint{font-size:11px;line-height:1.35;max-width:46%;color:var(--nk-muted)}
+#sectionMailRental .nkr-services{gap:10px}
+#sectionMailRental .nkr-service{
+  min-height:111px;border:1.5px solid #e3e9f1;border-radius:18px;
+  background:#fff;padding:13px 7px;transition:background .18s,border-color .18s,transform .18s;
+  box-shadow:0 3px 10px rgba(24,37,59,.025)
+}
+#sectionMailRental .nkr-service:active{transform:scale(.98)}
+#sectionMailRental .nkr-service.active{border:2px solid var(--nk-orange);background:#fff9f5;box-shadow:0 7px 20px rgba(239,99,62,.09)}
+#sectionMailRental .nkr-service .nkr-iconbox{width:49px;height:49px;margin-bottom:11px;border-radius:15px;background:#f3f6fb}
+#sectionMailRental .nkr-service b{font-size:14px;color:#25334e}
+#sectionMailRental .nkr-service small{font-size:11px;color:#8290a6}
+#sectionMailRental .nkr-service .nkr-check{
+  display:none;position:absolute;right:9px;top:8px;width:20px;height:20px;background:var(--nk-orange);font-size:12px;
+}
+#sectionMailRental .nkr-service.active .nkr-check{display:grid}
+#sectionMailRental .nkr-durations{gap:9px}
+#sectionMailRental .nkr-duration{
+  min-height:74px;border:1.5px solid #e3e9f1;border-radius:16px;
+  padding:10px 7px;gap:7px;background:#fff;box-shadow:0 3px 10px rgba(24,37,59,.02)
+}
+#sectionMailRental .nkr-duration.active{border:2px solid var(--nk-orange);background:#fff9f5}
+#sectionMailRental .nkr-duration .nkr-cal{width:32px;height:35px;flex-shrink:0;border-radius:10px;font-size:16px}
+#sectionMailRental .nkr-duration strong{font-size:13px;white-space:nowrap;color:#23314a}
+#sectionMailRental .nkr-duration span{font-size:10px;color:var(--nk-muted)}
+/* Fix inherited selector bug that displayed a checkmark in all 3 duration choices */
+#sectionMailRental .nkr-duration .nkr-check{display:none!important}
+#sectionMailRental .nkr-duration.active .nkr-check{display:grid!important;right:5px;top:5px;width:17px;height:17px;font-size:11px}
+#sectionMailRental .nkr-summary{
+  margin-top:20px;background:#fff;border:1px solid #e4eaf2;border-radius:20px;
+  padding:18px 17px 14px;box-shadow:0 5px 20px rgba(24,37,59,.035)
+}
+#sectionMailRental .nkr-summary-title{font-size:14px;letter-spacing:.1px;margin-bottom:10px}
+#sectionMailRental .nkr-doc{width:30px;height:30px;border-radius:9px;background:#edf1f7;color:#52617b}
+#sectionMailRental .nkr-row{min-height:40px;font-size:13px;grid-template-columns:35% 65%}
+#sectionMailRental .nkr-row .nkr-label{color:#7b879a}
+#sectionMailRental .nkr-value{font-size:13px;color:#26334b;word-break:break-word}
+#sectionMailRental .nkr-price{color:#e65531;font-size:17px}
+#sectionMailRental .nkr-notice{
+  grid-template-columns:23px 1fr;gap:9px;margin-top:13px;padding:11px 12px;
+  border:1px solid #e8eef5;background:#f7f9fc;border-radius:12px
+}
+#sectionMailRental .nkr-info{width:22px;height:22px;background:#eaf3fd;color:#47709b;font-size:12px}
+#sectionMailRental .nkr-notice b{color:#4f6077;font-size:11px}
+#sectionMailRental .nkr-notice span{font-size:10px;color:#7d899b}
+#sectionMailRental #nkrStockCounts{
+  background:#f0faf6!important;color:#1e6649!important;border:1px solid #d5ede1!important;
+  border-radius:16px!important;padding:12px 15px!important;margin:15px 0 0!important;font-size:12px!important;line-height:1.75!important
+}
+#sectionMailRental #nkrStockCounts strong{display:block;font-size:13px;color:#28654c}
+#sectionMailRental .nkr-rent{
+  margin-top:13px;height:56px;border-radius:16px;
+  background:linear-gradient(105deg,#fb7f48,#ed5132);box-shadow:0 8px 19px rgba(237,81,50,.18);
+  font-size:17px;letter-spacing:.1px
+}
+#sectionMailRental .nkr-current{margin-top:18px;padding:15px;background:#fff;border:1px solid #e4eaf1;border-radius:19px;box-shadow:0 4px 18px rgba(24,37,59,.03)}
+#sectionMailRental .nkr-current-head{margin:0 0 12px}
+#sectionMailRental .nkr-current-head h3{font-size:15px;color:#24344a;letter-spacing:-.2px}
+#sectionMailRental .nkr-status{padding:7px 10px;font-size:11px;background:#ecf9f2}
+#sectionMailRental .nkr-mailcard{border:1px solid #e9edf2;border-radius:15px;padding:13px;box-shadow:none;background:#fbfcfe}
+#sectionMailRental .nkr-mailtext b{font-size:14px;line-height:1.4;color:#202f47}
+#sectionMailRental .nkr-mailtext small{font-size:11px}
+#sectionMailRental .nkr-copy{font-size:11px;height:auto;min-height:34px;width:65px;border-radius:10px;color:#38577b;background:#fff}
+#sectionMailRental .nkr-mailmeta{margin:11px 0 12px}
+#sectionMailRental .nkr-meta b{font-size:12px}
+#sectionMailRental .nkr-action{height:43px;border-radius:12px;background:#fff4ed;border-color:#ffd3c1;color:#d95b35;font-size:13px}
+#sectionMailRental .nkr-renew{height:43px;border-radius:12px;background:#eaf9f2;border-color:#c9ebd8;color:#138457;font-size:13px}
+#sectionMailRental .nkr-renewbox{background:#fff;border-color:#deebe3}
+#sectionMailRental .nkr-current .nkr-current{border:0;box-shadow:none}
+#sectionMailRental .nkr-service:focus-visible,#sectionMailRental .nkr-duration:focus-visible,
+#sectionMailRental button:focus-visible{outline:3px solid #88baff;outline-offset:2px}
+@media(min-width:720px){
+  #sectionMailRental .nkr-page{padding:26px 30px 40px}
+  #sectionMailRental .nkr-service{min-height:130px}
+  #sectionMailRental .nkr-duration{min-height:80px;padding:12px 16px}
+}
+@media(max-width:430px){
+  #sectionMailRental .nkr-page{padding:14px 10px 28px;border-radius:18px}
+  #sectionMailRental .nkr-head{grid-template-columns:42px 1fr 56px}
+  #sectionMailRental .nkr-title h2{font-size:24px}
+  #sectionMailRental .nkr-hint{font-size:10px;max-width:45%}
+  #sectionMailRental .nkr-services{gap:7px}
+  #sectionMailRental .nkr-service{min-height:106px;padding:11px 3px}
+  #sectionMailRental .nkr-service b{font-size:13px}
+  #sectionMailRental .nkr-durations{gap:7px}
+  #sectionMailRental .nkr-duration{min-height:69px;padding:8px 5px;gap:4px}
+  #sectionMailRental .nkr-duration .nkr-cal{width:26px;height:30px;font-size:13px}
+  #sectionMailRental .nkr-duration strong{font-size:12px}
+  #sectionMailRental .nkr-duration span{font-size:9px}
+  #sectionMailRental .nkr-summary{padding:15px 13px}
+  #sectionMailRental .nkr-row{font-size:12px}
+  #sectionMailRental .nkr-value{font-size:12px}
+}
