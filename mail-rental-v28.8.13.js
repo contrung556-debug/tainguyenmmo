@@ -15,7 +15,7 @@
   };
   const DURATIONS={7:'Ngắn hạn',30:'Phổ biến',180:'Dài hạn'};
   const DEFAULT_PRICES={7:500,30:1200,180:2000};
-  let state={service:'shopee',days:7,plans:[],rental:null,rentals:[],services:[],busy:false,renewService:null};
+  let state={service:'shopee',days:7,plans:[],rental:null,rentals:[],history:[],services:[],busy:false,renewService:null};
 
   function esc(v){return String(v??'').replace(/[&<>\"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;'}[m]||m));}
   function fmtMoney(n){return Number(n||0).toLocaleString('vi-VN')+' ₫';}
@@ -113,7 +113,7 @@
       <div class="nkr-notice"><span class="nkr-info">i</span><div><b>Mail thuê chỉ sử dụng được cho dịch vụ đã chọn</b><span>Hệ thống chỉ trả OTP/link đúng dịch vụ đang còn thời hạn thuê.</span></div></div>
     </div>
     <button type="button" class="nkr-rent" id="nkrRent"><span class="bolt">⚡</span><span>Thuê ngay</span><span class="arrow">›</span></button>
-    <div id="nkrCurrent"></div>
+    <div id="nkrCurrent"></div><div id="nkrHistory" style="margin-top:16px"></div>
     <div style="text-align:center;color:#a0a8b7;font-size:9px;margin-top:10px">NK MMO Store ${VERSION}</div>
   </div>`;}
 
@@ -155,11 +155,20 @@
     host.querySelectorAll('[data-renew-id]').forEach(b=>b.onclick=()=>confirmRenew(Number(b.dataset.renewId),b.dataset.renewService,Number(b.dataset.renewDays),b));
     host.querySelectorAll('[data-get-rental]').forEach(b=>b.onclick=()=>fetchRentalMail(Number(b.dataset.getRental),b.dataset.getService,b.dataset.getKind,b));
   }
+  function renderHistory(){
+    const host=document.getElementById('nkrHistory');if(!host)return;
+    const items=state.history||[];
+    host.innerHTML='<div class="nkr-current"><div class="nkr-current-head"><h3>🧾 Lịch sử thuê / gia hạn</h3></div>'+
+      (items.length?items.map(x=>'<div style="padding:11px 0;border-bottom:1px solid #edf0f3;font-size:12px">'+
+        '<b>'+(x.action==='renew'?'Gia hạn':'Thuê mới')+' · '+esc(SERVICES[x.service]?.name||x.service)+'</b> · '+x.days+' ngày<br>'+
+        '<span>'+esc(x.email)+'</span><br><span>'+esc(fmtDate(x.created_at))+' · '+fmtMoney(x.amount_vnd)+'</span></div>').join(''):
+        '<div class="nkr-empty">Chưa có lịch sử giao dịch.</div>')+'</div>';
+  }
   function renderAll(){
     const root=document.getElementById('sectionMailRental'); if(!root)return;
     root.querySelectorAll('[data-service]').forEach(x=>x.classList.toggle('active',x.dataset.service===state.service));
     root.querySelectorAll('[data-days]').forEach(x=>x.classList.toggle('active',Number(x.dataset.days)===state.days));
-    updateSummary(); renderCurrent();
+    updateSummary(); renderCurrent();renderHistory();
   }
   async function loadState(){
     await loadPlans();
@@ -175,6 +184,7 @@
       state.rentals=[];state.rental=null;state.services=[];
       showMsg('Chưa tải được Mail','Cần cài SQL V28.8.13 để hiển thị đầy đủ mail đang thuê.');
     }
+    try{const h=await _supabase.rpc('nk_get_my_mail_rental_history');state.history=h.error?[]:(h.data?.history||[]);}catch(_){state.history=[];}
     renderAll();
   }
   function makeRequestId(service=state.service,days=state.days,mode='rent'){
