@@ -9664,7 +9664,9 @@ window.fetchOtpLink=async function(btnEl){
     var data;
 
     if(isParallelIcloudEmail(normalized)){
-      data=await fetchFirstValidParallel(normalized);
+      // Only the guarded public endpoint may handle public iCloud lookup.
+      // Active rentals must use the authenticated rental OTP button.
+      data=await fetchLegacyOtp(normalized);
     }else if(isNkStoreDomainEmail(normalized)){
       data=await fetchNkStoreDomainMail(normalized);
     }else{
@@ -9679,7 +9681,8 @@ window.fetchOtpLink=async function(btnEl){
   }catch(e){
     var msg='Không thể kết nối server hoặc chưa có OTP/link hợp lệ.';
     var code=e&&e.code?String(e.code):'';
-    if(e&&e.message==='LOGIN_REQUIRED') msg='Nguồn iCloud yêu cầu đăng nhập; nguồn OTP cũ cũng chưa có kết quả.';
+    if(code==='RENTAL_OTP_PROTECTED'||e&&e.status===403) msg='Mail đang được thuê. Hãy vào mục Thuê Mail, chọn đúng Mail và dịch vụ để lấy OTP.';
+    else if(e&&e.message==='LOGIN_REQUIRED') msg='Nguồn iCloud yêu cầu đăng nhập; nguồn OTP cũ cũng chưa có kết quả.';
     else if(code==='UNAUTHORIZED'||(e&&e.status===401)) msg='Phiên đăng nhập không được /api/mail xác thực. Hãy đăng xuất rồi đăng nhập lại.';
     else if(code==='MISSING_ICLOUD_ENV') msg='Vercel đang thiếu ICLOUD_USER hoặc ICLOUD_APP_PASSWORD cho project hiện tại.';
     else if(code==='INVALID_DOMAIN') msg='/api/mail đang là bản cũ hoặc chưa cho phép email @icloud.com. Hãy thay api/mail.js MAIL-1.4.2+.';
