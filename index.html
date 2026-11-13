@@ -802,7 +802,7 @@ input,textarea,select{border-radius:14px!important;background:#fbfcfe!important;
             <button class="sub-tab-btn active" id="tabShopee" onclick="switchCategory('Shopee')">Shopee</button>
             <button class="sub-tab-btn" id="tabFacebook" onclick="switchCategory('Facebook')">Facebook</button>
             <button class="sub-tab-btn" id="tabGmail" onclick="switchCategory('Gmail')">Gmail</button>
-            <button class="sub-tab-btn" id="tabICloud" onclick="switchCategory('iCloud')">iCloud</button>
+            
             <button class="sub-tab-btn" id="tabTiktok" onclick="switchCategory('TikTok')">TikTok</button>
             <button class="sub-tab-btn" id="tabMyAcc" onclick="switchCategory('my')">📦 Đã Mua</button>
         </div>
@@ -2021,6 +2021,7 @@ async function logout() {
 ============================================================ */
 
 function switchCategory(cat) {
+    if (cat === 'iCloud') cat = 'Shopee';
 
     currentCategory = cat;
 
@@ -2092,6 +2093,7 @@ function switchCategory(cat) {
 ============================================================ */
 
 async function loadStoreData() {
+    if (currentCategory === 'iCloud') currentCategory = 'Shopee';
 
     if (
         currentCategory !== 'my'
@@ -10672,5 +10674,36 @@ window.showNkOrderDetail=function(orderId){
 <!-- NK MMO Store V28.8.10 - Mail Rental + Copy Mail + Renew Mail + Hobby Fix -->
 <script src="/mail-rental-v28.8.10.js"></script>
 
+<script>
+(function(){
+  let busy=false,last=0;
+  function ensure(){
+    const sec=document.getElementById('sectionMailRental');if(!sec)return null;
+    let el=document.getElementById('nkrStockCounts');
+    if(!el){
+      el=document.createElement('div');el.id='nkrStockCounts';
+      el.style.cssText='margin:12px 0;padding:13px 15px;border:1px solid #dbe9e2;border-radius:16px;background:#f5fbf7;color:#254b39;font-size:13px;line-height:1.8';
+      el.innerHTML='<strong>📦 Kho Mail còn lại</strong><div id="nkrStockDetails">Đang tải số lượng...</div>';
+      const btn=sec.querySelector('#nkrRent');if(btn)btn.insertAdjacentElement('beforebegin',el);else sec.prepend(el);
+    }return el;
+  }
+  async function refresh(force){
+    if(!ensure()||busy||(!force&&Date.now()-last<30000)||typeof _supabase==='undefined')return;
+    busy=true;last=Date.now();
+    try{
+      const {data,error}=await _supabase.rpc('nk_mail_rental_stock_counts');if(error)throw error;
+      const c=Object.fromEntries((data||[]).map(x=>[x.service,Number(x.available_mails)||0]));
+      document.getElementById('nkrStockDetails').textContent='Shopee: '+(c.shopee??0)+' mail  ·  Facebook: '+(c.facebook??0)+' mail  ·  TikTok: '+(c.tiktok??0)+' mail';
+    }catch(e){
+      document.getElementById('nkrStockDetails').textContent='Chưa tải được số lượng kho. Cần cài SQL đếm kho.';
+      console.warn('Stock count unavailable',e);
+    }finally{busy=false;}
+  }
+  function tick(){const s=document.getElementById('sectionMailRental');if(s&&s.classList.contains('active-section'))refresh(false);}
+  document.addEventListener('click',e=>{if(e.target.closest('#navBtnMailRental,#nkrRent,[data-renew-days]'))setTimeout(()=>refresh(true),1000);});
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>{ensure();tick();});else{ensure();tick();}
+  setInterval(tick,30000);
+})();
+</script>
 </body>
 </html>
