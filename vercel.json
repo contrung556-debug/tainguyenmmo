@@ -6,10 +6,6 @@
   },
   "rewrites": [
     {
-      "source": "/api/otp",
-      "destination": "https://script.google.com/macros/s/AKfycbwk0RSNFUrzaU7nSlNgAgazt3BWUNR-meYBYvJcSkJIFxQe4XiDfGd3FsfcSTWzOLk/exec"
-    },
-    {
       "source": "/api/order",
       "destination": "https://script.google.com/macros/s/AKfycbwfh7SpDpYultxLSJnjwLts6FFf1bKUJxkUllXptCWUDNaPB99Rdp8qktyVlsEwa0liDA/exec"
     },
