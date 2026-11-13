@@ -121,6 +121,7 @@
     const root=document.getElementById('sectionMailRental'); if(!root)return;
     const s=SERVICES[state.service];
     const n=root.querySelector('#nkrSumService'); if(n)n.textContent=s.name;
+    const summaryIcon=root.querySelector('.nkr-service-value .nkr-logo');if(summaryIcon)summaryIcon.outerHTML=serviceIcon(state.service,true);
     const d=root.querySelector('#nkrSumDays'); if(d)d.textContent=state.days+' ngày';
     const p=currentPlan();
     const visiblePrice=Number(p?.price_vnd||DEFAULT_PRICES[state.days]||0);
