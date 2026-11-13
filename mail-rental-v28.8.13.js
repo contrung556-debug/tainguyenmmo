@@ -266,7 +266,7 @@
       clearRequestKey(req.key);state.renewService=null;
       await loadState();
       if(typeof window.updateAuthUI==='function')await window.updateAuthUI();
-      showMsg('Gia hạn thành công',SERVICES[service].name+' +'+days+' ngày\\nMail: '+data.email+'\\nHạn mới: '+fmtDate(data.service_expires_at)+'\\nSố dư: '+fmtMoney(data.balance));
+      showMsg('Gia hạn thành công',SERVICES[service].name+' +'+days+' ngày\nMail: '+data.email+'\nHạn mới: '+fmtDate(data.service_expires_at)+'\nSố dư: '+fmtMoney(data.balance));
     }catch(e){showMsg('Không thể gia hạn',e.message||'Có lỗi xảy ra.');}
     finally{state.busy=false;if(btn){btn.disabled=false;btn.innerHTML=old;}}
   }
