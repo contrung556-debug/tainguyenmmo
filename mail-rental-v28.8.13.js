@@ -181,9 +181,13 @@
       state.rental=state.rentals[0]||null;
       state.services=state.rental?.services||[];
     }catch(e){
+      state.rentals=[];state.rental=null;state.services=[];state.history=[];
+      if(e?.code==='LOGIN_REQUIRED'){
+        renderAll();
+        return showMsg('Vui lòng đăng nhập','Vui lòng đăng nhập để xem số lượng kho.');
+      }
       console.warn('Cannot load all mail rentals',e);
-      state.rentals=[];state.rental=null;state.services=[];
-      showMsg('Chưa tải được Mail','Cần cài SQL V28.8.13 để hiển thị đầy đủ mail đang thuê.');
+      showMsg('Chưa tải được Mail','Không thể tải danh sách Mail đang thuê. Vui lòng thử lại.');
     }
     try{const h=await _supabase.rpc('nk_get_my_mail_rental_history');state.history=h.error?[]:(h.data?.history||[]);}catch(_){state.history=[];}
     renderAll();
