@@ -10695,11 +10695,16 @@ window.showNkOrderDetail=function(orderId){
     if(!ensure()||busy||(!force&&Date.now()-last<30000)||typeof _supabase==='undefined')return;
     busy=true;last=Date.now();
     try{
+      const session=await _supabase.auth.getSession();
+      if(!session?.data?.session?.access_token){
+        document.getElementById('nkrStockDetails').textContent='Vui lòng đăng nhập để xem số lượng kho.';
+        return;
+      }
       const {data,error}=await _supabase.rpc('nk_mail_rental_stock_counts');if(error)throw error;
       const c=Object.fromEntries((data||[]).map(x=>[x.service,Number(x.available_mails)||0]));
       document.getElementById('nkrStockDetails').textContent='Shopee: '+(c.shopee??0)+' mail  ·  Facebook: '+(c.facebook??0)+' mail  ·  TikTok: '+(c.tiktok??0)+' mail';
     }catch(e){
-      document.getElementById('nkrStockDetails').textContent='Chưa tải được số lượng kho. Cần cài SQL đếm kho.';
+      document.getElementById('nkrStockDetails').textContent='Không thể tải số lượng kho. Vui lòng thử lại.';
       console.warn('Stock count unavailable',e);
     }finally{busy=false;}
   }
