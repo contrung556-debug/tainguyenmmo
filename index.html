@@ -10380,7 +10380,34 @@ function dpGetCode(){
     return u ? ('NK ' + u) : '';
 }
 function dpFillCode(){
-    document.querySelectorAll('#dpOverlay .dp-code').forEach(function(el){ el.textContent = dpGetCode(); });
+    var code = dpGetCode();
+    document.querySelectorAll('#dpOverlay .dp-code').forEach(function(el){ el.textContent = code || 'Vui lòng đăng nhập'; });
+
+    // VietQR includes the beneficiary account and the exact member deposit note.
+    // No amount is imposed: the customer enters how much to top up in their bank app.
+    var qrImg = document.querySelector('#dpOverlay .dp-qb img');
+    var qrLink = document.querySelector('#dpOverlay .dp-dl');
+    if(!qrImg || !qrLink) return;
+    if(!code){
+        qrImg.removeAttribute('src');
+        qrImg.style.display = 'none';
+        qrLink.removeAttribute('href');
+        qrLink.style.pointerEvents = 'none';
+        qrLink.style.opacity = '.5';
+        return;
+    }
+    var url = 'https://img.vietqr.io/image/970422-0972950246-compact.png'
+        + '?addInfo=' + encodeURIComponent(code)
+        + '&accountName=' + encodeURIComponent('HO DAC CUONG');
+    qrImg.src = url;
+    qrImg.style.display = 'block';
+    qrImg.alt = 'VietQR MB Bank - nội dung chuyển khoản: ' + code;
+    qrLink.href = url;
+    qrLink.target = '_blank';
+    qrLink.rel = 'noopener noreferrer';
+    qrLink.removeAttribute('download');
+    qrLink.style.pointerEvents = '';
+    qrLink.style.opacity = '';
 }
 async function dpLoadPayCode(){
     try{
