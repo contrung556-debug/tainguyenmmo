@@ -358,7 +358,8 @@ async function authorize(req) {
   const authHeader = String(req.headers.authorization || '');
   const match = authHeader.match(/^Bearer\s+(.+)$/i);
   const token = match?.[1]?.trim();
-  if (!token) return { ok: false, error: 'UNAUTHORIZED' };
+  // No login needed for public lookup of never-rented mail (checked in resolveRentalAccess).
+  if (!token) return { ok: true, type: 'anonymous', user: null };
 
   try {
     const { data, error } = await supabaseAuth.auth.getUser(token);
@@ -380,17 +381,6 @@ async function resolveRentalAccess(auth, targetEmail, requestedService, requeste
   // Personal IMAP access for non-rental iCloud email, no rental order required.
   // An authenticated mailbox owner must be explicitly allowlisted server-side.
   if (!requestedRentalId) {
-    const approvedIds = String(
-      process.env.MAIL_OWNER_USER_IDS || process.env.MAIL_UNRENTED_ACCESS_USER_IDS || ''
-    ).split(',').map((id) => id.trim()).filter(Boolean);
-    // Existing signed-in iCloud mailbox owner can use this without a new
-    // Vercel allowlist variable. Other explicitly approved users still work.
-    const mailboxLogin = normalize(process.env.ICLOUD_USER);
-    const isMailboxOwner = !!mailboxLogin && normalize(auth.user?.email) === mailboxLogin;
-    if (auth.type !== 'supabase' || !auth.user?.id ||
-        (!isMailboxOwner && !approvedIds.includes(auth.user.id))) {
-      const err = new Error('UNRENTED_MAIL_ACCESS_DENIED'); err.status = 403; throw err;
-    }
 
     // Check ALL rental history, not only active rentals. An expired or returned
     // address remains permanently blocked from the personal OTP lookup page.
