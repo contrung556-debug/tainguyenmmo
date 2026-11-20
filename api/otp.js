@@ -1,6 +1,5 @@
-// NK MMO Store: guarded public OTP endpoint.
-// Public lookup must not expose an active iCloud rental's messages.
-// Rental owners use /api/mail with authenticated rental_id and service.
+// NK MMO Store: public OTP endpoint (no login).
+// Any email that has EVER been rented is blocked here permanently; use the rental page instead.
 const { createClient } = require('@supabase/supabase-js');
 const UPSTREAM = 'https://script.google.com/macros/s/AKfycbwk0RSNFUrzaU7nSlNgAgazt3BWUNR-meYBYvJcSkJIFxQe4XiDfGd3FsfcSTWzOLk/exec';
 const SUPABASE_URL = process.env.SUPABASE_URL || 'https://hsdbjzkxbdezysxwwtaw.supabase.co';
@@ -11,17 +10,30 @@ module.exports = async function handler(req,res) {
   res.setHeader('Cache-Control','no-store, private, max-age=0');
   if(req.method!=='GET') return res.status(405).json({status:'error',error:'METHOD_NOT_ALLOWED'});
   const input = String(req.query?.hide || '').trim().toLowerCase();
-  // Reject ambiguous aliases: otherwise a bare username could bypass the rental lookup.
-  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input) || input.length>254)
-    return res.status(400).json({status:'error',error:'FULL_EMAIL_REQUIRED',message:'Hãy nhập địa chỉ email đầy đủ.'});
+  if(!input || input.length>254)
+    return res.status(400).json({status:'error',error:'EMAIL_REQUIRED',message:'Hãy nhập email.'});
 
-  // iCloud OTP must only be read through the authenticated IMAP API.
-  // Never route iCloud addresses through the public legacy Apps Script.
-  if (input.endsWith('@icloud.com')) {
-    return res.status(403).json({
-      status: 'error', error: 'ICLOUD_IMAP_REQUIRED',
-      message: 'Hãy đăng nhập và dùng chức năng IMAP iCloud được cấp quyền hoặc đơn thuê hợp lệ.'
-    });
+  // Block every email that appears in rental history (active, expired or returned).
+  if (!admin) {
+    console.error('OTP_MISSING_SUPABASE_SERVICE_ROLE_KEY');
+    return res.status(503).json({status:'error',error:'OTP_RENTAL_CHECK_FAILED'});
+  }
+  try {
+    const { data, error } = await admin
+      .from('mail_rentals')
+      .select('id')
+      .eq('email', input)
+      .limit(1);
+    if (error) throw error;
+    if (data?.length) {
+      return res.status(403).json({
+        status: 'error', error: 'RENTAL_EMAIL',
+        message: 'Email này là mail thuê, không lấy OTP tại đây. Hãy lấy ở trang thuê mail.'
+      });
+    }
+  } catch (err) {
+    console.error('OTP_RENTAL_CHECK_ERROR', err?.message || err);
+    return res.status(503).json({status:'error',error:'OTP_RENTAL_CHECK_FAILED'});
   }
 
   try {
