@@ -377,26 +377,28 @@ async function resolveRentalAccess(auth, targetEmail, requestedService, requeste
     const err = new Error('MISSING_SUPABASE_SERVICE_ROLE_KEY'); err.status = 500; throw err;
   }
 
-  // Non-rental iCloud lookup is restricted to explicitly approved operators.
-  // A public email address alone must never grant access to a mailbox.
+  // Personal IMAP access for non-rental iCloud email, no rental order required.
+  // An authenticated mailbox owner must be explicitly allowlisted server-side.
   if (!requestedRentalId) {
-    const approvedIds = String(process.env.MAIL_UNRENTED_ACCESS_USER_IDS || '')
-      .split(',').map((id) => id.trim()).filter(Boolean);
+    const approvedIds = String(
+      process.env.MAIL_OWNER_USER_IDS || process.env.MAIL_UNRENTED_ACCESS_USER_IDS || ''
+    ).split(',').map((id) => id.trim()).filter(Boolean);
     if (auth.type !== 'supabase' || !auth.user?.id || !approvedIds.includes(auth.user.id)) {
       const err = new Error('UNRENTED_MAIL_ACCESS_DENIED'); err.status = 403; throw err;
     }
-    const { data: activeRentals, error: checkError } = await supabaseAdmin
+
+    // Check ALL rental history, not only active rentals. An expired or returned
+    // address remains permanently blocked from the personal OTP lookup page.
+    const { data: everRented, error: historyError } = await supabaseAdmin
       .from('mail_rentals')
       .select('id')
-      .eq('email', targetEmail)
-      .eq('status', 'active')
-      .gt('expires_at', new Date().toISOString())
+      .ilike('email', targetEmail)
       .limit(1);
-    if (checkError) throw checkError;
-    if (activeRentals?.length) {
+    if (historyError) throw historyError; // Fail closed if history is unavailable.
+    if (everRented?.length) {
       const err = new Error('RENTAL_OTP_PROTECTED'); err.status = 403; throw err;
     }
-    return { enforced: false, operatorAccess: true };
+    return { enforced: false, personalAccess: true };
   }
 
   // A physical iCloud address can have multiple rental owners on different services.
@@ -1029,9 +1031,9 @@ module.exports = async function handler(req, res) {
         : accessError.message === 'SERVICE_REQUIRED'
         ? 'Mail \u0111ang \u0111\u01B0\u1EE3c thu\u00EA. H\u00E3y ch\u1ECDn \u0111\u00FAng d\u1ECBch v\u1EE5 \u0111\u00E3 thu\u00EA.'
         : accessError.message === 'UNRENTED_MAIL_ACCESS_DENIED'
-        ? 'Chỉ tài khoản quản trị được cấp quyền mới có thể xem OTP iCloud ngoài luồng thuê.'
+        ? 'Tài khoản này chưa được cấp quyền truy cập kho email cá nhân.'
         : accessError.message === 'RENTAL_OTP_PROTECTED'
-        ? 'Email đang có phiên thuê. Hãy lấy OTP trong đúng đơn thuê và dịch vụ.'
+        ? 'Email đã từng được thuê nên không thể lấy OTP tại trang thông thường. Hãy sử dụng đúng đơn thuê và dịch vụ còn hiệu lực.'
         : accessError.message === 'RENTAL_NOT_OWNER'
         ? 'Mail n\u00E0y \u0111ang thu\u1ED9c phi\u00EAn thu\u00EA c\u1EE7a ng\u01B0\u1EDDi d\u00F9ng kh\u00E1c.'
         : accessError.message,
