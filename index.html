@@ -9681,8 +9681,8 @@ window.fetchOtpLink=async function(btnEl){
   }catch(e){
     var msg='Không thể kết nối server hoặc chưa có OTP/link hợp lệ.';
     var code=e&&e.code?String(e.code):'';
-    if(code==='RENTAL_OTP_PROTECTED') msg='Mail đang được thuê. Hãy vào Thuê Mail và chọn đúng đơn, dịch vụ để lấy OTP.';
-    else if(code==='UNRENTED_MAIL_ACCESS_DENIED') msg='Bạn cần đăng nhập bằng tài khoản quản trị được cấp quyền để lấy OTP iCloud ngoài luồng thuê.';
+    if(code==='RENTAL_OTP_PROTECTED') msg='Email này đã từng được thuê, nên không thể lấy OTP tại đây. Chỉ dùng đơn thuê hợp lệ và đúng dịch vụ.';
+    else if(code==='UNRENTED_MAIL_ACCESS_DENIED') msg='Hãy đăng nhập bằng tài khoản đã được cấp quyền truy cập kho email cá nhân, không cần thuê mail.';
     else if(e&&e.status===403) msg='Không có quyền lấy OTP của email này.';
     else if(e&&e.message==='LOGIN_REQUIRED') msg='Nguồn iCloud yêu cầu đăng nhập; nguồn OTP cũ cũng chưa có kết quả.';
     else if(code==='UNAUTHORIZED'||(e&&e.status===401)) msg='Phiên đăng nhập không được /api/mail xác thực. Hãy đăng xuất rồi đăng nhập lại.';
