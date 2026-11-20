@@ -15,22 +15,15 @@ module.exports = async function handler(req,res) {
   if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input) || input.length>254)
     return res.status(400).json({status:'error',error:'FULL_EMAIL_REQUIRED',message:'Hãy nhập địa chỉ email đầy đủ.'});
 
-  if(input.endsWith('@icloud.com')) {
-    if(!admin) return res.status(503).json({status:'error',error:'RENTAL_CHECK_UNAVAILABLE'});
-    try {
-      const {data,error} = await admin.from('mail_rentals')
-        .select('id').eq('email',input).eq('status','active')
-        .gt('expires_at',new Date().toISOString()).limit(1);
-      if(error) throw error;
-      if(data?.length) return res.status(403).json({
-        status:'error',error:'RENTAL_OTP_PROTECTED',
-        message:'Email này đang được thuê. Vào Thuê Mail, chọn đúng đơn và dịch vụ để lấy OTP.'
-      });
-    } catch(err) {
-      console.error('OTP_RENTAL_GATE_ERROR',err?.message || err);
-      return res.status(503).json({status:'error',error:'RENTAL_CHECK_UNAVAILABLE'});
-    }
+  // iCloud OTP must only be read through the authenticated IMAP API.
+  // Never route iCloud addresses through the public legacy Apps Script.
+  if (input.endsWith('@icloud.com')) {
+    return res.status(403).json({
+      status: 'error', error: 'ICLOUD_IMAP_REQUIRED',
+      message: 'Hãy đăng nhập và dùng chức năng IMAP iCloud được cấp quyền hoặc đơn thuê hợp lệ.'
+    });
   }
+
   try {
     const u=new URL(UPSTREAM);
     u.searchParams.set('hide',input);
