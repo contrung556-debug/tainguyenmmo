@@ -3,9 +3,9 @@
 // Rental owners use /api/mail with authenticated rental_id and service.
 const { createClient } = require('@supabase/supabase-js');
 const UPSTREAM = 'https://script.google.com/macros/s/AKfycbwk0RSNFUrzaU7nSlNgAgazt3BWUNR-meYBYvJcSkJIFxQe4XiDfGd3FsfcSTWzOLk/exec';
-const URL = process.env.SUPABASE_URL || 'https://hsdbjzkxbdezysxwwtaw.supabase.co';
+const SUPABASE_URL = process.env.SUPABASE_URL || 'https://hsdbjzkxbdezysxwwtaw.supabase.co';
 const KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
-const admin = KEY ? createClient(URL, KEY, { auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false} }) : null;
+const admin = KEY ? createClient(SUPABASE_URL, KEY, { auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false} }) : null;
 
 module.exports = async function handler(req,res) {
   res.setHeader('Cache-Control','no-store, private, max-age=0');
