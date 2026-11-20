@@ -383,7 +383,12 @@ async function resolveRentalAccess(auth, targetEmail, requestedService, requeste
     const approvedIds = String(
       process.env.MAIL_OWNER_USER_IDS || process.env.MAIL_UNRENTED_ACCESS_USER_IDS || ''
     ).split(',').map((id) => id.trim()).filter(Boolean);
-    if (auth.type !== 'supabase' || !auth.user?.id || !approvedIds.includes(auth.user.id)) {
+    // Existing signed-in iCloud mailbox owner can use this without a new
+    // Vercel allowlist variable. Other explicitly approved users still work.
+    const mailboxLogin = normalize(process.env.ICLOUD_USER);
+    const isMailboxOwner = !!mailboxLogin && normalize(auth.user?.email) === mailboxLogin;
+    if (auth.type !== 'supabase' || !auth.user?.id ||
+        (!isMailboxOwner && !approvedIds.includes(auth.user.id))) {
       const err = new Error('UNRENTED_MAIL_ACCESS_DENIED'); err.status = 403; throw err;
     }
 
@@ -392,7 +397,7 @@ async function resolveRentalAccess(auth, targetEmail, requestedService, requeste
     const { data: everRented, error: historyError } = await supabaseAdmin
       .from('mail_rentals')
       .select('id')
-      .ilike('email', targetEmail)
+      .eq('email', targetEmail)
       .limit(1);
     if (historyError) throw historyError; // Fail closed if history is unavailable.
     if (everRented?.length) {
