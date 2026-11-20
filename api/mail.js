@@ -377,6 +377,28 @@ async function resolveRentalAccess(auth, targetEmail, requestedService, requeste
     const err = new Error('MISSING_SUPABASE_SERVICE_ROLE_KEY'); err.status = 500; throw err;
   }
 
+  // Non-rental iCloud lookup is restricted to explicitly approved operators.
+  // A public email address alone must never grant access to a mailbox.
+  if (!requestedRentalId) {
+    const approvedIds = String(process.env.MAIL_UNRENTED_ACCESS_USER_IDS || '')
+      .split(',').map((id) => id.trim()).filter(Boolean);
+    if (auth.type !== 'supabase' || !auth.user?.id || !approvedIds.includes(auth.user.id)) {
+      const err = new Error('UNRENTED_MAIL_ACCESS_DENIED'); err.status = 403; throw err;
+    }
+    const { data: activeRentals, error: checkError } = await supabaseAdmin
+      .from('mail_rentals')
+      .select('id')
+      .eq('email', targetEmail)
+      .eq('status', 'active')
+      .gt('expires_at', new Date().toISOString())
+      .limit(1);
+    if (checkError) throw checkError;
+    if (activeRentals?.length) {
+      const err = new Error('RENTAL_OTP_PROTECTED'); err.status = 403; throw err;
+    }
+    return { enforced: false, operatorAccess: true };
+  }
+
   // A physical iCloud address can have multiple rental owners on different services.
   // Never resolve ownership by email alone and NEVER fall through to unrestricted OTP.
   const id = Number(requestedRentalId);
@@ -1006,6 +1028,10 @@ module.exports = async function handler(req, res) {
         ? 'B\u1EA1n ch\u01B0a thu\u00EA d\u1ECBch v\u1EE5 n\u00E0y cho mail hi\u1EC7n t\u1EA1i.'
         : accessError.message === 'SERVICE_REQUIRED'
         ? 'Mail \u0111ang \u0111\u01B0\u1EE3c thu\u00EA. H\u00E3y ch\u1ECDn \u0111\u00FAng d\u1ECBch v\u1EE5 \u0111\u00E3 thu\u00EA.'
+        : accessError.message === 'UNRENTED_MAIL_ACCESS_DENIED'
+        ? 'Chỉ tài khoản quản trị được cấp quyền mới có thể xem OTP iCloud ngoài luồng thuê.'
+        : accessError.message === 'RENTAL_OTP_PROTECTED'
+        ? 'Email đang có phiên thuê. Hãy lấy OTP trong đúng đơn thuê và dịch vụ.'
         : accessError.message === 'RENTAL_NOT_OWNER'
         ? 'Mail n\u00E0y \u0111ang thu\u1ED9c phi\u00EAn thu\u00EA c\u1EE7a ng\u01B0\u1EDDi d\u00F9ng kh\u00E1c.'
         : accessError.message,
